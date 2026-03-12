@@ -11,6 +11,9 @@ fi
 rm -rf dist
 mkdir -p dist
 
+# Prevent Jekyll processing on GitHub Pages
+touch dist/.nojekyll
+
 # Collect game directories
 games=()
 for dir in */; do
