@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:zip": "node scripts/make-zip.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {
