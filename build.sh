@@ -14,11 +14,15 @@ mkdir -p dist
 # Prevent Jekyll processing on GitHub Pages
 touch dist/.nojekyll
 
+# Games excluded from the index page (e.g. published on itch.io)
+EXCLUDE="neon-sweep"
+
 # Collect game directories
 games=()
 for dir in */; do
-  if [ -f "${dir}package.json" ] && [ -f "${dir}index.html" ]; then
-    games+=("${dir%/}")
+  name="${dir%/}"
+  if [ -f "${dir}package.json" ] && [ -f "${dir}index.html" ] && ! echo "$EXCLUDE" | grep -qw "$name"; then
+    games+=("$name")
   fi
 done
 
