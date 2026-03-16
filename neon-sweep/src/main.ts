@@ -2,6 +2,7 @@ import { InputState, Direction, DebugInfo } from './types';
 import {
   createGameState, update, render, computeLayout, computeVirtualControls,
   renderVirtualControls, getDebugInfo, RenderContext, VirtualControls,
+  handleLangButtonClick,
 } from './game';
 
 // ---- Canvas Setup ----
@@ -100,6 +101,9 @@ canvas.addEventListener('pointerdown', (e) => {
   vc = computeVirtualControls(canvas);
   const px = e.clientX;
   const py = e.clientY;
+
+  // Language toggle button
+  if (handleLangButtonClick(canvas, px, py)) return;
 
   if (state.scene === 'title' || state.scene === 'gameOver') {
     input.action = true;

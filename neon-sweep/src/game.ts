@@ -8,6 +8,7 @@ import {
   hexToRgba, dirOffset, easeOutQuad, easeOutCubic, easeOutBounce,
   randInt, randFloat, randPanelColor, shuffle, lerp, clamp,
 } from './utils';
+import { T, toggleLang, toggleLabel } from './lang';
 
 // ---- Constants ----
 
@@ -631,7 +632,57 @@ export function render(rc: RenderContext, state: GameState): void {
       break;
   }
 
+  // Language toggle button (drawn outside shake transform)
   ctx.restore();
+  renderLangButton(rc);
+}
+
+// ---- Language Toggle Button ----
+
+const LANG_BTN_W = 48;
+const LANG_BTN_H = 28;
+const LANG_BTN_MARGIN = 10;
+
+function getLangBtnRect(canvas: HTMLCanvasElement): { x: number; y: number; w: number; h: number } {
+  return {
+    x: canvas.width - LANG_BTN_W - LANG_BTN_MARGIN,
+    y: LANG_BTN_MARGIN,
+    w: LANG_BTN_W,
+    h: LANG_BTN_H,
+  };
+}
+
+function renderLangButton(rc: RenderContext): void {
+  const { ctx, canvas } = rc;
+  const btn = getLangBtnRect(canvas);
+
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#222';
+  drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  drawRoundedRect(ctx, btn.x, btn.y, btn.w, btn.h, 6);
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold 14px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(toggleLabel(), btn.x + btn.w / 2, btn.y + btn.h / 2);
+  ctx.restore();
+}
+
+/** Returns true if the pointer hit the lang button and toggled the language. */
+export function handleLangButtonClick(canvas: HTMLCanvasElement, px: number, py: number): boolean {
+  const btn = getLangBtnRect(canvas);
+  if (px >= btn.x && px <= btn.x + btn.w && py >= btn.y && py <= btn.y + btn.h) {
+    toggleLang();
+    return true;
+  }
+  return false;
 }
 
 function renderTitle(rc: RenderContext, _state: GameState): void {
@@ -667,19 +718,11 @@ function renderTitle(rc: RenderContext, _state: GameState): void {
   // Section: Rules
   ctx.font = `bold ${headFs}px monospace`;
   ctx.fillStyle = '#ffff00';
-  ctx.fillText('- 遊び方 -', cx, baseY);
+  ctx.fillText(T.howToPlay, cx, baseY);
 
   ctx.font = `${bodyFs}px monospace`;
   ctx.fillStyle = '#ccc';
-  const rules = [
-    'グリッド上を移動してパネルを配置します',
-    '同じ色のパネルで別の色を「挟む」と',
-    '挟まれたパネルが全て消えます（オセロ式）',
-    '',
-    '消去中のパネルは約2秒かけて消えます',
-    'その間に別のサンドイッチを決めると',
-    'チェインコンボ発生！大量ボーナス！',
-  ];
+  const rules = T.rules;
   rules.forEach((line, i) => {
     ctx.fillStyle = line === '' ? '#ccc' : (i >= 4 ? '#ff88ff' : '#ccc');
     ctx.fillText(line, cx, baseY + lineH * (i + 1.5));
@@ -689,14 +732,11 @@ function renderTitle(rc: RenderContext, _state: GameState): void {
   const ctrlY = baseY + lineH * (rules.length + 2.5);
   ctx.font = `bold ${headFs}px monospace`;
   ctx.fillStyle = '#00ff80';
-  ctx.fillText('- 操作方法 -', cx, ctrlY);
+  ctx.fillText(T.controls, cx, ctrlY);
 
   ctx.font = `${bodyFs}px monospace`;
   ctx.fillStyle = '#ccc';
-  const controls = [
-    '移動 : 矢印キー / WASD / 十字ボタン',
-    '配置 : Space / Z / Enter / Aボタン',
-  ];
+  const controls = T.controlsList;
   controls.forEach((line, i) => {
     ctx.fillText(line, cx, ctrlY + lineH * (i + 1.5));
   });
@@ -705,15 +745,11 @@ function renderTitle(rc: RenderContext, _state: GameState): void {
   const tipY = ctrlY + lineH * (controls.length + 2.5);
   ctx.font = `bold ${headFs}px monospace`;
   ctx.fillStyle = '#ff8800';
-  ctx.fillText('- コツ -', cx, tipY);
+  ctx.fillText(T.tips, cx, tipY);
 
   ctx.font = `${bodyFs}px monospace`;
   ctx.fillStyle = '#ccc';
-  const tips = [
-    'パネルは時間で増えます。埋まるとゲームオーバー！',
-    '消去中のパネルも挟む端として使えます',
-    'チェインを繋げて高得点を狙おう！',
-  ];
+  const tips = T.tipsList;
   tips.forEach((line, i) => {
     ctx.fillText(line, cx, tipY + lineH * (i + 1.5));
   });
@@ -724,7 +760,7 @@ function renderTitle(rc: RenderContext, _state: GameState): void {
   ctx.globalAlpha = promptAlpha;
   ctx.font = `bold ${fs(0.045, 24)}px monospace`;
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('タップ / キーを押してスタート', cx, promptY);
+  ctx.fillText(T.startPrompt, cx, promptY);
   ctx.globalAlpha = 1;
 
   ctx.restore();
@@ -1011,12 +1047,12 @@ function renderHUD(rc: RenderContext, state: GameState): void {
   // Score
   ctx.fillStyle = '#00ffff';
   ctx.textAlign = 'left';
-  ctx.fillText(`スコア: ${state.score}`, 10, hudY);
+  ctx.fillText(`${T.score}: ${state.score}`, 10, hudY);
 
   // Cleared count
   ctx.textAlign = 'right';
   ctx.fillStyle = '#00ff80';
-  ctx.fillText(`消去: ${state.clearedCount}`, canvas.width - 10, hudY);
+  ctx.fillText(`${T.cleared}: ${state.clearedCount}`, canvas.width - LANG_BTN_W - LANG_BTN_MARGIN * 2 - 4, hudY);
 
   // Chain indicator - show prominently when chaining
   if (state.chainCount > 1) {
@@ -1082,19 +1118,19 @@ function renderGameOver(rc: RenderContext, state: GameState): void {
   ctx.fillStyle = '#ff3333';
   ctx.shadowColor = '#ff0000';
   ctx.shadowBlur = 20;
-  ctx.fillText('ゲームオーバー', canvas.width / 2, canvas.height / 2 - 40);
+  ctx.fillText(T.gameOver, canvas.width / 2, canvas.height / 2 - 40);
   ctx.shadowBlur = 0;
 
   ctx.font = `${Math.min(canvas.width * 0.045, 24)}px monospace`;
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(`スコア: ${state.score}`, canvas.width / 2, canvas.height / 2 + 10);
-  ctx.fillText(`消去数: ${state.clearedCount}`, canvas.width / 2, canvas.height / 2 + 40);
+  ctx.fillText(`${T.score}: ${state.score}`, canvas.width / 2, canvas.height / 2 + 10);
+  ctx.fillText(`${T.clearedCount}: ${state.clearedCount}`, canvas.width / 2, canvas.height / 2 + 40);
 
   const promptAlpha = 0.5 + 0.5 * Math.sin(rc.time * 4);
   ctx.globalAlpha = promptAlpha;
   ctx.font = `${Math.min(canvas.width * 0.035, 18)}px monospace`;
   ctx.fillStyle = '#aaa';
-  ctx.fillText('タップ / キーでリトライ', canvas.width / 2, canvas.height / 2 + 90);
+  ctx.fillText(T.retryPrompt, canvas.width / 2, canvas.height / 2 + 90);
 
   ctx.restore();
 }
