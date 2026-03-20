@@ -5,7 +5,7 @@ import {
   clamp, randRange, dist,
   ENEMY_RADIUS, ENEMY_SPEED, ENEMY_COLOR,
   POWERUP_COLOR, POWERUP_DURATION,
-  getStageConfig,
+  getStageConfig, speedScale, enemyCountScale, distScale,
 } from './utils';
 
 const SLIME_INIT_RADIUS = 15;
@@ -90,7 +90,10 @@ export function createPlayState(stage: number, bestStage: number): GameState {
     maxRadius: SLIME_INIT_RADIUS,
   };
   // 開始時に食べやすい小さな虫を画面内に配置
-  for (let i = 0; i < 8; i++) {
+  const initSS = speedScale(w, h);
+  const initECS = enemyCountScale(w, h);
+  const initBugCount = Math.round(8 * initECS);
+  for (let i = 0; i < initBugCount; i++) {
     const [rMin, rMax] = ENEMY_RADIUS.bug;
     const radius = randRange(rMin, rMax);
     const margin = 60;
@@ -100,7 +103,7 @@ export function createPlayState(stage: number, bestStage: number): GameState {
     const d = dist(ex, ey, w / 2, h / 2);
     if (d < 80) continue;
     const angle = Math.random() * Math.PI * 2;
-    const spd = randRange(0.8, 1.5);
+    const spd = randRange(0.8, 1.5) * initSS;
     state.enemies.push({
       id: state.nextEnemyId++,
       kind: 'bug',
@@ -140,7 +143,7 @@ function spawnEnemy(state: GameState, w: number, h: number): void {
   else { x = -mg; y = randRange(0, h); }
 
   const angle = Math.atan2(h / 2 - y, w / 2 - x) + randRange(-0.6, 0.6);
-  const spd = ENEMY_SPEED[kind] * randRange(0.8, 1.3);
+  const spd = ENEMY_SPEED[kind] * randRange(0.8, 1.3) * speedScale(w, h);
 
   const enemy: Enemy = {
     id: state.nextEnemyId++,
@@ -162,11 +165,12 @@ function spawnEnemy(state: GameState, w: number, h: number): void {
 function updateEnemy(e: Enemy, slime: SlimeState, w: number, h: number): void {
   e.dirTimer--;
   e.zigzagAngle += 0.12;
+  const ss = speedScale(w, h);
 
   if (e.kind === 'bug') {
     if (e.dirTimer <= 0) {
       const a = Math.random() * Math.PI * 2;
-      const spd = randRange(0.9, 1.8);
+      const spd = randRange(0.9, 1.8) * ss;
       e.vx = Math.cos(a) * spd;
       e.vy = Math.sin(a) * spd;
       e.dirTimer = Math.floor(randRange(30, 80));
@@ -174,7 +178,7 @@ function updateEnemy(e: Enemy, slime: SlimeState, w: number, h: number): void {
   } else if (e.kind === 'bat') {
     if (e.dirTimer <= 0) {
       const a = Math.random() * Math.PI * 2;
-      const spd = randRange(2.2, 3.8);
+      const spd = randRange(2.2, 3.8) * ss;
       e.vx = Math.cos(a) * spd;
       e.vy = Math.sin(a) * spd;
       e.dirTimer = Math.floor(randRange(15, 45));
@@ -182,7 +186,7 @@ function updateEnemy(e: Enemy, slime: SlimeState, w: number, h: number): void {
   } else if (e.kind === 'rat') {
     if (e.dirTimer <= 0) {
       const a = Math.random() * Math.PI * 2;
-      const spd = randRange(1.5, 2.8);
+      const spd = randRange(1.5, 2.8) * ss;
       e.vx = Math.cos(a) * spd;
       e.vy = Math.sin(a) * spd;
       e.dirTimer = Math.floor(randRange(25, 60));
@@ -192,7 +196,7 @@ function updateEnemy(e: Enemy, slime: SlimeState, w: number, h: number): void {
     if (norm > 0) {
       const px = -e.vy / norm;
       const py = e.vx / norm;
-      const zz = Math.sin(e.zigzagAngle) * 1.8;
+      const zz = Math.sin(e.zigzagAngle) * 1.8 * ss;
       e.x += e.vx + px * zz;
       e.y += e.vy + py * zz;
     } else {
@@ -204,7 +208,7 @@ function updateEnemy(e: Enemy, slime: SlimeState, w: number, h: number): void {
   } else if (e.kind === 'goblin') {
     if (e.dirTimer <= 0) {
       const a = Math.random() * Math.PI * 2;
-      const spd = randRange(0.5, 1.1);
+      const spd = randRange(0.5, 1.1) * ss;
       e.vx = Math.cos(a) * spd;
       e.vy = Math.sin(a) * spd;
       e.dirTimer = Math.floor(randRange(60, 130));
@@ -215,7 +219,7 @@ function updateEnemy(e: Enemy, slime: SlimeState, w: number, h: number): void {
     const dy = slime.y - e.y;
     const d = Math.sqrt(dx * dx + dy * dy);
     if (d > 0) {
-      const spd = randRange(1.1, 1.7);
+      const spd = randRange(1.1, 1.7) * ss;
       e.vx = (dx / d) * spd;
       e.vy = (dy / d) * spd;
     }
@@ -382,7 +386,8 @@ export function updateGame(state: GameState, w: number, h: number): GameState {
   const d = Math.sqrt(dx * dx + dy * dy);
   const hasSpeed = state.activeEffects.some(e => e.kind === 'speed');
   const speedMul = clamp(1.0 - (slime.radius - SLIME_INIT_RADIUS) * 0.004, 0.5, 1.0);
-  const spd = BASE_SPEED * speedMul * (hasSpeed ? 1.8 : 1.0);
+  const ss = speedScale(w, h);
+  const spd = BASE_SPEED * ss * speedMul * (hasSpeed ? 1.8 : 1.0);
   if (d > 2) {
     const mv = Math.min(spd, d);
     slime.x += (dx / d) * mv;
@@ -444,8 +449,8 @@ export function updateGame(state: GameState, w: number, h: number): GameState {
         const mdx = slime.x - e.x;
         const mdy = slime.y - e.y;
         const md = Math.sqrt(mdx * mdx + mdy * mdy);
-        if (md > 0 && md < 200) {
-          const pull = 2.0;
+        if (md > 0 && md < 200 * distScale(w, h)) {
+          const pull = 2.0 * speedScale(w, h);
           e.x += (mdx / md) * pull;
           e.y += (mdy / md) * pull;
         }
@@ -453,9 +458,10 @@ export function updateGame(state: GameState, w: number, h: number): GameState {
     }
   }
 
-  // 敵スポーン
+  // 敵スポーン（敵密度を画面サイズに応じてスケール）
+  const scaledMaxEnemies = Math.round(cfg.maxEnemies * enemyCountScale(w, h));
   state.spawnTimer++;
-  if (state.spawnTimer >= cfg.spawnInterval && state.enemies.length < cfg.maxEnemies) {
+  if (state.spawnTimer >= cfg.spawnInterval && state.enemies.length < scaledMaxEnemies) {
     spawnEnemy(state, w, h);
     state.spawnTimer = 0;
   }
