@@ -5,7 +5,7 @@ import {
   clamp, randRange, dist,
   ENEMY_RADIUS, ENEMY_SPEED, ENEMY_COLOR,
   POWERUP_COLOR, POWERUP_DURATION,
-  getStageConfig, GAME_W, GAME_H,
+  getStageConfig,
 } from './utils';
 
 const SLIME_INIT_RADIUS = 15;
@@ -29,9 +29,7 @@ function makeSlime(w: number, h: number): SlimeState {
   };
 }
 
-export function createTitleState(bestStage: number): GameState {
-  const w = GAME_W;
-  const h = GAME_H;
+export function createTitleState(bestStage: number, w: number, h: number): GameState {
   const cfg = getStageConfig(1);
   return {
     screen: 'title',
@@ -60,9 +58,7 @@ export function createTitleState(bestStage: number): GameState {
   };
 }
 
-export function createPlayState(stage: number, bestStage: number): GameState {
-  const w = GAME_W;
-  const h = GAME_H;
+export function createPlayState(stage: number, bestStage: number, w: number, h: number): GameState {
   const cfg = getStageConfig(stage);
   const state: GameState = {
     screen: 'playing',
@@ -351,7 +347,7 @@ export function updateGame(state: GameState, w: number, h: number): GameState {
       const nextStage = state.stage + 1;
       const newBest = Math.max(state.bestStage, state.stage);
       if (nextStage > MAX_STAGE) {
-        const next = createPlayState(MAX_STAGE, newBest);
+        const next = createPlayState(MAX_STAGE, newBest, w, h);
         next.screen = 'allclear';
         next.finalStage = MAX_STAGE;
         next.finalRadius = state.slime.radius;
@@ -359,7 +355,7 @@ export function updateGame(state: GameState, w: number, h: number): GameState {
         spawnFireworks(next, w, h);
         return next;
       }
-      return createPlayState(nextStage, newBest);
+      return createPlayState(nextStage, newBest, w, h);
     }
     return state;
   }
@@ -514,12 +510,12 @@ export function onPointerMove(state: GameState, x: number, y: number): void {
   state.pointerActive = true;
 }
 
-export function onTap(state: GameState): GameState {
+export function onTap(state: GameState, w: number, h: number): GameState {
   if (state.screen === 'title') {
-    return createPlayState(1, state.bestStage);
+    return createPlayState(1, state.bestStage, w, h);
   }
   if (state.screen === 'gameover' || state.screen === 'allclear') {
-    return createTitleState(state.bestStage);
+    return createTitleState(state.bestStage, w, h);
   }
   return state;
 }

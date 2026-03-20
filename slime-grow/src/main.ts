@@ -14,15 +14,31 @@ let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
 
+// 画面の向きに応じた論理解像度を返す
+function logicalSize(): [number, number] {
+  return W >= H ? [GAME_W, GAME_H] : [GAME_H, GAME_W];
+}
+
+let [logW, logH] = logicalSize();
+
 function updateLayout(): void {
   W = window.innerWidth;
   H = window.innerHeight;
   canvas.width = W;
   canvas.height = H;
+
+  const [newLogW, newLogH] = logicalSize();
+  // 向きが変わった場合はゲーム状態をリセット
+  if (newLogW !== logW || newLogH !== logH) {
+    logW = newLogW;
+    logH = newLogH;
+    state = createTitleState(state.bestStage, logW, logH);
+  }
+
   // レターボックス付きでゲーム領域をフィット
-  scale = Math.min(W / GAME_W, H / GAME_H);
-  offsetX = (W - GAME_W * scale) / 2;
-  offsetY = (H - GAME_H * scale) / 2;
+  scale = Math.min(W / logW, H / logH);
+  offsetX = (W - logW * scale) / 2;
+  offsetY = (H - logH * scale) / 2;
 }
 
 updateLayout();
@@ -56,7 +72,7 @@ function saveBest(stage: number): void {
   }
 }
 
-let state: GameState = createTitleState(loadBest());
+let state: GameState = createTitleState(loadBest(), logW, logH);
 
 // Pointer Events（マウス・タッチ統一）
 canvas.addEventListener('pointermove', (e: PointerEvent) => {
@@ -68,10 +84,10 @@ canvas.addEventListener('pointerdown', (e: PointerEvent) => {
   const [lx, ly] = toLogical(e.clientX, e.clientY);
   onPointerMove(state, lx, ly);
   const prevScreen = state.screen;
-  state = onTap(state);
+  state = onTap(state, logW, logH);
   if (prevScreen !== state.screen && state.screen === 'playing') {
     // ゲーム開始時にポインタ位置をキャンバス中央へ
-    onPointerMove(state, GAME_W / 2, GAME_H / 2);
+    onPointerMove(state, logW / 2, logH / 2);
   }
   // ベストステージ保存
   saveBest(state.bestStage);
@@ -84,11 +100,10 @@ canvas.addEventListener('pointerup', () => {
 // ゲームループ
 function loop(): void {
   // ゲームロジックは常に固定解像度で実行
-  state = updateGame(state, GAME_W, GAME_H);
+  state = updateGame(state, logW, logH);
 
   // 画面全体をクリア（レターボックス部分含む）
   ctx.clearRect(0, 0, W, H);
-  // レターボックス背景
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, H);
 
@@ -96,7 +111,7 @@ function loop(): void {
   ctx.save();
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);
-  render(ctx, state, GAME_W, GAME_H);
+  render(ctx, state, logW, logH);
   ctx.restore();
 
   requestAnimationFrame(loop);
