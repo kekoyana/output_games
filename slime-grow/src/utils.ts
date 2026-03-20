@@ -109,26 +109,9 @@ export function getStageConfig(stage: number): StageConfig {
   return STAGE_CONFIGS[clamp(stage - 1, 0, STAGE_CONFIGS.length - 1)];
 }
 
-// 画面サイズに依存しない難易度を実現するためのスケール係数
-// 基準解像度 960x540 を基準に、速度・敵数をスケーリングする
-const REF_W = 960;
-const REF_H = 540;
-const REF_AREA = REF_W * REF_H;
-
-/** 速度スケール: sqrt(面積比) — 移動距離を画面サイズに比例させる */
-export function speedScale(w: number, h: number): number {
-  return Math.sqrt((w * h) / REF_AREA);
-}
-
-/** 敵数スケール: 面積比 — 敵密度を一定に保つ */
-export function enemyCountScale(w: number, h: number): number {
-  return (w * h) / REF_AREA;
-}
-
-/** 距離スケール（マグネット範囲など）: speedScaleと同じ */
-export function distScale(w: number, h: number): number {
-  return Math.sqrt((w * h) / REF_AREA);
-}
+// 固定論理解像度 — ゲームロジックは常にこのサイズで動作する
+export const GAME_W = 960;
+export const GAME_H = 540;
 
 export function slimeBodyColor(radius: number, pulse: number): string {
   const t = clamp((radius - 15) / 55, 0, 1);
