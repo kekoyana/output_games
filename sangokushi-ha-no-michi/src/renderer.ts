@@ -1,4 +1,4 @@
-import type { GameState, MapNode, Die, Rect } from './types';
+import type { GameState, MapNode, Die, Rect, DiceFace } from './types';
 import {
   drawRoundRect,
   drawButton,
@@ -17,13 +17,43 @@ import {
   FACTION_NAMES,
   HERO_DEFS,
 } from './data';
+import { canActivateSkill, calcSlotValue } from './battle';
 
 const BG_COLOR = '#1a1a2e';
-const PANEL_BG = '#f5e6c8';
 const PANEL_BORDER = '#8b6914';
 const TEXT_DARK = '#2c1810';
 const TEXT_LIGHT = '#f5e6c8';
 const GOLD_COLOR = '#f1c40f';
+
+const SLOT_LABELS: Record<string, string> = {
+  attack: '⚔ 攻撃',
+  defense: '🛡 防御',
+  strategy: '📜 策略',
+};
+const SLOT_HINTS: Record<string, string> = {
+  attack: '敵にダメージ',
+  defense: '攻撃を軽減',
+  strategy: '追加ダメージ',
+};
+const SLOT_COLORS: Record<string, string> = {
+  attack: '#c0392b',
+  defense: '#2980b9',
+  strategy: '#8e44ad',
+};
+const DIE_SLOT_LABEL: Record<string, string> = {
+  attack: '攻', defense: '防', strategy: '策', skill: '技',
+};
+const DICE_NAMES: Record<DiceFace, string> = {
+  sword: '剣', shield: '盾', strategy: '策', horse: '馬', arrow: '弓', star: '星',
+};
+const SLOT_UNIT: Record<string, { label: string; color: string }> = {
+  attack: { label: 'ダメージ', color: '#ff7777' },
+  defense: { label: '防御力', color: '#77bbff' },
+  strategy: { label: '追加ダメ', color: '#cc99ff' },
+};
+const CHAPTER_NAMES: Record<number, string> = {
+  1: '黄巾の乱', 2: '董卓の専横', 3: '赤壁の戦い',
+};
 
 type ImageCache = Record<string, HTMLImageElement>;
 
@@ -51,40 +81,62 @@ function getImage(key: string): HTMLImageElement | null {
   return imageCache[key] ?? null;
 }
 
+/** 画像をCanvas全面にcover表示する（アスペクト比を保ちつつ全面カバー） */
+function _drawCoverImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  w: number,
+  h: number
+): void {
+  const imgRatio = img.naturalWidth / img.naturalHeight;
+  const canvasRatio = w / h;
+  let sw = img.naturalWidth;
+  let sh = img.naturalHeight;
+  let sx = 0;
+  let sy = 0;
+  if (imgRatio > canvasRatio) {
+    sw = img.naturalHeight * canvasRatio;
+    sx = (img.naturalWidth - sw) / 2;
+  } else {
+    sh = img.naturalWidth / canvasRatio;
+    sy = (img.naturalHeight - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+}
+
+/** 背景画像を描画（画像あり→cover+暗めオーバーレイ、なし→単色塗り） */
+function _drawBackground(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  imageKey: string,
+  overlayAlpha: number = 0.55
+): void {
+  const img = getImage(imageKey);
+  if (img) {
+    _drawCoverImage(ctx, img, w, h);
+    ctx.fillStyle = `rgba(0,0,0,${overlayAlpha})`;
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, w, h);
+  }
+}
+
 export function drawTitle(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
   startBtn: Rect
 ): void {
-  // 背景
-  ctx.fillStyle = BG_COLOR;
-  ctx.fillRect(0, 0, w, h);
-
-  // 装飾的な円
-  ctx.save();
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = '#3498db';
-  ctx.beginPath();
-  ctx.arc(w * 0.15, h * 0.2, 120, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#e74c3c';
-  ctx.beginPath();
-  ctx.arc(w * 0.85, h * 0.7, 150, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 0.05;
-  ctx.fillStyle = '#2ecc71';
-  ctx.beginPath();
-  ctx.arc(w * 0.5, h * 0.5, 250, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  _drawBackground(ctx, w, h, 'title_background');
 
   // タイトル
   ctx.save();
   ctx.shadowColor = '#f1c40f';
   ctx.shadowBlur = 20;
   drawText(ctx, '三国志', w / 2, h * 0.25, `bold ${Math.min(60, w / 10)}px serif`, GOLD_COLOR, 'center', 'middle');
-  drawText(ctx, 'ダイス英傑伝', w / 2, h * 0.35, `bold ${Math.min(48, w / 13)}px serif`, TEXT_LIGHT, 'center', 'middle');
+  drawText(ctx, '覇への道', w / 2, h * 0.35, `bold ${Math.min(48, w / 13)}px serif`, TEXT_LIGHT, 'center', 'middle');
   ctx.restore();
 
   // サブタイトル
@@ -92,24 +144,6 @@ export function drawTitle(
     ctx, '劉備軍と共に乱世をダイスで切り拓け',
     w / 2, h * 0.48, `${Math.min(18, w / 40)}px serif`, '#aaa', 'center', 'middle'
   );
-
-  // 勢力カラー説明
-  const factions = [
-    { name: '蜀', color: '#2ecc71' },
-    { name: '魏', color: '#3498db' },
-    { name: '呉', color: '#e74c3c' },
-  ];
-  const fw = Math.min(120, w / 5);
-  const totalW = fw * 3 + 20;
-  const fx0 = (w - totalW) / 2;
-  factions.forEach((f, i) => {
-    ctx.fillStyle = f.color;
-    ctx.globalAlpha = 0.8;
-    drawRoundRect(ctx, fx0 + i * (fw + 10), h * 0.56, fw, 34, 6);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    drawText(ctx, f.name, fx0 + i * (fw + 10) + fw / 2, h * 0.56 + 17, 'bold 18px serif', '#fff', 'center', 'middle');
-  });
 
   // スタートボタン
   drawButton(ctx, startBtn, 'ゲーム開始', GOLD_COLOR, TEXT_DARK, Math.min(22, w / 30), 10);
@@ -229,13 +263,11 @@ export function drawMap(
   heroGold: number,
   scrollY: number
 ): void {
-  ctx.fillStyle = BG_COLOR;
-  ctx.fillRect(0, 0, w, h);
+  _drawBackground(ctx, w, h, 'map_background', 0.45);
 
   // ヘッダー
   drawPanel(ctx, { x: 0, y: 0, w, h: 50 }, '#0d0d1e', '#333');
-  const chapterNames: Record<number, string> = { 1: '黄巾の乱', 2: '董卓の専横', 3: '赤壁の戦い' };
-  const chapterTitle = chapterNames[chapter] ?? '';
+  const chapterTitle = CHAPTER_NAMES[chapter] ?? '';
   drawText(ctx, `第${chapter}章 ${chapterTitle}`, w / 2, 25, 'bold 20px serif', GOLD_COLOR, 'center', 'middle');
   drawText(ctx, `HP: ${heroHp}/${heroMaxHp}`, 20, 25, '16px serif', '#2ecc71', 'left', 'middle');
   drawText(ctx, `金: ${heroGold}`, w - 90, 25, '16px serif', GOLD_COLOR, 'right', 'middle');
@@ -330,34 +362,38 @@ export function drawBattle(
   const battle = state.battle!;
   const hero = state.hero!;
 
-  // 背景画像
-  const bgImg = getImage('battle_background');
-  if (bgImg) {
-    ctx.drawImage(bgImg, 0, 0, w, h);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, 0, w, h);
-  } else {
-    ctx.fillStyle = BG_COLOR;
-    ctx.fillRect(0, 0, w, h);
-  }
+  _drawBackground(ctx, w, h, 'battle_background');
 
   const isLandscape = w > h;
-  const panelH = isLandscape ? h * 0.35 : h * 0.28;
-  const panelY = h - panelH - 10;
-  const panelW = w - 20;
+  const panelH = isLandscape ? h * 0.48 : h * 0.42;
+  const panelY = h - panelH - 6;
+  const panelW = w - 16;
 
   // 敵表示エリア（上半分）
   const enemyAreaH = panelY - 10;
   _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape);
 
-  // 英雄HP
-  _drawHeroStatus(ctx, w, h, hero, battle.heroBlock, isLandscape);
+  // 英雄HP（スキル使用可能時にグロー）
+  const canSkill = canActivateSkill(battle, hero) && battle.phase === 'assign';
+  _drawHeroStatus(ctx, w, hero, battle.heroBlock, canSkill);
+
+  // バトルログ（パネル上部に表示）
+  _drawBattleLog(ctx, w, panelY, battle.log, battle.turnCount);
 
   // 下部パネル
-  drawPanel(ctx, { x: 10, y: panelY, w: panelW, h: panelH + 5 }, 'rgba(20,15,10,0.92)', PANEL_BORDER, 10);
+  drawPanel(ctx, { x: 8, y: panelY, w: panelW, h: panelH + 2 }, 'rgba(20,15,10,0.92)', PANEL_BORDER, 10);
 
-  // ターン情報
-  drawText(ctx, `ターン ${battle.turnCount}  ${battle.message}`, 20, panelY + 8, '13px serif', GOLD_COLOR, 'left', 'top');
+  // ヒントテキスト（パネル上端）
+  if (battle.phase === 'assign' && !dragInfo) {
+    const allUnassigned = battle.dice.filter((d) => d.assignedSlot === null || d.assignedSlot === 'skill').length === battle.dice.length;
+    if (selectedDieIdx >= 0) {
+      drawText(ctx, '▼ スロットをタップして配置 ▼', w / 2, panelY + 12, 'bold 14px serif', '#f1c40f', 'center', 'top');
+    } else if (allUnassigned) {
+      drawText(ctx, '▼ ダイスをタップして選択 → スロットに配置 ▼', w / 2, panelY + 12, 'bold 14px serif', '#f1c40f', 'center', 'top');
+    }
+  } else if (battle.phase === 'roll') {
+    drawText(ctx, '▼ ダイスを振ろう ▼', w / 2, panelY + 12, 'bold 14px serif', '#3498db', 'center', 'top');
+  }
 
   // アクションスロット（ドラッグ中/選択中はハイライト）
   _drawSlots(ctx, slotRects, battle.dice, hero, dragInfo, selectedDieIdx);
@@ -367,18 +403,15 @@ export function drawBattle(
     const rect = diceRects[i];
     if (!rect) return;
     if (dragInfo && dragInfo.dieIdx === i) {
-      // ドラッグ中：元位置にゴースト表示
       ctx.save();
       ctx.globalAlpha = 0.25;
       _drawDie(ctx, rect, die);
       ctx.restore();
     } else if (i === selectedDieIdx && die.assignedSlot === null) {
-      // タップ選択中：グロー表示
       ctx.save();
       ctx.shadowColor = '#f1c40f';
       ctx.shadowBlur = 14;
       _drawDie(ctx, rect, die);
-      // 選択枠
       drawRoundRect(ctx, rect.x - 2, rect.y - 2, rect.w + 4, rect.h + 4, 8);
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 2.5;
@@ -392,7 +425,7 @@ export function drawBattle(
   // ドラッグ中のダイスをカーソル位置に描画
   if (dragInfo && battle.dice[dragInfo.dieIdx]) {
     const die = battle.dice[dragInfo.dieIdx];
-    const dieSize = diceRects[0]?.w ?? 52;
+    const dieSize = diceRects[0]?.w ?? 56;
     const dragRect: Rect = {
       x: dragInfo.pos.x - dieSize / 2,
       y: dragInfo.pos.y - dieSize / 2,
@@ -406,32 +439,15 @@ export function drawBattle(
     ctx.restore();
   }
 
-  // スキルボタン
-  _drawSkillButton(ctx, skillBtnRect, hero, _canSkill(battle, hero));
+  // スキルボタン（使用可能時にグローエフェクト）
+  _drawSkillButton(ctx, skillBtnRect, hero, canSkill);
 
-  // 行動確定ボタン
+  // 行動確定 / ダイスロールボタン
   if (battle.phase === 'assign') {
     const hasAssigned = battle.dice.some((d) => d.assignedSlot !== null);
-    drawButton(ctx, confirmBtnRect, '行動確定', hasAssigned ? '#e74c3c' : '#555', '#fff', 16, 8);
+    drawButton(ctx, confirmBtnRect, '⚔ 行動確定 ⚔', hasAssigned ? '#c0392b' : '#555', '#fff', 17, 10);
   } else if (battle.phase === 'roll') {
-    drawButton(ctx, rollBtnRect, 'ダイスロール！', '#2980b9', '#fff', 16, 8);
-  }
-
-  // バトルログ
-  const logX = w * 0.55;
-  const logY = panelY + 28;
-  battle.log.slice(-4).forEach((line, i) => {
-    drawText(ctx, line, logX, logY + i * 16, '12px serif', '#ddd', 'left', 'top');
-  });
-
-  // ヒントテキスト（assignフェーズ）
-  if (battle.phase === 'assign' && !dragInfo) {
-    const allUnassigned = battle.dice.filter((d) => d.assignedSlot === null || d.assignedSlot === 'skill').length === battle.dice.length;
-    if (selectedDieIdx >= 0) {
-      drawText(ctx, 'スロットをタップして配置', w / 2, panelY - 6, 'bold 13px serif', '#f1c40f', 'center', 'bottom');
-    } else if (allUnassigned) {
-      drawText(ctx, 'ドラッグ or タップでダイスを配置', w / 2, panelY - 6, 'bold 13px serif', '#f1c40f', 'center', 'bottom');
-    }
+    drawButton(ctx, rollBtnRect, '🎲 ダイスロール！', '#2980b9', '#fff', 17, 10);
   }
 
   // ヘルプボタン
@@ -514,37 +530,48 @@ function _drawEnemy(
 function _intentLabelWithDmg(enemy: import('./types').Enemy): string {
   const intent = enemy.currentIntent;
   const atk = enemy.buffed ? Math.floor(enemy.attack * 1.5) : enemy.attack;
-  if (intent === 'attack') return `⚔ 攻撃 ${atk}dmg`;
-  if (intent === 'special') return `☆ 必殺技 ${atk * 2}dmg`;
-  if (intent === 'defend') return `🛡 防御 +${enemy.defense}blk`;
+  if (intent === 'attack') return `⚔ 攻撃 ${atk}ダメージ`;
+  if (intent === 'special') return `☆ 必殺技 ${atk * 2}ダメージ`;
+  if (intent === 'defend') return `🛡 防御 +${enemy.defense}`;
   if (intent === 'buff') return '⬆ 強化（次の攻撃1.5倍）';
   return intent;
-}
-
-function _intentLabel(intent: string): string {
-  const labels: Record<string, string> = {
-    attack: '⚔ 攻撃',
-    defend: '🛡 防御',
-    buff: '⬆ 強化',
-    special: '☆ 必殺技',
-  };
-  return labels[intent] ?? intent;
 }
 
 function _drawHeroStatus(
   ctx: CanvasRenderingContext2D,
   w: number,
-  h: number,
   hero: import('./types').Hero,
   block: number,
-  isLandscape: boolean
+  canSkill: boolean = false
 ): void {
-  const x = isLandscape ? 20 : 20;
+  const x = 20;
   const y = 20;
   const factionColor = FACTION_COLORS[hero.faction];
 
   const img = getImage(hero.portraitKey);
   const size = Math.min(70, w * 0.12);
+
+  // スキル使用可能時にグローエフェクト
+  if (canSkill) {
+    ctx.save();
+    ctx.shadowColor = '#d8a4f8';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = 'rgba(155,89,182,0.3)';
+    drawRoundRect(ctx, x - 4, y - 4, size + 8, size + 8, 10);
+    ctx.fill();
+    ctx.restore();
+
+    // パルスアニメーション枠
+    ctx.save();
+    ctx.strokeStyle = '#d8a4f8';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#9b59b6';
+    ctx.shadowBlur = 12;
+    drawRoundRect(ctx, x - 3, y - 3, size + 6, size + 6, 8);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   if (img) {
     ctx.save();
     ctx.beginPath();
@@ -559,11 +586,21 @@ function _drawHeroStatus(
     drawText(ctx, hero.name[0], x + size / 2, y + size / 2, `bold ${size * 0.4}px serif`, factionColor, 'center', 'middle');
   }
 
+  // スキル使用可能ラベル
+  if (canSkill) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(155,89,182,0.9)';
+    drawRoundRect(ctx, x, y + size - 14, size, 16, 3);
+    ctx.fill();
+    drawText(ctx, '技発動可！', x + size / 2, y + size - 6, 'bold 10px serif', '#fff', 'center', 'middle');
+    ctx.restore();
+  }
+
   drawText(ctx, hero.name, x + size + 8, y + 4, 'bold 15px serif', factionColor, 'left', 'top');
   drawHpBar(ctx, x + size + 8, y + 24, 120, 12, hero.currentHp, hero.stats.maxHp, '#2ecc71');
   drawText(ctx, `${hero.currentHp}/${hero.stats.maxHp}`, x + size + 8, y + 38, '12px serif', '#aaa', 'left', 'top');
   if (block > 0) {
-    drawText(ctx, `🛡 ${block}`, x + size + 8, y + 54, 'bold 13px serif', '#3498db', 'left', 'top');
+    drawText(ctx, `🛡 防御 ${block}`, x + size + 8, y + 54, 'bold 13px serif', '#3498db', 'left', 'top');
   }
 }
 
@@ -597,11 +634,10 @@ function _drawDie(ctx: CanvasRenderingContext2D, rect: Rect, die: Die): void {
 
   // 割り当て済みスロット名
   if (isAssigned && die.assignedSlot !== 'skill') {
-    const slotLabel: Record<string, string> = { attack: '攻', defense: '防', strategy: '策', skill: '技' };
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     drawRoundRect(ctx, rect.x, rect.y + rect.h - 16, rect.w, 16, 3);
     ctx.fill();
-    drawText(ctx, slotLabel[die.assignedSlot ?? 'attack'] ?? '', rect.x + rect.w / 2, rect.y + rect.h - 8, 'bold 11px serif', '#fff', 'center', 'middle');
+    drawText(ctx, DIE_SLOT_LABEL[die.assignedSlot ?? 'attack'] ?? '', rect.x + rect.w / 2, rect.y + rect.h - 8, 'bold 11px serif', '#fff', 'center', 'middle');
   }
 }
 
@@ -613,110 +649,68 @@ function _drawSlots(
   dragInfo: { dieIdx: number; pos: { x: number; y: number } } | null = null,
   selectedDieIdx: number = -1
 ): void {
-  const slotLabels: Record<string, string> = {
-    attack: '⚔ 攻撃',
-    defense: '🛡 防御',
-    strategy: '📜 策略',
-  };
-  const slotColors: Record<string, string> = {
-    attack: '#c0392b',
-    defense: '#2980b9',
-    strategy: '#8e44ad',
-  };
 
   for (const [slotKey, rect] of Object.entries(slotRects)) {
-    const count = dice.filter((d) => d.assignedSlot === slotKey).length;
-    // ドラッグ中にスロット上にいる場合、またはダイス選択中はハイライト
-    const isHovered = dragInfo !== null && _pointInRect(dragInfo.pos, rect);
+    const slotDice = dice.filter((d) => d.assignedSlot === slotKey);
+    const isHovered = dragInfo !== null && pointInRect(dragInfo.pos, rect);
     const isSelecting = selectedDieIdx >= 0 && dice[selectedDieIdx]?.assignedSlot === null;
     const highlight = isHovered || isSelecting;
+
     if (highlight) {
       ctx.save();
-      ctx.shadowColor = slotColors[slotKey] ?? '#fff';
+      ctx.shadowColor = SLOT_COLORS[slotKey] ?? '#fff';
       ctx.shadowBlur = 16;
     }
-    drawPanel(ctx, rect, highlight ? 'rgba(60,40,20,0.95)' : 'rgba(30,20,10,0.8)', slotColors[slotKey] ?? '#666', 6);
+    drawPanel(ctx, rect, highlight ? 'rgba(60,40,20,0.95)' : 'rgba(30,20,10,0.8)', SLOT_COLORS[slotKey] ?? '#666', 6);
     if (highlight) {
-      // ハイライト枠
       drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
     }
-    drawText(ctx, slotLabels[slotKey] ?? slotKey, rect.x + rect.w / 2, rect.y + 6, '11px serif', '#ccc', 'center', 'top');
-    if (count > 0) {
-      ctx.fillStyle = slotColors[slotKey] ?? '#fff';
-      ctx.beginPath();
-      ctx.arc(rect.x + rect.w - 12, rect.y + 12, 9, 0, Math.PI * 2);
-      ctx.fill();
-      drawText(ctx, String(count), rect.x + rect.w - 12, rect.y + 12, 'bold 12px serif', '#fff', 'center', 'middle');
-    }
-    // 予測ダメージ/ブロック表示（出目に応じた実際の値）
-    const slotDice = dice.filter((d) => d.assignedSlot === slotKey);
-    let previewText = 'ここにドロップ';
-    let previewColor = '#888';
+
+    drawText(ctx, SLOT_LABELS[slotKey] ?? slotKey, rect.x + rect.w / 2, rect.y + 8, 'bold 13px serif', '#fff', 'center', 'top');
+
     if (slotDice.length > 0) {
-      if (slotKey === 'attack') {
-        let dmg = 0;
-        for (const d of slotDice) {
-          if (d.face === 'sword' || d.face === 'star') dmg += hero.stats.attack;
-          else if (d.face === 'arrow') dmg += Math.floor(hero.stats.attack * 1.2);
-          else if (d.face === 'horse') dmg += Math.floor(hero.stats.attack * 0.5);
-          else if (d.face === 'strategy') dmg += Math.floor(hero.stats.attack * 0.3);
-          else if (d.face === 'shield') dmg += Math.floor(hero.stats.attack * 0.2);
-        }
-        previewText = `${dmg} dmg`;
-        previewColor = '#ff9999';
-      } else if (slotKey === 'defense') {
-        let blk = 0;
-        for (const d of slotDice) {
-          if (d.face === 'shield' || d.face === 'star') blk += hero.stats.defense;
-          else if (d.face === 'horse') blk += Math.floor(hero.stats.defense * 0.7);
-          else if (d.face === 'sword' || d.face === 'arrow') blk += Math.floor(hero.stats.defense * 0.3);
-          else if (d.face === 'strategy') blk += Math.floor(hero.stats.defense * 0.2);
-        }
-        previewText = `${blk} blk`;
-        previewColor = '#99ccff';
-      } else if (slotKey === 'strategy') {
-        let bonus = 0;
-        for (const d of slotDice) {
-          if (d.face === 'strategy' || d.face === 'star') bonus += Math.floor(hero.stats.attack * 0.6);
-          else if (d.face === 'sword' || d.face === 'arrow') bonus += Math.floor(hero.stats.attack * 0.2);
-        }
-        previewText = bonus > 0 ? `${bonus} dmg` : '効果なし';
-        previewColor = bonus > 0 ? '#cc99ff' : '#666';
+      // カウントバッジ
+      ctx.fillStyle = SLOT_COLORS[slotKey] ?? '#fff';
+      ctx.beginPath();
+      ctx.arc(rect.x + rect.w - 12, rect.y + 14, 10, 0, Math.PI * 2);
+      ctx.fill();
+      drawText(ctx, String(slotDice.length), rect.x + rect.w - 12, rect.y + 14, 'bold 12px serif', '#fff', 'center', 'middle');
+
+      // 共通関数で予測値を計算
+      const baseStat = slotKey === 'defense' ? hero.stats.defense : hero.stats.attack;
+      const value = calcSlotValue(dice, slotKey, baseStat);
+      const unit = SLOT_UNIT[slotKey];
+
+      if (value > 0 && unit) {
+        drawText(ctx, String(value), rect.x + rect.w / 2, rect.y + rect.h / 2 + 4, `bold ${Math.min(22, rect.w / 4)}px serif`, unit.color, 'center', 'middle');
+        drawText(ctx, unit.label, rect.x + rect.w / 2, rect.y + rect.h - 8, '10px serif', '#aaa', 'center', 'bottom');
+      } else {
+        drawText(ctx, '効果なし', rect.x + rect.w / 2, rect.y + rect.h / 2 + 6, '12px serif', '#666', 'center', 'middle');
       }
+    } else {
+      drawText(ctx, SLOT_HINTS[slotKey] ?? '', rect.x + rect.w / 2, rect.y + rect.h / 2 + 2, '11px serif', '#777', 'center', 'middle');
+      drawText(ctx, 'タップで配置', rect.x + rect.w / 2, rect.y + rect.h - 8, '10px serif', '#555', 'center', 'bottom');
     }
-    drawText(ctx, previewText, rect.x + rect.w / 2, rect.y + rect.h - 14, 'bold 10px serif', previewColor, 'center', 'top');
   }
-}
-
-function _pointInRect(p: { x: number; y: number }, r: Rect): boolean {
-  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
-}
-
-function _canSkill(battle: import('./types').BattleState, hero: import('./types').Hero): boolean {
-  const { face, count } = hero.skill.cost;
-  const available = battle.dice.filter(
-    (d) => (d.face === face || d.face === 'star') && d.assignedSlot === null
-  );
-  return available.length >= count && !battle.skillActivated && battle.phase === 'assign';
 }
 
 function _getSkillEffectLabel(hero: import('./types').Hero): string {
   const effect = hero.skill.effect;
   const atk = hero.stats.attack;
   if (effect === 'all_attack') {
-    return `全体攻撃+${Math.floor(atk * 1.5)}dmg`;
+    return `全体攻撃 +${Math.floor(atk * 1.5)}ダメージ`;
   } else if (effect === 'buff_swords') {
-    return '剣ダイス×1.5';
+    return '剣ダイス威力 ×1.5倍';
   } else if (effect === 'invincible_counter') {
-    return `無敵+反撃${atk * 2}dmg`;
+    return `無敵 + 反撃${atk * 2}ダメージ`;
   } else if (effect === 'stun_enemy') {
-    return '敵1T行動不能';
+    return '敵を1ターン行動不能に';
   } else if (effect === 'shield_to_attack') {
-    return '盾→攻撃転用';
+    return '盾の防御力を攻撃に転用';
   }
   return '';
 }
@@ -727,21 +721,67 @@ function _drawSkillButton(
   hero: import('./types').Hero,
   canSkill: boolean
 ): void {
-  const skillColor = canSkill ? '#9b59b6' : '#555';
-  const textColor = canSkill ? '#fff' : '#888';
-  drawPanel(ctx, rect, skillColor, canSkill ? '#d8a4f8' : '#333', 6);
-
   const { face, count } = hero.skill.cost;
-  const faceLabel: Record<import('./types').DiceFace, string> = {
-    sword: '剣', shield: '盾', strategy: '策', horse: '馬', arrow: '弓', star: '星',
-  };
-  const costStr = `${faceLabel[face]}×${count}`;
+  const costStr = `必要: ${DICE_LABELS[face]} ${DICE_NAMES[face]}×${count}`;
   const effectStr = _getSkillEffectLabel(hero);
 
+  if (canSkill) {
+    // グローエフェクト
+    ctx.save();
+    ctx.shadowColor = '#d8a4f8';
+    ctx.shadowBlur = 18;
+    drawPanel(ctx, rect, '#7b3fa0', '#d8a4f8', 8);
+    ctx.restore();
+    // 内側グロー
+    ctx.save();
+    ctx.strokeStyle = '#e8c4ff';
+    ctx.lineWidth = 1.5;
+    drawRoundRect(ctx, rect.x + 2, rect.y + 2, rect.w - 4, rect.h - 4, 6);
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    drawPanel(ctx, rect, '#3a3a3a', '#555', 8);
+  }
+
+  const textColor = canSkill ? '#fff' : '#888';
   const cx = rect.x + rect.w / 2;
-  drawText(ctx, hero.skill.name, cx, rect.y + 6, 'bold 11px serif', textColor, 'center', 'top');
-  drawText(ctx, costStr, cx, rect.y + 22, '10px serif', canSkill ? '#f8c' : '#666', 'center', 'top');
-  drawText(ctx, effectStr, cx, rect.y + 35, '10px serif', canSkill ? '#cfc' : '#555', 'center', 'top');
+
+  // スキル名・コスト・効果を表示
+  drawText(ctx, `✦ ${hero.skill.name}`, cx, rect.y + 6, `bold ${Math.min(14, rect.w / 12)}px serif`, textColor, 'center', 'top');
+  drawText(ctx, costStr, cx, rect.y + 22, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#f8c' : '#666', 'center', 'top');
+  drawText(ctx, effectStr, cx, rect.y + 35, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#cfc' : '#555', 'center', 'top');
+}
+
+function _drawBattleLog(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  panelY: number,
+  log: string[],
+  turnCount: number
+): void {
+  const lines = log.slice(-3);
+  if (lines.length === 0) return;
+
+  // パネル上にログバーとして表示
+  const logH = lines.length * 18 + 12;
+  const logY = panelY - logH - 4;
+  const logW = Math.min(w - 24, 500);
+  const logX = (w - logW) / 2;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  drawRoundRect(ctx, logX, logY, logW, logH, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(200,180,140,0.3)';
+  ctx.lineWidth = 1;
+  drawRoundRect(ctx, logX, logY, logW, logH, 8);
+  ctx.stroke();
+  ctx.restore();
+
+  drawText(ctx, `T${turnCount}`, logX + 8, logY + 6, 'bold 10px serif', GOLD_COLOR, 'left', 'top');
+  lines.forEach((line, i) => {
+    drawText(ctx, line, logX + 32, logY + 6 + i * 18, '13px serif', '#ddd', 'left', 'top');
+  });
 }
 
 function _drawHelpButton(ctx: CanvasRenderingContext2D, rect: Rect): void {
@@ -845,16 +885,7 @@ export function drawReward(
   reward: import('./types').RewardInfo,
   hero: import('./types').Hero
 ): void {
-  // 背景
-  const bgImg = getImage('battle_background');
-  if (bgImg) {
-    ctx.drawImage(bgImg, 0, 0, w, h);
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    ctx.fillRect(0, 0, w, h);
-  } else {
-    ctx.fillStyle = BG_COLOR;
-    ctx.fillRect(0, 0, w, h);
-  }
+  _drawBackground(ctx, w, h, 'battle_background', 0.75);
 
   // パネル
   const panelW = Math.min(w - 40, 400);

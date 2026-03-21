@@ -135,40 +135,48 @@ export class Game {
     const contentBottom = confirmY + 44 + 20;
     this.charScrollMax = Math.max(0, contentBottom - h);
 
-    // バトルレイアウト
+    // バトルレイアウト（中央寄せ・大きめ）
     const isLandscape = w > h;
-    const panelH = isLandscape ? h * 0.35 : h * 0.28;
-    const panelY = h - panelH - 10;
+    const panelH = isLandscape ? h * 0.48 : h * 0.42;
+    const panelY = h - panelH - 6;
+    const panelW = w - 16;
+    const panelCx = w / 2;
     const diceCount = this.state.hero?.diceSet.length ?? 4;
-    const diceSize = Math.min(52, (w - 30) / (diceCount + 1));
-    const diceStartX = 16;
-    const diceY = panelY + 30;
+    const diceSize = Math.min(56, (panelW - 40) / (diceCount + 1));
+    const diceGap = Math.min(10, (panelW - diceCount * diceSize) / (diceCount + 1));
+    const diceTotalW = diceCount * diceSize + (diceCount - 1) * diceGap;
+    const diceStartX = panelCx - diceTotalW / 2;
+    const diceY = panelY + 28;
     this.diceRects = Array.from({ length: diceCount }, (_, i) => ({
-      x: diceStartX + i * (diceSize + 6),
+      x: diceStartX + i * (diceSize + diceGap),
       y: diceY,
       w: diceSize,
       h: diceSize,
     }));
 
-    const slotW = Math.min(90, (w * 0.48) / 3);
-    const slotH = 52;
-    const slotY = panelY + diceSize + 42;
+    const slotGap = Math.min(8, w * 0.02);
+    const slotW = Math.min(110, (panelW - 24 - slotGap * 2) / 3);
+    const slotH = 62;
+    const slotTotalW = slotW * 3 + slotGap * 2;
+    const slotStartX = panelCx - slotTotalW / 2;
+    const slotY = diceY + diceSize + 12;
     this.slotRects = {
-      attack: { x: 14, y: slotY, w: slotW, h: slotH },
-      defense: { x: 14 + slotW + 6, y: slotY, w: slotW, h: slotH },
-      strategy: { x: 14 + (slotW + 6) * 2, y: slotY, w: slotW, h: slotH },
+      attack: { x: slotStartX, y: slotY, w: slotW, h: slotH },
+      defense: { x: slotStartX + slotW + slotGap, y: slotY, w: slotW, h: slotH },
+      strategy: { x: slotStartX + (slotW + slotGap) * 2, y: slotY, w: slotW, h: slotH },
     };
 
-    const skillW = Math.min(140, w * 0.28);
-    this.skillBtnRect = { x: w - skillW - 12, y: slotY, w: skillW, h: slotH };
+    const skillW = Math.min(slotTotalW, w * 0.7);
+    const skillY = slotY + slotH + 8;
+    this.skillBtnRect = { x: panelCx - skillW / 2, y: skillY, w: skillW, h: 44 };
 
     // ヘルプボタン（右上）
     this.helpBtnRect = { x: w - 44, y: 8, w: 36, h: 36 };
 
-    const btnW2 = Math.min(140, w * 0.3);
-    const btnY = slotY + slotH + 8;
-    this.confirmBtnRect = { x: (w - btnW2) / 2, y: btnY, w: btnW2, h: 40 };
-    this.rollBtnRect = { x: (w - btnW2) / 2, y: btnY, w: btnW2, h: 40 };
+    const btnW2 = Math.min(slotTotalW, w * 0.6);
+    const btnY = skillY + 52;
+    this.confirmBtnRect = { x: panelCx - btnW2 / 2, y: btnY, w: btnW2, h: 42 };
+    this.rollBtnRect = { x: panelCx - btnW2 / 2, y: btnY, w: btnW2, h: 42 };
 
     // 軍師カード
     const aCardW = Math.min(180, (w - 60) / 3);

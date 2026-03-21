@@ -8,7 +8,9 @@ import zhaoYunPortrait from './assets/portraits/zhao_yun_portrait.png';
 import zhugeLiangPortrait from './assets/portraits/zhuge_liang_portrait.png';
 import caoCaoPortrait from './assets/portraits/cao_cao_portrait.png';
 import luBuPortrait from './assets/portraits/lu_bu_portrait.png';
-import battleBackground from './assets/backgrounds/battle_background.png';
+import battleBackground from './assets/backgrounds/battle_background2.jpg';
+import mapBackground from './assets/backgrounds/map_background.jpg';
+import titleBackground from './assets/backgrounds/title_background.jpg';
 
 const IMAGE_PATHS: Record<string, string> = {
   guan_yu_portrait: guanYuPortrait,
@@ -18,6 +20,8 @@ const IMAGE_PATHS: Record<string, string> = {
   cao_cao_portrait: caoCaoPortrait,
   lu_bu_portrait: luBuPortrait,
   battle_background: battleBackground,
+  map_background: mapBackground,
+  title_background: titleBackground,
 };
 
 async function main() {

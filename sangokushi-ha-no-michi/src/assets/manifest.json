@@ -35,9 +35,19 @@
   },
   "backgrounds": {
     "battle_background": {
-      "path": "backgrounds/battle_background.png",
-      "size": [960, 540],
-      "description": "Ancient Chinese battlefield, misty mountains, war banner flying, foggy plains, Three Kingdoms era"
+      "path": "backgrounds/battle_background2.jpg",
+      "size": [960, 536],
+      "description": "Ancient Chinese battlefield with cavalry clash, Shu and Wei banners, mountain backdrop"
+    },
+    "map_background": {
+      "path": "backgrounds/map_background.jpg",
+      "size": [536, 960],
+      "description": "Ancient Chinese map of eastern China, parchment style, vertical orientation"
+    },
+    "title_background": {
+      "path": "backgrounds/title_background.jpg",
+      "size": [960, 536],
+      "description": "Mountain path with horseback riders, Three Kingdoms era, dramatic sky"
     }
   }
 }

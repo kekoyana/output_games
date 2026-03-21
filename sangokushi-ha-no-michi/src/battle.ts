@@ -73,11 +73,6 @@ export function executeBattle(
   let heroDmg = 0;
   const log: string[] = [...state.log];
 
-  const assignedDice = newState.dice.filter((d) => d.assignedSlot !== null);
-  const attackDice = assignedDice.filter((d) => d.assignedSlot === 'attack');
-  const defenseDice = assignedDice.filter((d) => d.assignedSlot === 'defense');
-  const strategyDice = assignedDice.filter((d) => d.assignedSlot === 'strategy');
-
   // スター（ワイルド）は割り当てスロットに応じてそのまま機能する
   const countFace = (face: DiceFace): number =>
     newState.dice.filter((d) => d.face === face || d.face === 'star').length;
@@ -106,57 +101,11 @@ export function executeBattle(
     }
   }
 
-  // 攻撃処理 — 出目によって効果が変わる
-  for (const d of attackDice) {
-    let dmg = 0;
-    if (d.face === 'sword' || d.face === 'star') {
-      // 剣/星: フルダメージ
-      dmg = hero.stats.attack;
-    } else if (d.face === 'arrow') {
-      // 弓: 敵防御を無視する貫通攻撃（後で防御差し引きされないようフラグ管理が面倒なので高倍率に）
-      dmg = Math.floor(hero.stats.attack * 1.2);
-    } else if (d.face === 'horse') {
-      // 馬: 攻撃には不向き（0.5倍）
-      dmg = Math.floor(hero.stats.attack * 0.5);
-    } else if (d.face === 'strategy') {
-      // 策: 攻撃には不向き（0.3倍）
-      dmg = Math.floor(hero.stats.attack * 0.3);
-    } else if (d.face === 'shield') {
-      // 盾: 攻撃にはほぼ使えない（0.2倍）
-      dmg = Math.floor(hero.stats.attack * 0.2);
-    }
-    enemyDmg += Math.floor(dmg * skillMultiplier);
-  }
-
-  // 策略ダイス — 策/星で高効果、他は低効果
-  for (const d of strategyDice) {
-    if (d.face === 'strategy' || d.face === 'star') {
-      // 策/星: フル効果
-      enemyDmg += Math.floor(hero.stats.attack * 0.6);
-    } else if (d.face === 'sword' || d.face === 'arrow') {
-      // 剣/弓: 低効果
-      enemyDmg += Math.floor(hero.stats.attack * 0.2);
-    }
-    // 盾/馬を策略に入れても効果なし
-  }
-
-  // 防御処理 — 出目によって効果が変わる
-  let block = 0;
-  for (const d of defenseDice) {
-    if (d.face === 'shield' || d.face === 'star') {
-      // 盾/星: フルブロック
-      block += hero.stats.defense;
-    } else if (d.face === 'horse') {
-      // 馬: 回避的防御（0.7倍）
-      block += Math.floor(hero.stats.defense * 0.7);
-    } else if (d.face === 'sword' || d.face === 'arrow') {
-      // 剣/弓: 防御には不向き（0.3倍）
-      block += Math.floor(hero.stats.defense * 0.3);
-    } else if (d.face === 'strategy') {
-      // 策: 防御には不向き（0.2倍）
-      block += Math.floor(hero.stats.defense * 0.2);
-    }
-  }
+  // 攻撃・策略・防御の効果値を共通テーブルで計算
+  const attackDmg = calcSlotValue(newState.dice, 'attack', hero.stats.attack);
+  enemyDmg += Math.floor(attackDmg * skillMultiplier);
+  enemyDmg += calcSlotValue(newState.dice, 'strategy', hero.stats.attack);
+  const block = calcSlotValue(newState.dice, 'defense', hero.stats.defense);
   newState.heroBlock = block;
 
   // ダメージを敵に与える（防御差し引き）
@@ -235,6 +184,30 @@ export function executeBattle(
     heroDmg,
     enemyDmg: actualEnemyDmg,
   };
+}
+
+/** ダイスの出目×スロットに対する効果倍率テーブル */
+const SLOT_MULTIPLIERS: Record<string, Partial<Record<DiceFace, number>>> = {
+  attack:   { sword: 1.0, star: 1.0, arrow: 1.2, horse: 0.5, strategy: 0.3, shield: 0.2 },
+  defense:  { shield: 1.0, star: 1.0, horse: 0.7, sword: 0.3, arrow: 0.3, strategy: 0.2 },
+  strategy: { strategy: 0.6, star: 0.6, sword: 0.2, arrow: 0.2 },
+};
+
+/** スロットに配置されたダイスの合計値を計算する */
+export function calcSlotValue(
+  dice: readonly Die[],
+  slot: string,
+  baseStat: number
+): number {
+  const multipliers = SLOT_MULTIPLIERS[slot];
+  if (!multipliers) return 0;
+  let total = 0;
+  for (const d of dice) {
+    if (d.assignedSlot !== slot) continue;
+    const mult = multipliers[d.face] ?? 0;
+    total += Math.floor(baseStat * mult);
+  }
+  return total;
 }
 
 export function canActivateSkill(state: BattleState, hero: Hero): boolean {
