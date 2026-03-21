@@ -149,7 +149,6 @@ export interface EventOption {
 
 export interface RewardInfo {
   goldEarned: number;
-  scoreEarned: number;
   enemyName: string;
   isBoss: boolean;
 }
@@ -163,7 +162,6 @@ export interface GameState {
   advisorCards: AdvisorCard[];
   merchantItems: MerchantItem[];
   currentEvent: GameEvent | null;
-  score: number;
   showHelp: boolean;
   battleCount: number;
 }

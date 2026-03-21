@@ -885,15 +885,8 @@ export function drawReward(
   drawText(ctx, '報酬金', panelX + 40, rewardY + 18, 'bold 16px serif', '#aaa', 'left', 'middle');
   drawText(ctx, `+${reward.goldEarned} 両`, panelX + panelW - 40, rewardY + 18, 'bold 20px serif', GOLD_COLOR, 'right', 'middle');
 
-  // スコア報酬
-  ctx.fillStyle = 'rgba(46,204,113,0.12)';
-  drawRoundRect(ctx, panelX + 20, rewardY + lineH, panelW - 40, 36, 6);
-  ctx.fill();
-  drawText(ctx, 'スコア', panelX + 40, rewardY + lineH + 18, 'bold 16px serif', '#aaa', 'left', 'middle');
-  drawText(ctx, `+${reward.scoreEarned}`, panelX + panelW - 40, rewardY + lineH + 18, 'bold 20px serif', '#2ecc71', 'right', 'middle');
-
-  // 現在の所持金・スコア
-  const summaryY = rewardY + lineH * 2 + 16;
+  // 現在の所持金
+  const summaryY = rewardY + lineH + 16;
   drawText(ctx, `所持金: ${hero.gold} → ${hero.gold + reward.goldEarned} 両`, w / 2, summaryY, '14px serif', '#999', 'center', 'middle');
 
   // ボスの場合は次の章の案内
@@ -1012,7 +1005,6 @@ export function drawEnding(
   w: number,
   h: number,
   heroName: string,
-  score: number,
   retryBtn: Rect
 ): void {
   ctx.fillStyle = '#0d1a0a';
@@ -1023,7 +1015,6 @@ export function drawEnding(
   drawText(ctx, '赤壁大勝利！', w / 2, h * 0.3, `bold ${Math.min(56, w / 9)}px serif`, GOLD_COLOR, 'center', 'middle');
   ctx.restore();
   drawText(ctx, `${heroName}は曹操を破り天下に名を轟かせた！`, w / 2, h * 0.46, '20px serif', '#2ecc71', 'center', 'middle');
-  drawText(ctx, `スコア: ${score}`, w / 2, h * 0.56, 'bold 24px serif', '#fff', 'center', 'middle');
   drawButton(ctx, retryBtn, 'もう一度プレイ', GOLD_COLOR, TEXT_DARK, 18, 8);
 }
 

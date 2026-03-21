@@ -94,7 +94,6 @@ export class Game {
       advisorCards: [],
       merchantItems: [],
       currentEvent: null,
-      score: 0,
       showHelp: false,
       battleCount: 0,
     };
@@ -399,7 +398,6 @@ export class Game {
       phase: 'map',
       hero,
       map,
-      score: 0,
     };
     this._recalcLayout();
   }
@@ -495,10 +493,8 @@ export class Game {
         const nodeType = this.state.map?.nodes.find((n) => n.id === this.state.map?.currentNodeId)?.type ?? 'battle';
         const gold = getGoldReward(nodeType, this.state.map?.chapter ?? 1);
         const isBoss = battle.enemy.isBoss;
-        const scoreEarned = isBoss ? 500 : nodeType === 'elite' ? 200 : 100;
         const rewardInfo = {
           goldEarned: gold,
-          scoreEarned,
           enemyName: battle.enemy.name,
           isBoss,
         };
@@ -564,21 +560,20 @@ export class Game {
     if (!hero || !rewardInfo) return;
 
     const newHero = { ...hero, gold: hero.gold + rewardInfo.goldEarned };
-    const newScore = this.state.score + rewardInfo.scoreEarned;
 
     if (rewardInfo.isBoss) {
       const currentChapter = this.state.map?.chapter ?? 1;
       if (currentChapter >= 3) {
-        this.state = { ...this.state, hero: newHero, score: newScore, phase: 'ending', battle: null, rewardInfo: null };
+        this.state = { ...this.state, hero: newHero, phase: 'ending', battle: null, rewardInfo: null };
       } else {
         const newMap = generateMap();
         newMap.chapter = currentChapter + 1;
-        this.state = { ...this.state, hero: newHero, score: newScore, battle: null, map: newMap, phase: 'map', rewardInfo: null };
+        this.state = { ...this.state, hero: newHero, battle: null, map: newMap, phase: 'map', rewardInfo: null };
         this.mapScrollY = 0;
         this._recalcLayout();
       }
     } else {
-      this.state = { ...this.state, hero: newHero, score: newScore, battle: null, phase: 'map', rewardInfo: null };
+      this.state = { ...this.state, hero: newHero, battle: null, phase: 'map', rewardInfo: null };
     }
   }
 
@@ -700,7 +695,7 @@ export class Game {
     } else if (phase === 'game_over') {
       drawGameOver(ctx, w, h, this.retryBtnRect);
     } else if (phase === 'ending' && hero) {
-      drawEnding(ctx, w, h, hero.name, this.state.score, this.retryBtnRect);
+      drawEnding(ctx, w, h, hero.name, this.retryBtnRect);
     }
   }
 
