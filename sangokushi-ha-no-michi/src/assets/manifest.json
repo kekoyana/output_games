@@ -36,6 +36,16 @@
       "path": "portraits/liu_bei_portrait.png",
       "size": [512, 512],
       "description": "Liu Bei, golden imperial robes, benevolent dignified expression, kind ruler"
+    },
+    "zhang_jiao_portrait": {
+      "path": "portraits/zhang_jiao_portrait.png",
+      "size": [512, 512],
+      "description": "Zhang Jiao, yellow turban, Taoist robes, evil sinister smile, cult leader sorcerer"
+    },
+    "dong_zhuo_portrait": {
+      "path": "portraits/dong_zhuo_portrait.png",
+      "size": [512, 512],
+      "description": "Dong Zhuo, fat round face, golden crown, red and gold armor, tyrannical warlord"
     }
   },
   "backgrounds": {

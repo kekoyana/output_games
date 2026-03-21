@@ -632,7 +632,8 @@ export class Game {
         const hero = this.state.hero;
         if (item && hero && hero.gold >= item.cost) {
           const newHero = { ...hero, gold: hero.gold - item.cost };
-          this.state = { ...this.state, hero: newHero };
+          const newItems = this.state.merchantItems.filter((_, idx) => idx !== i);
+          this.state = { ...this.state, hero: newHero, merchantItems: newItems };
           this._applyAdvisorCard({ id: item.id, name: item.name, description: item.description, effect: item.effect });
         }
       }
