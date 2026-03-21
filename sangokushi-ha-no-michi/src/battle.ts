@@ -90,7 +90,7 @@ export function executeBattle(
     } else if (effect === 'all_attack') {
       const bonus = Math.floor(hero.stats.attack * 1.5);
       enemyDmg += bonus;
-      log.push(`${hero.skill.name} 発動！全体攻撃 +${bonus}ダメージ！`);
+      log.push(`${hero.skill.name} 発動！渾身の一撃 +${bonus}ダメージ！`);
     } else if (effect === 'stun_enemy') {
       newState.enemy = { ...newState.enemy, stunned: true };
       log.push(`${hero.skill.name} 発動！敵を行動不能に！`);

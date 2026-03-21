@@ -10,7 +10,7 @@ export const HERO_DEFS: HeroDef[] = [
     skill: {
       id: 'blue_dragon',
       name: '青龍偃月刀',
-      description: '剣×2消費 → 全体攻撃（敵に×1.5ダメージ）',
+      description: '剣×2消費 → 渾身の一撃（攻撃力×1.5の追加ダメージ）',
       cost: { face: 'sword', count: 2 },
       effect: 'all_attack',
     },
@@ -24,9 +24,9 @@ export const HERO_DEFS: HeroDef[] = [
     portraitKey: 'zhang_fei_portrait',
     diceSet: ['sword', 'sword', 'strategy', 'sword'],
     skill: {
-      id: 'changban_roar',
-      name: '長坂橋の咆哮',
-      description: '策×1消費 → 全ての剣ダイス+1ダメージ',
+      id: 'snake_spear',
+      name: '蛇矛の突き',
+      description: '策×1消費 → 全ての剣ダイス×1.5倍',
       cost: { face: 'strategy', count: 1 },
       effect: 'buff_swords',
     },

@@ -118,7 +118,7 @@ export class Game {
     const cols = w < 500 ? 2 : 3;
     const maxCardW = w < 500 ? 130 : 160;
     const cardW = Math.min(maxCardW, (w - 40 - (cols - 1) * 10) / cols);
-    const cardH = Math.floor(cardW * (h < 700 ? 1.3 : 1.5));
+    const cardH = Math.floor(cardW * (h < 700 ? 1.55 : 1.75));
     const gap = Math.min(10, (w - cols * cardW) / (cols + 1));
     const startX = (w - cols * cardW - (cols - 1) * gap) / 2;
     const headerH = 50;

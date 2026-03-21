@@ -232,7 +232,10 @@ export function drawCharacterSelect(
     drawText(ctx, `HP:${hero.stats.maxHp} 攻:${hero.stats.attack} 防:${hero.stats.defense}`, rect.x + rect.w / 2, statY, statFont, '#ccc', 'center', 'top');
 
     const skillY = statY + 16;
-    drawText(ctx, `◆${hero.skill.name}`, rect.x + rect.w / 2, skillY, `${Math.min(11, cardW / 14)}px serif`, GOLD_COLOR, 'center', 'top');
+    drawText(ctx, `◆${hero.skill.name}`, rect.x + rect.w / 2, skillY, `bold ${Math.min(11, cardW / 14)}px serif`, GOLD_COLOR, 'center', 'top');
+    const skillDescFont = `${Math.min(10, cardW / 16)}px serif`;
+    const skillDescMaxW = rect.w - 12;
+    wrapText(ctx, hero.skill.description, rect.x + 6, skillY + 15, skillDescMaxW, 13, skillDescFont, '#aaa');
   });
 
   if (selectedId) {
@@ -702,7 +705,7 @@ function _getSkillEffectLabel(hero: import('./types').Hero): string {
   const effect = hero.skill.effect;
   const atk = hero.stats.attack;
   if (effect === 'all_attack') {
-    return `全体攻撃 +${Math.floor(atk * 1.5)}ダメージ`;
+    return `渾身の一撃 +${Math.floor(atk * 1.5)}ダメージ`;
   } else if (effect === 'buff_swords') {
     return '剣ダイス威力 ×1.5倍';
   } else if (effect === 'invincible_counter') {
