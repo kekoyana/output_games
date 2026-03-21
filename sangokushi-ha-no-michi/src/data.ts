@@ -69,7 +69,7 @@ export const HERO_DEFS: HeroDef[] = [
     id: 'liu_bei',
     name: '劉備',
     faction: 'shu',
-    portraitKey: 'cao_cao_portrait',
+    portraitKey: 'liu_bei_portrait',
     diceSet: ['shield', 'shield', 'sword', 'strategy'],
     skill: {
       id: 'benevolence',

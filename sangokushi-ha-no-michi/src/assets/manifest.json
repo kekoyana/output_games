@@ -31,6 +31,11 @@
       "path": "portraits/lu_bu_portrait.png",
       "size": [512, 512],
       "description": "Lu Bu, elaborate red armor, red feathered helmet, fierce red-eyed expression, white background"
+    },
+    "liu_bei_portrait": {
+      "path": "portraits/liu_bei_portrait.png",
+      "size": [512, 512],
+      "description": "Liu Bei, golden imperial robes, benevolent dignified expression, kind ruler"
     }
   },
   "backgrounds": {
