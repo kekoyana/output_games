@@ -1,0 +1,32 @@
+[
+  {
+    "name": "guan_yu_portrait",
+    "raw": "../workspace/src/assets/portraits/raw/guan_yu_portrait.png",
+    "portrait": "../workspace/src/assets/portraits/guan_yu_portrait.png"
+  },
+  {
+    "name": "zhang_fei_portrait",
+    "raw": "../workspace/src/assets/portraits/raw/zhang_fei_portrait.png",
+    "portrait": "../workspace/src/assets/portraits/zhang_fei_portrait.png"
+  },
+  {
+    "name": "zhao_yun_portrait",
+    "raw": "../workspace/src/assets/portraits/raw/zhao_yun_portrait.png",
+    "portrait": "../workspace/src/assets/portraits/zhao_yun_portrait.png"
+  },
+  {
+    "name": "zhuge_liang_portrait",
+    "raw": "../workspace/src/assets/portraits/raw/zhuge_liang_portrait.png",
+    "portrait": "../workspace/src/assets/portraits/zhuge_liang_portrait.png"
+  },
+  {
+    "name": "cao_cao_portrait",
+    "raw": "../workspace/src/assets/portraits/raw/cao_cao_portrait.png",
+    "portrait": "../workspace/src/assets/portraits/cao_cao_portrait.png"
+  },
+  {
+    "name": "lu_bu_portrait",
+    "raw": "../workspace/src/assets/portraits/raw/lu_bu_portrait.png",
+    "portrait": "../workspace/src/assets/portraits/lu_bu_portrait.png"
+  }
+]

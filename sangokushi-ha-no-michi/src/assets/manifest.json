@@ -1,0 +1,43 @@
+{
+  "style": "anime game art, Three Kingdoms era, Counterfeit-V3.0 checkpoint",
+  "generator": "comfyui-local",
+  "portraits": {
+    "guan_yu_portrait": {
+      "path": "portraits/guan_yu_portrait.png",
+      "size": [512, 512],
+      "description": "Guan Yu, green armor, long beard, red background, determined expression"
+    },
+    "zhang_fei_portrait": {
+      "path": "portraits/zhang_fei_portrait.png",
+      "size": [512, 512],
+      "description": "Zhang Fei, black armor, thick black beard, fierce expression, orange background"
+    },
+    "zhao_yun_portrait": {
+      "path": "portraits/zhao_yun_portrait.png",
+      "size": [512, 512],
+      "description": "Zhao Yun, white-silver armor with blue accents, white-blue hair, calm heroic expression, light blue background"
+    },
+    "zhuge_liang_portrait": {
+      "path": "portraits/zhuge_liang_portrait.png",
+      "size": [512, 512],
+      "description": "Zhuge Liang, white scholar robe, feather fan, black hair with headband, wise expression, white background"
+    },
+    "cao_cao_portrait": {
+      "path": "portraits/cao_cao_portrait.png",
+      "size": [512, 512],
+      "description": "Cao Cao, black ornate armor with gold, black hair, cunning expression, orange-yellow background"
+    },
+    "lu_bu_portrait": {
+      "path": "portraits/lu_bu_portrait.png",
+      "size": [512, 512],
+      "description": "Lu Bu, elaborate red armor, red feathered helmet, fierce red-eyed expression, white background"
+    }
+  },
+  "backgrounds": {
+    "battle_background": {
+      "path": "backgrounds/battle_background.png",
+      "size": [960, 540],
+      "description": "Ancient Chinese battlefield, misty mountains, war banner flying, foggy plains, Three Kingdoms era"
+    }
+  }
+}
