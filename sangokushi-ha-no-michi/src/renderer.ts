@@ -16,6 +16,7 @@ import {
   FACTION_COLORS,
   FACTION_NAMES,
   HERO_DEFS,
+  CHAPTER_SYNOPSIS,
 } from './data';
 import { canActivateSkill, calcSlotValue } from './battle';
 
@@ -252,6 +253,38 @@ export function drawCharacterSelect(
     drawRoundRect(ctx, w - 6, barY, 4, barH, 2);
     ctx.fill();
   }
+}
+
+export function drawSynopsis(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  chapter: number
+): void {
+  const synopsis = CHAPTER_SYNOPSIS[chapter];
+  if (!synopsis) return;
+
+  _drawBackground(ctx, w, h, 'title_background', 0.85);
+
+  const panelW = Math.min(w - 40, 500);
+  const panelH = Math.min(h * 0.7, 450);
+  const panelX = (w - panelW) / 2;
+  const panelY = (h - panelH) / 2;
+
+  drawPanel(ctx, { x: panelX, y: panelY, w: panelW, h: panelH }, 'rgba(20,15,10,0.9)', GOLD_COLOR, 12);
+
+  // 章タイトル
+  drawText(ctx, synopsis.title, w / 2, panelY + 40, `bold ${Math.min(28, w / 15)}px serif`, GOLD_COLOR, 'center', 'top');
+
+  // 内容
+  const startY = panelY + 100;
+  const lineH = 32;
+  synopsis.content.forEach((line, i) => {
+    drawText(ctx, line, w / 2, startY + i * lineH, `${Math.min(16, w / 25)}px serif`, TEXT_LIGHT, 'center', 'top');
+  });
+
+  // 続行案内
+  drawText(ctx, 'タップして進む', w / 2, panelY + panelH - 40, '15px serif', '#888', 'center', 'middle');
 }
 
 export function drawMap(

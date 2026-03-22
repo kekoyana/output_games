@@ -3,6 +3,7 @@
 export type GamePhase =
   | 'title'
   | 'character_select'
+  | 'synopsis'
   | 'map'
   | 'battle'
   | 'reward'

@@ -27,6 +27,7 @@ import {
 import {
   drawTitle,
   drawCharacterSelect,
+  drawSynopsis,
   drawMap,
   drawBattle,
   drawReward,
@@ -373,6 +374,8 @@ export class Game {
       if (this.selectedHeroId && pointInRect(scrolled, this.confirmSelectRect)) {
         this._startGame(this.selectedHeroId);
       }
+    } else if (phase === 'synopsis') {
+      this.state = { ...this.state, phase: 'map' };
     } else if (phase === 'map') {
       this._handleMapClick(p);
     } else if (phase === 'reward') {
@@ -408,7 +411,7 @@ export class Game {
     const map = generateMap();
     this.state = {
       ...this.state,
-      phase: 'map',
+      phase: 'synopsis',
       hero,
       map,
     };
@@ -625,7 +628,7 @@ export class Game {
       } else {
         const newMap = generateMap();
         newMap.chapter = currentChapter + 1;
-        this.state = { ...this.state, hero: newHero, battle: null, map: newMap, phase: 'map', rewardInfo: null };
+        this.state = { ...this.state, hero: newHero, battle: null, map: newMap, phase: 'synopsis', rewardInfo: null };
         this.mapScrollY = 0;
         this._recalcLayout();
       }
@@ -733,6 +736,8 @@ export class Game {
       drawTitle(ctx, w, h, this.startBtnRect);
     } else if (phase === 'character_select') {
       drawCharacterSelect(ctx, w, h, this.selectedHeroId, this.confirmSelectRect, this.heroRects, this.charScrollY, this.charScrollMax);
+    } else if (phase === 'synopsis' && map) {
+      drawSynopsis(ctx, w, h, map.chapter);
     } else if (phase === 'map' && map && hero) {
       drawMap(ctx, w, h, map.nodes, map.currentNodeId, map.chapter, hero.currentHp, hero.stats.maxHp, hero.gold, this.mapScrollY);
     } else if (phase === 'reward' && hero && this.state.rewardInfo) {
