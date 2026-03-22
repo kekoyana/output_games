@@ -16,6 +16,7 @@ import {
   HERO_DEFS,
   CHAPTER_SYNOPSIS,
   LEGACY_UPGRADES,
+  HERO_UNLOCK_UPGRADES,
 } from './data';
 import { canActivateSkill, calcSlotValue, getSkillCost } from './battle';
 import { t, tn } from './i18n';
@@ -165,7 +166,8 @@ export function drawCharacterSelect(
   confirmBtn: Rect,
   heroRects: Rect[],
   scrollY: number = 0,
-  scrollMax: number = 0
+  scrollMax: number = 0,
+  unlockedHeroIds: Set<string> = new Set(HERO_DEFS.map((h) => h.id))
 ): void {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, w, h);
@@ -180,11 +182,20 @@ export function drawCharacterSelect(
   const cardW = Math.min(maxCardW, (w - 40 - (cols - 1) * 10) / cols);
   const cardH = heroRects[0]?.h ?? cardW * 1.3;
 
-  HERO_DEFS.forEach((hero, i) => {
-    const rect = heroRects[i];
+  // 解放済みキャラを先に表示するようソート
+  const sortedIndices = HERO_DEFS.map((_, i) => i).sort((a, b) => {
+    const ua = unlockedHeroIds.has(HERO_DEFS[a].id) ? 0 : 1;
+    const ub = unlockedHeroIds.has(HERO_DEFS[b].id) ? 0 : 1;
+    return ua - ub || a - b;
+  });
+
+  sortedIndices.forEach((heroIdx, slotIdx) => {
+    const hero = HERO_DEFS[heroIdx];
+    const rect = heroRects[slotIdx];
     if (!rect) return;
 
-    const isSelected = hero.id === selectedId;
+    const isUnlocked = unlockedHeroIds.has(hero.id);
+    const isSelected = isUnlocked && hero.id === selectedId;
     const factionColor = FACTION_COLORS[hero.faction];
 
     // カード背景
@@ -200,6 +211,9 @@ export function drawCharacterSelect(
       ctx.stroke();
       ctx.restore();
     }
+
+    // ロック中は暗くする
+    if (!isUnlocked) ctx.globalAlpha = 0.35;
 
     // ポートレート
     const img = getImage(hero.portraitKey);
@@ -223,10 +237,10 @@ export function drawCharacterSelect(
 
     // 勢力バッジ
     ctx.fillStyle = factionColor;
-    ctx.globalAlpha = 0.85;
+    ctx.globalAlpha = isUnlocked ? 0.85 : 0.3;
     drawRoundRect(ctx, rect.x + 4, rect.y + 4, 34, 20, 4);
     ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = isUnlocked ? 1 : 0.35;
     drawText(ctx, t('faction.' + hero.faction), rect.x + 21, rect.y + 14, 'bold 12px serif', '#fff', 'center', 'middle');
 
     const textY = imgY + imgSize + 6;
@@ -241,6 +255,16 @@ export function drawCharacterSelect(
     const skillDescFont = `${Math.min(10, cardW / 16)}px serif`;
     const skillDescMaxW = rect.w - 12;
     wrapText(ctx, t(`skill.desc.${hero.skill.id}`), rect.x + 6, skillY + 15, skillDescMaxW, 13, skillDescFont, '#aaa');
+
+    ctx.globalAlpha = 1;
+
+    // ロック中ラベル
+    if (!isUnlocked) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      drawRoundRect(ctx, rect.x, rect.y + rect.h / 2 - 14, rect.w, 28, 0);
+      ctx.fill();
+      drawText(ctx, t('select.locked'), rect.x + rect.w / 2, rect.y + rect.h / 2, `bold ${Math.min(13, cardW / 10)}px serif`, '#f1c40f', 'center', 'middle');
+    }
   });
 
   ctx.restore(); // スクロール translate を戻す
@@ -1575,11 +1599,14 @@ export function drawLegacy(
   legacyData: LegacyData,
   upgradeRects: Rect[],
   backBtnRect: Rect,
-  resetBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 }
+  resetBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 },
+  heroUnlockRects: Rect[] = [],
+  scrollY: number = 0
 ): void {
   ctx.fillStyle = '#0d0d1e';
   ctx.fillRect(0, 0, w, h);
 
+  // ヘッダー部分（スクロールしない）
   // タイトル
   drawText(ctx, t('legacy.title'), w / 2, h * 0.06, `bold ${Math.min(28, w / 16)}px serif`, GOLD_COLOR, 'center', 'top');
 
@@ -1596,6 +1623,10 @@ export function drawLegacy(
   const runText = legacyData.totalRuns > 0 ? t('legacy.runStats', { n: legacyData.totalRuns }) : '';
   const bestText = legacyData.bestChapter > 0 ? t('legacy.bestCh', { n: legacyData.bestChapter }) : t('legacy.noBest');
   drawText(ctx, `${runText}  ${bestText}`, w / 2, statsY, '13px serif', '#888', 'center', 'top');
+
+  // スクロール対応（アップグレード一覧以降）
+  ctx.save();
+  ctx.translate(0, -scrollY);
 
   // アップグレード一覧
   const nameKeys: Record<string, string> = {
@@ -1663,10 +1694,71 @@ export function drawLegacy(
     }
   });
 
-  // 戻るボタン
+  // 武将解放セクション
+  if (heroUnlockRects.length > 0) {
+    const sectionLabelY = (heroUnlockRects[0]?.y ?? 0) - 20;
+    drawText(ctx, t('legacy.heroUnlock'), w / 2, sectionLabelY, `bold ${Math.min(18, w / 22)}px serif`, GOLD_COLOR, 'center', 'top');
+
+    HERO_UNLOCK_UPGRADES.forEach((upg, i) => {
+      const rect = heroUnlockRects[i];
+      if (!rect) return;
+      const level = legacyData.upgrades[upg.id] ?? 0;
+      const isUnlocked = level >= 1;
+      const cost = upg.costs[0];
+      const canBuy = !isUnlocked && legacyData.legacyPoints >= cost;
+
+      const heroDef = HERO_DEFS.find((h) => h.id === upg.heroId);
+      if (!heroDef) return;
+
+      const bgColor = canBuy ? '#1a2a1a' : '#1a1a2e';
+      const borderColor = canBuy ? '#27ae60' : isUnlocked ? '#f1c40f' : '#444';
+      drawPanel(ctx, rect, bgColor, borderColor, 8);
+
+      // ポートレート（小さく）
+      const imgSize = rect.h - 12;
+      const imgX = rect.x + 6;
+      const imgY = rect.y + 6;
+      const heroImg = getImage(heroDef.portraitKey);
+      if (heroImg) {
+        ctx.save();
+        ctx.beginPath();
+        drawRoundRect(ctx, imgX, imgY, imgSize, imgSize, 4);
+        ctx.clip();
+        if (!isUnlocked) ctx.globalAlpha = 0.4;
+        ctx.drawImage(heroImg, imgX, imgY, imgSize, imgSize);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+
+      // 名前
+      const textX = imgX + imgSize + 10;
+      drawText(ctx, tn(heroDef.name), textX, rect.y + 10, 'bold 14px serif', '#fff', 'left', 'top');
+
+      // ステータス
+      drawText(ctx, `HP:${heroDef.stats.maxHp} ${t('select.atk')}:${heroDef.stats.attack} ${t('select.def')}:${heroDef.stats.defense}`, textX, rect.y + 30, '11px serif', '#aaa', 'left', 'top');
+
+      // 解放ボタン or 解放済
+      if (isUnlocked) {
+        drawText(ctx, t('legacy.unlocked'), rect.x + rect.w - 12, rect.y + rect.h / 2, 'bold 13px serif', '#f1c40f', 'right', 'middle');
+      } else {
+        const costText = t('legacy.cost', { n: cost });
+        const btnColor = canBuy ? '#27ae60' : '#555';
+        const btnX = rect.x + rect.w - 90;
+        const btnY = rect.y + rect.h - 30;
+        drawRoundRect(ctx, btnX, btnY, 80, 24, 4);
+        ctx.fillStyle = btnColor;
+        ctx.fill();
+        drawText(ctx, `${t('legacy.unlock')} ${costText}`, btnX + 40, btnY + 12, '11px serif', '#fff', 'center', 'middle');
+      }
+    });
+  }
+
+  // 戻るボタン（スクロール内）
   drawButton(ctx, backBtnRect, t('legacy.back'), '#555', '#fff', 16, 8);
 
-  // リセットボタン
+  ctx.restore(); // スクロール translate を戻す
+
+  // リセットボタン（固定位置）
   if (resetBtnRect.w > 0) {
     drawButton(ctx, resetBtnRect, t('legacy.reset'), '#c0392b', '#fff', 12, 6);
   }

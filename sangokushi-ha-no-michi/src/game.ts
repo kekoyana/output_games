@@ -14,6 +14,7 @@ import {
   MERCHANT_ITEMS,
   GAME_EVENTS,
   LEGACY_UPGRADES,
+  HERO_UNLOCK_UPGRADES,
   getDefaultLegacyData,
 } from './data';
 import { generateMap, advanceMap } from './mapGen';
@@ -53,6 +54,8 @@ export class Game {
   private mapScrollY: number = 0;
   private charScrollY: number = 0;
   private charScrollMax: number = 0;
+  private legacyScrollY: number = 0;
+  private legacyScrollMax: number = 0;
   private selectedHeroId: string | null = null;
 
   // ドラッグ＆ドロップ状態
@@ -82,9 +85,9 @@ export class Game {
   private langBtnRects: Rect[] = [];
   private legacyBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private legacyUpgradeRects: Rect[] = [];
+  private legacyHeroUnlockRects: Rect[] = [];
   private legacyBackRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private legacyResetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
-  private legacyResetConfirm: boolean = false;
 
   // バトルアニメーション
   private battleAnims: {
@@ -164,7 +167,14 @@ export class Game {
     this.legacyUpgradeRects = LEGACY_UPGRADES.map((_, i) => ({
       x: legUpgradeX, y: legUpgradeStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
     }));
-    this.legacyBackRect = { x: (w - 200) / 2, y: h * 0.88, w: 200, h: 44 };
+    // 武将解放セクション（ステータス強化の下、+30pxはセクションラベル分）
+    const heroUnlockStartY = legUpgradeStartY + LEGACY_UPGRADES.length * (legUpgradeH + 8) + 30;
+    this.legacyHeroUnlockRects = HERO_UNLOCK_UPGRADES.map((_, i) => ({
+      x: legUpgradeX, y: heroUnlockStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
+    }));
+    const legacyContentBottom = heroUnlockStartY + HERO_UNLOCK_UPGRADES.length * (legUpgradeH + 8) + 20;
+    this.legacyBackRect = { x: (w - 200) / 2, y: legacyContentBottom, w: 200, h: 44 };
+    this.legacyScrollMax = Math.max(0, legacyContentBottom + 44 + 20 - h);
     this.legacyResetRect = { x: w - 140 - 12, y: 12, w: 140, h: 32 };
 
     // キャラクター選択（スマホ対応: カードサイズ縮小＋スクロール）
@@ -353,7 +363,7 @@ export class Game {
     // スクロール（マップ＆キャラ選択）
     let lastTouchY = 0;
     this.canvas.addEventListener('touchstart', (e) => {
-      if (this.state.phase === 'map' || this.state.phase === 'character_select') {
+      if (this.state.phase === 'map' || this.state.phase === 'character_select' || this.state.phase === 'legacy') {
         lastTouchY = e.touches[0].clientY;
       }
     });
@@ -369,6 +379,11 @@ export class Game {
         const dy = lastTouchY - e.touches[0].clientY;
         this.charScrollY = clamp(this.charScrollY + dy, 0, this.charScrollMax);
         lastTouchY = e.touches[0].clientY;
+      } else if (phase === 'legacy') {
+        e.preventDefault();
+        const dy = lastTouchY - e.touches[0].clientY;
+        this.legacyScrollY = clamp(this.legacyScrollY + dy, 0, this.legacyScrollMax);
+        lastTouchY = e.touches[0].clientY;
       }
     }, { passive: false });
 
@@ -377,6 +392,8 @@ export class Game {
         this.mapScrollY = clamp(this.mapScrollY + e.deltaY * 0.5, 0, 400);
       } else if (this.state.phase === 'character_select') {
         this.charScrollY = clamp(this.charScrollY + e.deltaY * 0.5, 0, this.charScrollMax);
+      } else if (this.state.phase === 'legacy') {
+        this.legacyScrollY = clamp(this.legacyScrollY + e.deltaY * 0.5, 0, this.legacyScrollMax);
       }
     });
   }
@@ -422,6 +439,7 @@ export class Game {
       }
       // レガシーボタン
       if (this.state.legacyData.totalRuns > 0 && pointInRect(p, this.legacyBtnRect)) {
+        this.legacyScrollY = 0;
         this.state = { ...this.state, phase: 'legacy' };
         return;
       }
@@ -439,9 +457,19 @@ export class Game {
         return;
       }
       const scrolled = { x: p.x, y: p.y + this.charScrollY };
-      this.heroRects.forEach((rect, i) => {
-        if (pointInRect(scrolled, rect)) {
-          this.selectedHeroId = HERO_DEFS[i].id;
+      // 描画と同じソート順で判定
+      const sortedIndices = HERO_DEFS.map((_, idx) => idx).sort((a, b) => {
+        const ua = this._isHeroUnlocked(HERO_DEFS[a].id) ? 0 : 1;
+        const ub = this._isHeroUnlocked(HERO_DEFS[b].id) ? 0 : 1;
+        return ua - ub || a - b;
+      });
+      sortedIndices.forEach((heroIdx, slotIdx) => {
+        const rect = this.heroRects[slotIdx];
+        if (rect && pointInRect(scrolled, rect)) {
+          const heroId = HERO_DEFS[heroIdx].id;
+          if (this._isHeroUnlocked(heroId)) {
+            this.selectedHeroId = heroId;
+          }
         }
       });
     } else if (phase === 'synopsis') {
@@ -479,14 +507,7 @@ export class Game {
   }
 
   private _handleLegacyClick(p: { x: number; y: number }): void {
-    // タイトルに戻る
-    if (pointInRect(p, this.legacyBackRect)) {
-      this.state = this._initialState();
-      this.selectedHeroId = null;
-      this.mapScrollY = 0;
-      return;
-    }
-    // リセットボタン
+    // リセットボタン（固定位置、スクロール影響なし）
     if (pointInRect(p, this.legacyResetRect)) {
       if (window.confirm(t('legacy.resetConfirm'))) {
         const defaultLegacy = getDefaultLegacyData();
@@ -496,11 +517,38 @@ export class Game {
       }
       return;
     }
+    // スクロールオフセット適用
+    const scrolled = { x: p.x, y: p.y + this.legacyScrollY };
+    // タイトルに戻る
+    if (pointInRect(scrolled, this.legacyBackRect)) {
+      this.state = this._initialState();
+      this.selectedHeroId = null;
+      this.mapScrollY = 0;
+      return;
+    }
     // アップグレード購入
     const legacy = this.state.legacyData;
     this.legacyUpgradeRects.forEach((rect, i) => {
-      if (pointInRect(p, rect)) {
+      if (pointInRect(scrolled, rect)) {
         const upg = LEGACY_UPGRADES[i];
+        if (!upg) return;
+        const level = legacy.upgrades[upg.id] ?? 0;
+        if (level >= upg.maxLevel) return;
+        const cost = upg.costs[level];
+        if (legacy.legacyPoints < cost) return;
+        const newLegacy = {
+          ...legacy,
+          legacyPoints: legacy.legacyPoints - cost,
+          upgrades: { ...legacy.upgrades, [upg.id]: level + 1 },
+        };
+        this._saveLegacy(newLegacy);
+        this.state = { ...this.state, legacyData: newLegacy };
+      }
+    });
+    // 武将解放購入
+    this.legacyHeroUnlockRects.forEach((rect, i) => {
+      if (pointInRect(scrolled, rect)) {
+        const upg = HERO_UNLOCK_UPGRADES[i];
         if (!upg) return;
         const level = legacy.upgrades[upg.id] ?? 0;
         if (level >= upg.maxLevel) return;
@@ -532,6 +580,13 @@ export class Game {
     try {
       localStorage.setItem('sangokushi_legacy', JSON.stringify(data));
     } catch { /* ignore */ }
+  }
+
+  private _isHeroUnlocked(heroId: string): boolean {
+    if (heroId === 'liu_bei') return true; // 劉備は初期解放
+    const unlockUpg = HERO_UNLOCK_UPGRADES.find((u) => u.heroId === heroId);
+    if (!unlockUpg) return true; // 定義がなければ解放扱い
+    return (this.state.legacyData.upgrades[unlockUpg.id] ?? 0) >= 1;
   }
 
   private _isTutorialDone(): boolean {
@@ -967,7 +1022,8 @@ export class Game {
     if (phase === 'title') {
       drawTitle(ctx, w, h, this.startBtnRect, this.langBtnRects, this.state.lang, this.state.legacyData, this.legacyBtnRect);
     } else if (phase === 'character_select') {
-      drawCharacterSelect(ctx, w, h, this.selectedHeroId, this.confirmSelectRect, this.heroRects, this.charScrollY, this.charScrollMax);
+      const unlockedHeroIds = new Set(HERO_DEFS.filter((h) => this._isHeroUnlocked(h.id)).map((h) => h.id));
+      drawCharacterSelect(ctx, w, h, this.selectedHeroId, this.confirmSelectRect, this.heroRects, this.charScrollY, this.charScrollMax, unlockedHeroIds);
     } else if (phase === 'synopsis' && map) {
       drawSynopsis(ctx, w, h, map.chapter);
     } else if (phase === 'map' && map && hero) {
@@ -988,7 +1044,7 @@ export class Game {
     } else if (phase === 'event' && this.state.currentEvent) {
       drawEvent(ctx, w, h, this.state.currentEvent, this.eventOptionRects);
     } else if (phase === 'legacy') {
-      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect);
+      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect, this.legacyHeroUnlockRects, this.legacyScrollY);
     } else if (phase === 'game_over') {
       drawGameOver(ctx, w, h, this.retryBtnRect);
     } else if (phase === 'ending' && hero) {
@@ -1100,5 +1156,15 @@ export class Game {
       },
     };
     console.log(`[CHEAT] Enemy HP set to 1`);
+  }
+
+  /** 宝玉を増減する。使い方: __game.cheatJade(100) で+100、__game.cheatJade(-50) で-50 */
+  cheatJade(amount: number = 100): void {
+    if (!import.meta.env.DEV) { console.warn('Cheats disabled in production'); return; }
+    const legacy = { ...this.state.legacyData };
+    legacy.legacyPoints = Math.max(0, legacy.legacyPoints + amount);
+    this._saveLegacy(legacy);
+    this.state = { ...this.state, legacyData: legacy };
+    console.log(`[CHEAT] 宝玉 ${amount >= 0 ? '+' : ''}${amount} → ${legacy.legacyPoints}`);
   }
 }

@@ -287,6 +287,10 @@ const UI: Translations = {
   'legacy.noBest': { ja: '最高到達: -', en: 'Best: -', zh: '最高到达: -' },
   'legacy.reset': { ja: 'データリセット', en: 'Reset Data', zh: '重置数据' },
   'legacy.resetConfirm': { ja: '本当にリセットしますか？', en: 'Really reset?', zh: '确定重置吗？' },
+  'legacy.heroUnlock': { ja: '武将解放', en: 'Unlock Heroes', zh: '解锁武将' },
+  'legacy.unlocked': { ja: '解放済', en: 'Unlocked', zh: '已解锁' },
+  'legacy.unlock': { ja: '解放', en: 'Unlock', zh: '解锁' },
+  'select.locked': { ja: '🔒 宝玉で解放', en: '🔒 Unlock with Jade', zh: '🔒 用宝玉解锁' },
 };
 
 // 名前の翻訳テーブル（英雄・敵・アイテム等）

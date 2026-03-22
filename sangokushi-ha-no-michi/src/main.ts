@@ -47,6 +47,7 @@ async function main() {
 
   const game = new Game(canvas);
   (window as unknown as Record<string, unknown>).__game = game;
+
   game.start();
 }
 

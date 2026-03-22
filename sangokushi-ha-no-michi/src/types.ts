@@ -174,7 +174,8 @@ export interface LegacyUpgradeDef {
   maxLevel: number;
   costs: number[];
   effects: number[]; // 各レベルの効果量
-  stat: 'maxHp' | 'attack' | 'defense' | 'gold' | 'healPercent';
+  stat: 'maxHp' | 'attack' | 'defense' | 'gold' | 'healPercent' | 'unlockHero';
+  heroId?: string; // stat === 'unlockHero' 時の対象武将ID
 }
 
 /** ローグライト永続データ（localStorage保存） */

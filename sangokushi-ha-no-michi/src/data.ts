@@ -760,6 +760,14 @@ export const LEGACY_UPGRADES: LegacyUpgradeDef[] = [
   { id: 'legacy_heal', maxLevel: 2, costs: [50, 80], effects: [5, 5], stat: 'healPercent' },
 ];
 
+/** 武将解放アップグレード */
+export const HERO_UNLOCK_UPGRADES: LegacyUpgradeDef[] = [
+  { id: 'unlock_guan_yu', maxLevel: 1, costs: [50], effects: [1], stat: 'unlockHero', heroId: 'guan_yu' },
+  { id: 'unlock_zhang_fei', maxLevel: 1, costs: [50], effects: [1], stat: 'unlockHero', heroId: 'zhang_fei' },
+  { id: 'unlock_zhao_yun', maxLevel: 1, costs: [60], effects: [1], stat: 'unlockHero', heroId: 'zhao_yun' },
+  { id: 'unlock_zhuge_liang', maxLevel: 1, costs: [80], effects: [1], stat: 'unlockHero', heroId: 'zhuge_liang' },
+];
+
 export function getDefaultLegacyData(): LegacyData {
   return {
     version: 1,
