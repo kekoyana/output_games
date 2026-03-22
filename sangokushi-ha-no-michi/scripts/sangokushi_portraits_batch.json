@@ -1,0 +1,72 @@
+[
+  {
+    "name": "guan_yu_portrait",
+    "description": "Guan Yu, Three Kingdoms warrior, green ornate armor, very long black beard flowing down, red face complexion, holding Green Dragon Crescent Blade, dignified serious expression, red gradient background, 1male, bust shot portrait",
+    "style": "anime game art, Three Kingdoms era, dramatic lighting, detailed armor, portrait bust shot, high quality",
+    "size": 512,
+    "pixel_density": 512,
+    "colors": 256,
+    "seed": 1001,
+    "model": "sdxl"
+  },
+  {
+    "name": "zhang_fei_portrait",
+    "description": "Zhang Fei, Three Kingdoms warrior, heavy black iron armor, thick bushy black beard, fierce intimidating expression with wide eyes, muscular broad shoulders, dark blue gradient background, 1male, bust shot portrait",
+    "style": "anime game art, Three Kingdoms era, dramatic lighting, detailed armor, portrait bust shot, high quality",
+    "size": 512,
+    "pixel_density": 512,
+    "colors": 256,
+    "seed": 2001,
+    "model": "sdxl"
+  },
+  {
+    "name": "zhao_yun_portrait",
+    "description": "Zhao Yun, Three Kingdoms warrior, silver white armor with blue accents and gold trim, young handsome face, calm heroic expression, long black hair, holding silver spear, blue gradient background, 1male, bust shot portrait",
+    "style": "anime game art, Three Kingdoms era, dramatic lighting, detailed armor, portrait bust shot, high quality",
+    "size": 512,
+    "pixel_density": 512,
+    "colors": 256,
+    "seed": 3001,
+    "model": "sdxl"
+  },
+  {
+    "name": "zhuge_liang_portrait",
+    "description": "Zhuge Liang, Three Kingdoms strategist, white elegant scholar robes, holding white feather fan, black hair with ornate crown, wise calm intelligent expression, gentle smile, teal gradient background, 1male, bust shot portrait",
+    "style": "anime game art, Three Kingdoms era, dramatic lighting, detailed robes, portrait bust shot, high quality",
+    "size": 512,
+    "pixel_density": 512,
+    "colors": 256,
+    "seed": 4001,
+    "model": "sdxl"
+  },
+  {
+    "name": "liu_bei_portrait",
+    "description": "Liu Bei, Three Kingdoms emperor, golden imperial robes with dragon emblem, benevolent dignified expression, kind eyes with inner strength, holding dual swords at waist, long black hair, golden yellow gradient background, 1male, bust shot portrait",
+    "style": "anime game art, Three Kingdoms era, dramatic lighting, detailed imperial robes, portrait bust shot, high quality",
+    "size": 512,
+    "pixel_density": 512,
+    "colors": 256,
+    "seed": 5001,
+    "model": "sdxl"
+  },
+  {
+    "name": "cao_cao_portrait",
+    "description": "Cao Cao, Three Kingdoms overlord, black and gold ornate heavy armor, sharp cunning eyes, ambitious confident expression, dark charismatic aura, dark purple gradient background, 1male, bust shot portrait",
+    "style": "anime game art, Three Kingdoms era, dramatic lighting, detailed armor, portrait bust shot, high quality",
+    "size": 512,
+    "pixel_density": 512,
+    "colors": 256,
+    "seed": 6001,
+    "model": "sdxl"
+  },
+  {
+    "name": "lu_bu_portrait",
+    "description": "Lu Bu, Three Kingdoms mightiest warrior, elaborate red crimson armor with gold details, ornate red feathered helmet, fierce overwhelming battle expression, holding Sky Piercer halberd, red crimson gradient background, 1male, bust shot portrait",
+    "style": "anime game art, Three Kingdoms era, dramatic lighting, detailed armor, portrait bust shot, high quality",
+    "size": 512,
+    "pixel_density": 512,
+    "colors": 256,
+    "seed": 7001,
+    "model": "sdxl"
+  }
+]
