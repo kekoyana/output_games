@@ -366,7 +366,7 @@ export function drawMap(
   }
 
   // ノードを描画
-  const r = 22;
+  const r = 33;
   const now = performance.now();
   // 今後到達可能なノードを再帰的に算出
   const currentNode = currentNodeId !== null ? nodes.find((n) => n.id === currentNodeId) : null;
@@ -439,7 +439,7 @@ export function drawMap(
     const labelAlpha = (!isVisited && !isAvailable && !isReachable && !isCurrent) ? 0.3 : 1.0;
     ctx.globalAlpha = labelAlpha;
     const label = t('node.' + node.type);
-    const fontSize = Math.min(13, 220 / label.length);
+    const fontSize = Math.min(18, 320 / label.length);
     drawText(ctx, label, node.x, node.y, `bold ${fontSize}px serif`, '#fff', 'center', 'middle');
     ctx.globalAlpha = 1.0;
   }

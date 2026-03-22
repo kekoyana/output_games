@@ -628,7 +628,7 @@ export class Game {
       if (!node.available || node.visited) continue;
       const nx = offsetX + node.x * scale;
       const ny = offsetY + node.y * scale;
-      const r = 22 * scale;
+      const r = 33 * scale;
       if (Math.hypot(p.x - nx, p.y - ny) <= r + 4) {
         this._enterNode(node);
         return;
