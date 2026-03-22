@@ -153,6 +153,9 @@ export interface RewardInfo {
   isBoss: boolean;
 }
 
+/** チュートリアルステップ: 0=非表示, 1〜=各ステップ, -1=完了済み */
+export type TutorialStep = -1 | 0 | 1 | 2 | 3 | 4 | 5;
+
 export interface GameState {
   phase: GamePhase;
   hero: Hero | null;
@@ -164,6 +167,7 @@ export interface GameState {
   currentEvent: GameEvent | null;
   showHelp: boolean;
   battleCount: number;
+  tutorialStep: TutorialStep;
 }
 
 export interface Point {

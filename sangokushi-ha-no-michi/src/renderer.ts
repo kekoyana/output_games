@@ -456,16 +456,17 @@ export function drawBattle(
   // ヘルプボタン
   _drawHelpButton(ctx, helpBtnRect);
 
-  // 結果メッセージ
+  // 結果メッセージ（勝利時は直接rewardに遷移するため、ここは敗北 or 反撃勝利のフォールバック）
   if (battle.phase === 'result') {
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, w, h);
-    const winColor = battle.enemy.currentHp <= 0 ? '#2ecc71' : '#e74c3c';
-    const winText = battle.enemy.currentHp <= 0 ? '勝利！' : '敗北...';
+    const won = battle.enemy.currentHp <= 0;
+    const color = won ? '#2ecc71' : '#e74c3c';
+    const text = won ? '勝利！' : '敗北...';
     ctx.save();
-    ctx.shadowColor = winColor;
+    ctx.shadowColor = color;
     ctx.shadowBlur = 20;
-    drawText(ctx, winText, w / 2, h / 2, `bold ${Math.min(60, w / 8)}px serif`, winColor, 'center', 'middle');
+    drawText(ctx, text, w / 2, h / 2, `bold ${Math.min(60, w / 8)}px serif`, color, 'center', 'middle');
     ctx.restore();
     drawText(ctx, 'タップで続ける', w / 2, h / 2 + 60, '20px serif', '#ccc', 'center', 'top');
   }
@@ -473,6 +474,11 @@ export function drawBattle(
   // ヘルプオーバーレイ
   if (state.showHelp) {
     _drawHelpOverlay(ctx, w, h, hero);
+  }
+
+  // チュートリアルオーバーレイ
+  if (state.tutorialStep >= 1) {
+    _drawTutorialOverlay(ctx, w, h, state.tutorialStep, diceRects, slotRects, confirmBtnRect, skillBtnRect);
   }
 }
 
@@ -750,9 +756,9 @@ function _drawSkillButton(
   const cx = rect.x + rect.w / 2;
 
   // スキル名・コスト・効果を表示
-  drawText(ctx, `✦ ${hero.skill.name}`, cx, rect.y + 6, `bold ${Math.min(14, rect.w / 12)}px serif`, textColor, 'center', 'top');
-  drawText(ctx, costStr, cx, rect.y + 22, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#f8c' : '#666', 'center', 'top');
-  drawText(ctx, effectStr, cx, rect.y + 35, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#cfc' : '#555', 'center', 'top');
+  drawText(ctx, `✦ ${hero.skill.name}`, cx, rect.y + 8, `bold ${Math.min(14, rect.w / 12)}px serif`, textColor, 'center', 'top');
+  drawText(ctx, costStr, cx, rect.y + 24, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#f8c' : '#666', 'center', 'top');
+  drawText(ctx, effectStr, cx, rect.y + 38, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#cfc' : '#555', 'center', 'top');
 }
 
 function _drawBattleLog(
@@ -1050,6 +1056,173 @@ export function drawEnding(
   ctx.restore();
   drawText(ctx, `${heroName}は曹操を破り天下に名を轟かせた！`, w / 2, h * 0.46, '20px serif', '#2ecc71', 'center', 'middle');
   drawButton(ctx, retryBtn, 'もう一度プレイ', GOLD_COLOR, TEXT_DARK, 18, 8);
+}
+
+/** チュートリアルオーバーレイ */
+function _drawTutorialOverlay(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  step: number,
+  diceRects: Rect[],
+  slotRects: Record<string, Rect>,
+  confirmBtnRect: Rect,
+  skillBtnRect: Rect
+): void {
+  // ステップごとにハイライト領域と説明を変える
+  const STEPS: { highlight: () => Rect | null; title: string; lines: string[]; arrow?: 'down' | 'up' }[] = [
+    {
+      // Step 1: 戦闘画面の全体説明
+      highlight: () => null,
+      title: 'バトル開始！',
+      lines: [
+        'ダイスを振って攻撃・防御・策略に',
+        '割り振って戦います。',
+        '',
+        'タップして次へ →',
+      ],
+    },
+    {
+      // Step 2: ダイスの説明
+      highlight: () => {
+        if (diceRects.length === 0) return null;
+        const first = diceRects[0];
+        const last = diceRects[diceRects.length - 1];
+        return { x: first.x - 6, y: first.y - 6, w: last.x + last.w - first.x + 12, h: first.h + 12 };
+      },
+      title: 'ダイスの出目',
+      lines: [
+        '⚔剣 🛡盾 📜策 🐴馬 🏹弓 ⭐星',
+        'スロットとの相性でダメージが変わります。',
+        '⭐星はどこに置いても最大効果！',
+        '',
+        'タップして次へ →',
+      ],
+      arrow: 'down',
+    },
+    {
+      // Step 3: スロットの説明
+      highlight: () => {
+        const keys = Object.keys(slotRects);
+        if (keys.length === 0) return null;
+        const first = slotRects[keys[0]];
+        const last = slotRects[keys[keys.length - 1]];
+        return { x: first.x - 4, y: first.y - 4, w: last.x + last.w - first.x + 8, h: first.h + 8 };
+      },
+      title: 'スロットに配置',
+      lines: [
+        '⚔攻撃 → 敵にダメージ（剣が高効果）',
+        '🛡防御 → 敵の攻撃を軽減（盾が高効果）',
+        '📜策略 → 追加ダメージ（策が高効果）',
+        '',
+        'タップして次へ →',
+      ],
+      arrow: 'up',
+    },
+    {
+      // Step 4: ダイスをタップして配置してみよう
+      highlight: () => {
+        if (diceRects.length === 0) return null;
+        const first = diceRects[0];
+        const last = diceRects[diceRects.length - 1];
+        const slotKeys = Object.keys(slotRects);
+        const firstSlot = slotRects[slotKeys[0]];
+        const lastSlot = slotRects[slotKeys[slotKeys.length - 1]];
+        return {
+          x: Math.min(first.x, firstSlot.x) - 6,
+          y: first.y - 6,
+          w: Math.max(last.x + last.w, lastSlot.x + lastSlot.w) - Math.min(first.x, firstSlot.x) + 12,
+          h: lastSlot.y + lastSlot.h - first.y + 12,
+        };
+      },
+      title: 'やってみよう！',
+      lines: [
+        'ダイスをタップ → スロットをタップで配置。',
+        '全てのダイスを配置してみましょう！',
+      ],
+      arrow: 'up',
+    },
+    {
+      // Step 5: 行動確定ボタンを押そう
+      highlight: () => ({ x: confirmBtnRect.x - 4, y: confirmBtnRect.y - 4, w: confirmBtnRect.w + 8, h: confirmBtnRect.h + 8 }),
+      title: '行動確定で攻撃！',
+      lines: [
+        '配置が終わったら「行動確定」を押そう！',
+        '✦ スキルボタンで必殺技も使えます',
+      ],
+      arrow: 'up',
+    },
+  ];
+
+  const stepIdx = step - 1;
+  if (stepIdx < 0 || stepIdx >= STEPS.length) return;
+  const s = STEPS[stepIdx];
+
+  // ハイライト領域を残して暗い背景を描画
+  const hlRect = s.highlight();
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  if (hlRect) {
+    // ハイライト領域を避けて4つの矩形で暗い背景を塗る
+    ctx.fillRect(0, 0, w, hlRect.y);                                      // 上
+    ctx.fillRect(0, hlRect.y, hlRect.x, hlRect.h);                        // 左
+    ctx.fillRect(hlRect.x + hlRect.w, hlRect.y, w - hlRect.x - hlRect.w, hlRect.h); // 右
+    ctx.fillRect(0, hlRect.y + hlRect.h, w, h - hlRect.y - hlRect.h);     // 下
+
+    // 水色のグロー枠
+    ctx.save();
+    ctx.strokeStyle = '#5dade2';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#5dade2';
+    ctx.shadowBlur = 16;
+    drawRoundRect(ctx, hlRect.x, hlRect.y, hlRect.w, hlRect.h, 10);
+    ctx.stroke();
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // 吹き出しパネルの位置計算
+  const bubbleW = Math.min(w - 30, 380);
+  const lineH = 22;
+  const bubbleH = s.lines.length * lineH + 56;
+  const bubbleX = (w - bubbleW) / 2;
+  let bubbleY: number;
+  if (hlRect && s.arrow === 'down') {
+    bubbleY = hlRect.y - bubbleH - 20;
+    if (bubbleY < 10) bubbleY = hlRect.y + hlRect.h + 20;
+  } else if (hlRect && s.arrow === 'up') {
+    bubbleY = hlRect.y - bubbleH - 20;
+    if (bubbleY < 10) bubbleY = 10;
+  } else {
+    bubbleY = (h - bubbleH) / 2;
+  }
+
+  // 吹き出しパネル描画（白枠でハイライト枠と区別）
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 14;
+  drawPanel(ctx, { x: bubbleX, y: bubbleY, w: bubbleW, h: bubbleH }, '#1a1a2e', '#ccc', 14);
+  ctx.restore();
+
+  // タイトル
+  drawText(ctx, s.title, bubbleX + bubbleW / 2, bubbleY + 16, 'bold 18px serif', GOLD_COLOR, 'center', 'top');
+
+  // 説明テキスト
+  s.lines.forEach((line, i) => {
+    drawText(ctx, line, bubbleX + bubbleW / 2, bubbleY + 44 + i * lineH, '14px serif', '#eee', 'center', 'top');
+  });
+
+  // ステップインジケーター（パネル下の外側に配置）
+  const dotY = bubbleY + bubbleH + 12;
+  for (let i = 0; i < STEPS.length; i++) {
+    const dotX = bubbleX + bubbleW / 2 + (i - 2) * 18;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, i === stepIdx ? 5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = i === stepIdx ? '#fff' : '#666';
+    ctx.fill();
+  }
 }
 
 export { pointInRect };

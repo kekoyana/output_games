@@ -96,6 +96,7 @@ export class Game {
       currentEvent: null,
       showHelp: false,
       battleCount: 0,
+      tutorialStep: 0,
     };
   }
 
@@ -168,13 +169,13 @@ export class Game {
 
     const skillW = Math.min(slotTotalW, w * 0.7);
     const skillY = slotY + slotH + 8;
-    this.skillBtnRect = { x: panelCx - skillW / 2, y: skillY, w: skillW, h: 44 };
+    this.skillBtnRect = { x: panelCx - skillW / 2, y: skillY, w: skillW, h: 54 };
 
     // ヘルプボタン（右上）
     this.helpBtnRect = { x: w - 44, y: 8, w: 36, h: 36 };
 
     const btnW2 = Math.min(slotTotalW, w * 0.6);
-    const btnY = skillY + 52;
+    const btnY = skillY + 54 + 8;
     this.confirmBtnRect = { x: panelCx - btnW2 / 2, y: btnY, w: btnW2, h: 42 };
     this.rollBtnRect = { x: panelCx - btnW2 / 2, y: btnY, w: btnW2, h: 42 };
 
@@ -348,6 +349,10 @@ export class Game {
       d.id === die.id ? { ...d, assignedSlot: targetSlot } : d
     );
     this.state = { ...this.state, battle: { ...battle, dice: newDice } };
+    if (targetSlot && this.state.tutorialStep === 4) {
+      const allAssigned = newDice.every((d) => d.assignedSlot !== null);
+      if (allAssigned) this._advanceTutorial();
+    }
   }
 
   private _handleClick(p: { x: number; y: number }): void {
@@ -440,10 +445,14 @@ export class Game {
       const enemy = this._selectEnemy(node.type, state.map.chapter);
       const battleState = createBattleState(state.hero, enemy);
       const newBattleCount = (state.battleCount ?? 0) + 1;
-      const tutorialBattle = newBattleCount === 1
-        ? { ...battleState, message: 'ダイスをドラッグしてスロットに配置しよう！(右上の?でヘルプ)' }
-        : battleState;
-      this.state = { ...state, phase: 'battle', battle: tutorialBattle, battleCount: newBattleCount };
+      const startTutorial = newBattleCount === 1 && state.tutorialStep === 0;
+      this.state = {
+        ...state,
+        phase: 'battle',
+        battle: battleState,
+        battleCount: newBattleCount,
+        tutorialStep: startTutorial ? 1 : state.tutorialStep,
+      };
       this._recalcLayout();
     } else if (node.type === 'advisor') {
       const cards = shuffle([...ADVISOR_CARDS]).slice(0, 3) as AdvisorCard[];
@@ -479,9 +488,25 @@ export class Game {
     return { ...base };
   }
 
+  private _advanceTutorial(): void {
+    const step = this.state.tutorialStep;
+    if (step >= 1 && step < 5) {
+      this.state = { ...this.state, tutorialStep: (step + 1) as import('./types').TutorialStep };
+    } else if (step === 5) {
+      this.state = { ...this.state, tutorialStep: -1 };
+    }
+  }
+
   private _handleBattleClick(p: { x: number; y: number }): void {
     const { battle, hero } = this.state;
     if (!battle || !hero) return;
+
+    // チュートリアル表示中: ステップ1,2,3はタップで次へ、4,5は操作を許可しつつ進行
+    const tStep = this.state.tutorialStep;
+    if (tStep >= 1 && tStep <= 3) {
+      this._advanceTutorial();
+      return;
+    }
 
     // ヘルプオーバーレイ表示中はタップで閉じる
     if (this.state.showHelp) {
@@ -535,6 +560,10 @@ export class Game {
               );
               this.state = { ...this.state, battle: { ...battle, dice: newDice } };
               this.selectedDieIdx = -1;
+              if (this.state.tutorialStep === 4) {
+                const allAssigned = newDice.every((d) => d.assignedSlot !== null);
+                if (allAssigned) this._advanceTutorial();
+              }
             }
             return;
           }
@@ -552,13 +581,33 @@ export class Game {
 
       // 行動確定
       if (pointInRect(p, this.confirmBtnRect)) {
+        const hasAssigned = battle.dice.some((d) => d.assignedSlot !== null);
+        if (!hasAssigned) return;
         const { state: newBattle, heroDmg } = executeBattle(battle, hero);
         const newHp = hero.currentHp - heroDmg;
         const newHero = { ...hero, currentHp: Math.max(0, newHp) };
-        const finalBattle = newHp <= 0
-          ? { ...newBattle, phase: 'result' as import('./types').BattlePhase, message: '敗北...' }
-          : newBattle;
-        this.state = { ...this.state, battle: finalBattle, hero: newHero };
+
+        if (this.state.tutorialStep === 5) {
+          this.state = { ...this.state, tutorialStep: -1 };
+        }
+
+        if (newHp <= 0) {
+          // 敗北 → game_over
+          this.state = { ...this.state, phase: 'game_over', battle: newBattle, hero: newHero };
+        } else if (newBattle.enemy.currentHp <= 0) {
+          // 勝利 → 直接 reward（result画面をスキップ）
+          const nodeType = this.state.map?.nodes.find((n) => n.id === this.state.map?.currentNodeId)?.type ?? 'battle';
+          const gold = getGoldReward(nodeType, this.state.map?.chapter ?? 1);
+          const rewardInfo = {
+            goldEarned: gold,
+            enemyName: newBattle.enemy.name,
+            isBoss: newBattle.enemy.isBoss,
+          };
+          this.state = { ...this.state, phase: 'reward', battle: newBattle, hero: newHero, rewardInfo };
+        } else {
+          // 戦闘継続
+          this.state = { ...this.state, battle: newBattle, hero: newHero };
+        }
       }
     }
   }
