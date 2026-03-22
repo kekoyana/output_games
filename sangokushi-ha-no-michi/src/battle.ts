@@ -1,6 +1,7 @@
 import type { BattleState, Die, DiceFace, ActionSlot, Hero, EnemyDef, Enemy } from './types';
 import { choose, clamp, randomInt } from './utils';
 import { rollDie } from './data';
+import { t, tn } from './i18n';
 
 let dieIdCounter = 0;
 
@@ -29,7 +30,7 @@ export function createBattleState(hero: Hero, enemyDef: EnemyDef): BattleState {
     heroBlock: 0,
     skillActivated: false,
     turnCount: 1,
-    message: 'ダイスをアクションに割り当てよ！',
+    message: t('log.assignDice'),
     invincible: false,
     counterPending: false,
     log: [],
@@ -49,7 +50,7 @@ export function rerollDice(state: BattleState): BattleState {
     phase: 'assign',
     heroBlock: 0,
     skillActivated: false,
-    message: 'ダイスをアクションに割り当てよ！',
+    message: t('log.assignDice'),
   };
 }
 
@@ -82,22 +83,22 @@ export function executeBattle(
     const effect = hero.skill.effect;
     if (effect === 'buff_swords') {
       skillMultiplier = 1.5;
-      log.push(`${hero.skill.name} 発動！剣ダイス強化！`);
+      log.push(`${tn(hero.skill.name)} ${t('log.skillSword')}`);
     } else if (effect === 'shield_to_attack') {
       const shieldCount = countFace('shield');
       enemyDmg += Math.floor(hero.stats.defense * shieldCount);
-      log.push(`${hero.skill.name} 発動！盾を攻撃に転用！`);
+      log.push(`${tn(hero.skill.name)} ${t('log.skillShield')}`);
     } else if (effect === 'all_attack') {
       const bonus = Math.floor(hero.stats.attack * 1.5);
       enemyDmg += bonus;
-      log.push(`${hero.skill.name} 発動！渾身の一撃 +${bonus}ダメージ！`);
+      log.push(`${tn(hero.skill.name)} ${t('log.skillAllAtk')} +${bonus}!`);
     } else if (effect === 'stun_enemy') {
       newState.enemy = { ...newState.enemy, stunned: true };
-      log.push(`${hero.skill.name} 発動！敵を行動不能に！`);
+      log.push(`${tn(hero.skill.name)} ${t('log.skillStun')}`);
     } else if (effect === 'invincible_counter') {
       newState.invincible = true;
       newState.counterPending = true;
-      log.push(`${hero.skill.name} 発動！無敵＋反撃準備！`);
+      log.push(`${tn(hero.skill.name)} ${t('log.skillInv')}`);
     }
   }
 
@@ -112,8 +113,8 @@ export function executeBattle(
   const actualEnemyDmg = Math.max(0, enemyDmg - newState.enemy.blockAmount);
   const newEnemyHp = clamp(newState.enemy.currentHp - actualEnemyDmg, 0, newState.enemy.maxHp);
 
-  if (actualEnemyDmg > 0) log.push(`敵に${actualEnemyDmg}ダメージ！`);
-  if (block > 0) log.push(`防御${block}を構えた！`);
+  if (actualEnemyDmg > 0) log.push(t('log.enemyDmg', { n: actualEnemyDmg }));
+  if (block > 0) log.push(t('log.block', { n: block }));
 
   newState.enemy = {
     ...newState.enemy,
@@ -123,7 +124,7 @@ export function executeBattle(
 
   if (newEnemyHp <= 0) {
     return {
-      state: { ...newState, phase: 'result', message: '勝利！', log },
+      state: { ...newState, phase: 'result', message: t('battle.victory'), log },
       heroDmg: 0,
       enemyDmg: actualEnemyDmg,
     };
@@ -137,33 +138,33 @@ export function executeBattle(
         ? Math.floor(newState.enemy.attack * 1.5)
         : newState.enemy.attack;
       if (newState.invincible) {
-        log.push('無敵！敵の攻撃を回避！');
+        log.push(t('log.invincible'));
         if (newState.counterPending) {
           heroDmg = 0;
           const counterDmg = Math.floor(hero.stats.attack * 2);
           const newHp2 = clamp(newState.enemy.currentHp - counterDmg, 0, newState.enemy.maxHp);
           newState.enemy = { ...newState.enemy, currentHp: newHp2 };
-          log.push(`反撃！${counterDmg}ダメージ！`);
+          log.push(t('log.counter', { n: counterDmg }));
         }
       } else {
         heroDmg = Math.max(0, rawDmg - block);
-        if (heroDmg > 0) log.push(`敵の攻撃！${heroDmg}ダメージを受けた！`);
-        else log.push('防御成功！ダメージなし！');
+        if (heroDmg > 0) log.push(t('log.enemyAtk', { n: heroDmg }));
+        else log.push(t('log.blocked'));
       }
     } else if (intent === 'defend') {
       newState.enemy = { ...newState.enemy, blockAmount: newState.enemy.defense };
-      log.push(`敵が防御！${newState.enemy.defense}ブロック！`);
+      log.push(t('log.enemyDef', { n: newState.enemy.defense }));
     } else if (intent === 'buff') {
       newState.enemy = { ...newState.enemy, buffed: true };
-      log.push('敵が強化！次の攻撃が1.5倍に！');
+      log.push(t('log.enemyBuff'));
     } else if (intent === 'special') {
       const specialDmg = Math.floor(newState.enemy.attack * 2);
       heroDmg = Math.max(0, specialDmg - block);
-      if (heroDmg > 0) log.push(`敵の必殺技！${heroDmg}ダメージ！`);
+      if (heroDmg > 0) log.push(t('log.enemySpecial', { n: heroDmg }));
     }
   } else {
     newState.enemy = { ...newState.enemy, stunned: false };
-    log.push('敵は行動不能！');
+    log.push(t('log.stunned'));
   }
 
   // 次のインテントを設定
@@ -178,7 +179,7 @@ export function executeBattle(
       counterPending: false,
       skillActivated: false,
       turnCount: newState.turnCount + 1,
-      message: 'ダイスをロールせよ！',
+      message: t('log.rollDice'),
       log: log.slice(-5),
     },
     heroDmg,
@@ -229,7 +230,7 @@ export function activateSkill(state: BattleState, hero: Hero): BattleState {
     }
     return d;
   });
-  return { ...state, dice: newDice, skillActivated: true, message: `${hero.skill.name}を発動！` };
+  return { ...state, dice: newDice, skillActivated: true, message: `${tn(hero.skill.name)}${t('log.skillActivate')}` };
 }
 
 export function getEnemyForNode(

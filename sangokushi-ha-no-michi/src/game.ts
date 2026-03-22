@@ -40,6 +40,7 @@ import {
   pointInRect,
 } from './renderer';
 import { choose, shuffle, clamp } from './utils';
+import { setLang, type Lang } from './i18n';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -75,6 +76,7 @@ export class Game {
   private restLeaveRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private eventOptionRects: Rect[] = [];
   private retryBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private langBtnRects: Rect[] = [];
 
   // バトルアニメーション
   private battleAnims: {
@@ -107,6 +109,7 @@ export class Game {
       battleCount: 0,
       tutorialStep: 0,
       mapTutorialStep: 0,
+      lang: 'ja',
     };
   }
 
@@ -124,6 +127,18 @@ export class Game {
     const btnW = Math.min(220, w * 0.5);
     this.startBtnRect = { x: (w - btnW) / 2, y: h * 0.68, w: btnW, h: 48 };
     this.retryBtnRect = { x: (w - 260) / 2, y: h * 0.65, w: 260, h: 50 };
+
+    // 言語選択ボタン（タイトル画面右上）
+    const langBtnW = 44;
+    const langBtnH = 28;
+    const langBtnGap = 6;
+    const langStartX = w - (langBtnW * 3 + langBtnGap * 2) - 12;
+    this.langBtnRects = [0, 1, 2].map((i) => ({
+      x: langStartX + i * (langBtnW + langBtnGap),
+      y: 10,
+      w: langBtnW,
+      h: langBtnH,
+    }));
 
     // キャラクター選択（スマホ対応: カードサイズ縮小＋スクロール）
     const cols = w < 500 ? 2 : 3;
@@ -369,6 +384,15 @@ export class Game {
     const { phase } = this.state;
 
     if (phase === 'title') {
+      // 言語選択
+      const langs: Lang[] = ['ja', 'en', 'zh'];
+      for (let i = 0; i < this.langBtnRects.length; i++) {
+        if (pointInRect(p, this.langBtnRects[i])) {
+          setLang(langs[i]);
+          this.state = { ...this.state, lang: langs[i] };
+          return;
+        }
+      }
       if (pointInRect(p, this.startBtnRect)) {
         this.charScrollY = 0;
         this.state = { ...this.state, phase: 'character_select' };
@@ -764,7 +788,7 @@ export class Game {
     const { phase, hero, map, battle } = this.state;
 
     if (phase === 'title') {
-      drawTitle(ctx, w, h, this.startBtnRect);
+      drawTitle(ctx, w, h, this.startBtnRect, this.langBtnRects, this.state.lang);
     } else if (phase === 'character_select') {
       drawCharacterSelect(ctx, w, h, this.selectedHeroId, this.confirmSelectRect, this.heroRects, this.charScrollY, this.charScrollMax);
     } else if (phase === 'synopsis' && map) {
@@ -803,5 +827,99 @@ export class Game {
 
   stop(): void {
     cancelAnimationFrame(this.animId);
+  }
+
+  // === 開発用チート（dev モードのみ有効） ===
+
+  /** 指定章から強化状態で開始。使い方: __game.cheatStart('guan_yu', 5) */
+  cheatStart(heroId: string = 'guan_yu', chapter: number = 5): void {
+    if (!import.meta.env.DEV) { console.warn('Cheats disabled in production'); return; }
+    const heroDef = HERO_DEFS.find((h) => h.id === heroId);
+    if (!heroDef) {
+      console.error(`Hero not found: ${heroId}. Available: ${HERO_DEFS.map(h => h.id).join(', ')}`);
+      return;
+    }
+
+    // 章に応じた強化値
+    const chapterBonus = chapter - 1;
+    const bonusAttack = chapterBonus * 5;
+    const bonusDefense = chapterBonus * 3;
+    const bonusHp = chapterBonus * 30;
+    const bonusDice: import('./types').DiceFace[] = [];
+    for (let i = 0; i < chapterBonus; i++) {
+      bonusDice.push('star');
+      if (i % 2 === 0) bonusDice.push('sword');
+      else bonusDice.push('shield');
+    }
+
+    const hero: Hero = {
+      ...heroDef,
+      stats: {
+        ...heroDef.stats,
+        maxHp: heroDef.stats.maxHp + bonusHp,
+        attack: heroDef.stats.attack + bonusAttack,
+        defense: heroDef.stats.defense + bonusDefense,
+        diceCount: heroDef.stats.diceCount + bonusDice.length,
+      },
+      diceSet: [...heroDef.diceSet, ...bonusDice],
+      currentHp: heroDef.stats.maxHp + bonusHp,
+      gold: 100 + chapterBonus * 100,
+      upgrades: [],
+    };
+
+    const map = generateMap();
+    map.chapter = chapter;
+
+    this.state = {
+      ...this._initialState(),
+      phase: 'synopsis',
+      hero,
+      map,
+      tutorialStep: -1,
+      mapTutorialStep: -1,
+    };
+    this.selectedHeroId = heroId;
+    this._recalcLayout();
+
+    console.log(`[CHEAT] Started chapter ${chapter} with ${heroDef.name}`);
+    console.log(`  HP: ${hero.currentHp}, ATK: ${hero.stats.attack}, DEF: ${hero.stats.defense}, Dice: ${hero.diceSet.length}, Gold: ${hero.gold}`);
+  }
+
+  /** HP全回復。使い方: __game.cheatHeal() */
+  cheatHeal(): void {
+    if (!import.meta.env.DEV) { console.warn('Cheats disabled in production'); return; }
+    const hero = this.state.hero;
+    if (!hero) { console.error('No hero'); return; }
+    this.state = {
+      ...this.state,
+      hero: { ...hero, currentHp: hero.stats.maxHp },
+    };
+    console.log(`[CHEAT] HP fully restored: ${hero.stats.maxHp}`);
+  }
+
+  /** ゴールド追加。使い方: __game.cheatGold(500) */
+  cheatGold(amount: number = 500): void {
+    if (!import.meta.env.DEV) { console.warn('Cheats disabled in production'); return; }
+    const hero = this.state.hero;
+    if (!hero) { console.error('No hero'); return; }
+    this.state = {
+      ...this.state,
+      hero: { ...hero, gold: hero.gold + amount },
+    };
+    console.log(`[CHEAT] Gold +${amount} → ${hero.gold + amount}`);
+  }
+
+  /** 現在のバトルの敵HPを1にする。使い方: __game.cheatKill() */
+  cheatKill(): void {
+    if (!import.meta.env.DEV) { console.warn('Cheats disabled in production'); return; }
+    if (!this.state.battle) { console.error('Not in battle'); return; }
+    this.state = {
+      ...this.state,
+      battle: {
+        ...this.state.battle,
+        enemy: { ...this.state.battle.enemy, currentHp: 1 },
+      },
+    };
+    console.log(`[CHEAT] Enemy HP set to 1`);
   }
 }

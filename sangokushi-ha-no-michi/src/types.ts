@@ -170,6 +170,7 @@ export interface GameState {
   battleCount: number;
   tutorialStep: TutorialStep;
   mapTutorialStep: 0 | 1 | 2 | -1;
+  lang: 'ja' | 'en' | 'zh';
 }
 
 export interface Point {

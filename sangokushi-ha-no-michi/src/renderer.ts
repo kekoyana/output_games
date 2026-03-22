@@ -1,4 +1,4 @@
-import type { GameState, MapNode, Die, Rect, DiceFace } from './types';
+import type { GameState, MapNode, Die, Rect } from './types';
 import {
   drawRoundRect,
   drawButton,
@@ -12,13 +12,13 @@ import {
   DICE_LABELS,
   DICE_COLORS,
   NODE_COLORS,
-  NODE_LABELS,
   FACTION_COLORS,
-  FACTION_NAMES,
   HERO_DEFS,
   CHAPTER_SYNOPSIS,
 } from './data';
 import { canActivateSkill, calcSlotValue } from './battle';
+import { t, tn } from './i18n';
+import type { Lang } from './i18n';
 
 const BG_COLOR = '#1a1a2e';
 const PANEL_BORDER = '#8b6914';
@@ -26,34 +26,16 @@ const TEXT_DARK = '#2c1810';
 const TEXT_LIGHT = '#f5e6c8';
 const GOLD_COLOR = '#f1c40f';
 
-const SLOT_LABELS: Record<string, string> = {
-  attack: '⚔ 攻撃',
-  defense: '🛡 防御',
-  strategy: '📜 策略',
-};
-const SLOT_HINTS: Record<string, string> = {
-  attack: '敵にダメージ',
-  defense: '攻撃を軽減',
-  strategy: '追加ダメージ',
-};
 const SLOT_COLORS: Record<string, string> = {
   attack: '#c0392b',
   defense: '#2980b9',
   strategy: '#8e44ad',
 };
-const DIE_SLOT_LABEL: Record<string, string> = {
-  attack: '攻', defense: '防', strategy: '策', skill: '技',
-};
-const DICE_NAMES: Record<DiceFace, string> = {
-  sword: '剣', shield: '盾', strategy: '策', horse: '馬', arrow: '弓', star: '星',
-};
-const SLOT_UNIT: Record<string, { label: string; color: string }> = {
-  attack: { label: 'ダメージ', color: '#ff7777' },
-  defense: { label: '防御力', color: '#77bbff' },
-  strategy: { label: '追加ダメ', color: '#cc99ff' },
-};
-const CHAPTER_NAMES: Record<number, string> = {
-  1: '黄巾の乱', 2: '董卓の専横', 3: '徐州攻防戦', 4: '偽帝袁術', 5: '赤壁の戦い',
+
+const SLOT_UNIT_COLORS: Record<string, string> = {
+  attack: '#ff7777',
+  defense: '#77bbff',
+  strategy: '#cc99ff',
 };
 
 type ImageCache = Record<string, HTMLImageElement>;
@@ -128,7 +110,9 @@ export function drawTitle(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  startBtn: Rect
+  startBtn: Rect,
+  langBtnRects: Rect[] = [],
+  lang: string = 'ja'
 ): void {
   _drawBackground(ctx, w, h, 'title_background');
 
@@ -136,21 +120,33 @@ export function drawTitle(
   ctx.save();
   ctx.shadowColor = '#f1c40f';
   ctx.shadowBlur = 20;
-  drawText(ctx, '三国志', w / 2, h * 0.25, `bold ${Math.min(60, w / 10)}px serif`, GOLD_COLOR, 'center', 'middle');
-  drawText(ctx, '覇への道', w / 2, h * 0.35, `bold ${Math.min(48, w / 13)}px serif`, TEXT_LIGHT, 'center', 'middle');
+  drawText(ctx, t('title.main'), w / 2, h * 0.25, `bold ${Math.min(60, w / 10)}px serif`, GOLD_COLOR, 'center', 'middle');
+  drawText(ctx, t('title.sub'), w / 2, h * 0.35, `bold ${Math.min(48, w / 13)}px serif`, TEXT_LIGHT, 'center', 'middle');
   ctx.restore();
 
   // サブタイトル
   drawText(
-    ctx, '劉備軍と共に乱世をダイスで切り拓け',
+    ctx, t('title.desc'),
     w / 2, h * 0.48, `${Math.min(18, w / 40)}px serif`, '#aaa', 'center', 'middle'
   );
 
   // スタートボタン
-  drawButton(ctx, startBtn, 'ゲーム開始', GOLD_COLOR, TEXT_DARK, Math.min(22, w / 30), 10);
+  drawButton(ctx, startBtn, t('title.start'), GOLD_COLOR, TEXT_DARK, Math.min(22, w / 30), 10);
+
+  // 言語選択ボタン
+  const langLabels: Record<string, string> = { ja: '日本語', en: 'EN', zh: '中文' };
+  const langKeys: Lang[] = ['ja', 'en', 'zh'];
+  langKeys.forEach((lk, i) => {
+    const rect = langBtnRects[i];
+    if (!rect) return;
+    const isActive = lang === lk;
+    const bg = isActive ? GOLD_COLOR : '#444';
+    const fg = isActive ? TEXT_DARK : '#ccc';
+    drawButton(ctx, rect, langLabels[lk], bg, fg, 14, 6);
+  });
 
   // 操作説明
-  drawText(ctx, 'クリック/タップで操作', w / 2, h * 0.88, '14px serif', '#666', 'center', 'middle');
+  drawText(ctx, t('title.controls'), w / 2, h * 0.88, '14px serif', '#666', 'center', 'middle');
 }
 
 export function drawCharacterSelect(
@@ -166,7 +162,7 @@ export function drawCharacterSelect(
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, w, h);
 
-  drawText(ctx, '武将を選べ', w / 2, 16, `bold ${Math.min(28, w / 20)}px serif`, GOLD_COLOR, 'center', 'top');
+  drawText(ctx, t('select.title'), w / 2, 16, `bold ${Math.min(28, w / 20)}px serif`, GOLD_COLOR, 'center', 'top');
 
   ctx.save();
   ctx.translate(0, -scrollY);
@@ -214,7 +210,7 @@ export function drawCharacterSelect(
       ctx.fillStyle = '#333';
       drawRoundRect(ctx, imgX, imgY, imgSize, imgSize, 6);
       ctx.fill();
-      drawText(ctx, hero.name[0], imgX + imgSize / 2, imgY + imgSize / 2, `bold ${imgSize * 0.4}px serif`, factionColor, 'center', 'middle');
+      drawText(ctx, tn(hero.name)[0], imgX + imgSize / 2, imgY + imgSize / 2, `bold ${imgSize * 0.4}px serif`, factionColor, 'center', 'middle');
     }
 
     // 勢力バッジ
@@ -223,24 +219,24 @@ export function drawCharacterSelect(
     drawRoundRect(ctx, rect.x + 4, rect.y + 4, 34, 20, 4);
     ctx.fill();
     ctx.globalAlpha = 1;
-    drawText(ctx, FACTION_NAMES[hero.faction], rect.x + 21, rect.y + 14, 'bold 12px serif', '#fff', 'center', 'middle');
+    drawText(ctx, t('faction.' + hero.faction), rect.x + 21, rect.y + 14, 'bold 12px serif', '#fff', 'center', 'middle');
 
     const textY = imgY + imgSize + 6;
-    drawText(ctx, hero.name, rect.x + rect.w / 2, textY, `bold ${Math.min(16, cardW / 9)}px serif`, TEXT_LIGHT, 'center', 'top');
+    drawText(ctx, tn(hero.name), rect.x + rect.w / 2, textY, `bold ${Math.min(16, cardW / 9)}px serif`, TEXT_LIGHT, 'center', 'top');
 
     const statY = textY + 22;
     const statFont = `${Math.min(11, cardW / 14)}px serif`;
-    drawText(ctx, `HP:${hero.stats.maxHp} 攻:${hero.stats.attack} 防:${hero.stats.defense}`, rect.x + rect.w / 2, statY, statFont, '#ccc', 'center', 'top');
+    drawText(ctx, `${t('select.hp')}:${hero.stats.maxHp} ${t('select.atk')}:${hero.stats.attack} ${t('select.def')}:${hero.stats.defense}`, rect.x + rect.w / 2, statY, statFont, '#ccc', 'center', 'top');
 
     const skillY = statY + 16;
-    drawText(ctx, `◆${hero.skill.name}`, rect.x + rect.w / 2, skillY, `bold ${Math.min(11, cardW / 14)}px serif`, GOLD_COLOR, 'center', 'top');
+    drawText(ctx, `◆${tn(hero.skill.name)}`, rect.x + rect.w / 2, skillY, `bold ${Math.min(11, cardW / 14)}px serif`, GOLD_COLOR, 'center', 'top');
     const skillDescFont = `${Math.min(10, cardW / 16)}px serif`;
     const skillDescMaxW = rect.w - 12;
-    wrapText(ctx, hero.skill.description, rect.x + 6, skillY + 15, skillDescMaxW, 13, skillDescFont, '#aaa');
+    wrapText(ctx, t(`skill.desc.${hero.skill.id}`), rect.x + 6, skillY + 15, skillDescMaxW, 13, skillDescFont, '#aaa');
   });
 
   if (selectedId) {
-    drawButton(ctx, confirmBtn, 'この武将で出陣！', GOLD_COLOR, TEXT_DARK, Math.min(20, w / 32), 8);
+    drawButton(ctx, confirmBtn, t('select.confirm'), GOLD_COLOR, TEXT_DARK, Math.min(20, w / 32), 8);
   }
 
   ctx.restore(); // スクロール translate を戻す
@@ -274,17 +270,20 @@ export function drawSynopsis(
   drawPanel(ctx, { x: panelX, y: panelY, w: panelW, h: panelH }, 'rgba(20,15,10,0.9)', GOLD_COLOR, 12);
 
   // 章タイトル
-  drawText(ctx, synopsis.title, w / 2, panelY + 40, `bold ${Math.min(28, w / 15)}px serif`, GOLD_COLOR, 'center', 'top');
+  const synTitle = t(`synopsis.${chapter}.title`);
+  drawText(ctx, synTitle !== `synopsis.${chapter}.title` ? synTitle : synopsis.title, w / 2, panelY + 40, `bold ${Math.min(28, w / 15)}px serif`, GOLD_COLOR, 'center', 'top');
 
   // 内容
   const startY = panelY + 100;
   const lineH = 32;
-  synopsis.content.forEach((line, i) => {
-    drawText(ctx, line, w / 2, startY + i * lineH, `${Math.min(16, w / 25)}px serif`, TEXT_LIGHT, 'center', 'top');
+  synopsis.content.forEach((_, i) => {
+    const key = `synopsis.${chapter}.${i + 1}`;
+    const line = t(key);
+    drawText(ctx, line !== key ? line : synopsis.content[i], w / 2, startY + i * lineH, `${Math.min(16, w / 25)}px serif`, TEXT_LIGHT, 'center', 'top');
   });
 
   // 続行案内
-  drawText(ctx, 'タップして進む', w / 2, panelY + panelH - 40, '15px serif', '#888', 'center', 'middle');
+  drawText(ctx, t('synopsis.continue'), w / 2, panelY + panelH - 40, '15px serif', '#888', 'center', 'middle');
 }
 
 export function drawMap(
@@ -304,10 +303,10 @@ export function drawMap(
 
   // ヘッダー
   drawPanel(ctx, { x: 0, y: 0, w, h: 50 }, '#0d0d1e', '#333');
-  const chapterTitle = CHAPTER_NAMES[chapter] ?? '';
-  drawText(ctx, `第${chapter}章 ${chapterTitle}`, w / 2, 25, 'bold 20px serif', GOLD_COLOR, 'center', 'middle');
+  const chapterTitle = t('ch.' + chapter);
+  drawText(ctx, `${t('map.chapter', { n: chapter })} ${chapterTitle}`, w / 2, 25, 'bold 20px serif', GOLD_COLOR, 'center', 'middle');
   drawText(ctx, `HP: ${heroHp}/${heroMaxHp}`, 20, 25, '16px serif', '#2ecc71', 'left', 'middle');
-  drawText(ctx, `金: ${heroGold}`, w - 90, 25, '16px serif', GOLD_COLOR, 'right', 'middle');
+  drawText(ctx, `${t('map.gold')}: ${heroGold}`, w - 90, 25, '16px serif', GOLD_COLOR, 'right', 'middle');
 
   ctx.save();
   ctx.translate(w * 0.1, 60 - scrollY);
@@ -340,7 +339,7 @@ export function drawMap(
     const isAvailable = node.available;
     const isVisited = node.visited;
 
-    let color = NODE_COLORS[node.type] || '#888';
+    const color = NODE_COLORS[node.type] || '#888';
 
     if (isVisited) {
       ctx.globalAlpha = 0.4;
@@ -374,7 +373,7 @@ export function drawMap(
 
     ctx.globalAlpha = 1.0;
 
-    const label = NODE_LABELS[node.type] || node.type;
+    const label = t('node.' + node.type);
     const fontSize = Math.min(12, 200 / label.length);
     drawText(ctx, label, node.x, node.y, `bold ${fontSize}px serif`, '#fff', 'center', 'middle');
   }
@@ -452,12 +451,12 @@ export function drawBattle(
   if (battle.phase === 'assign' && !dragInfo) {
     const allUnassigned = battle.dice.filter((d) => d.assignedSlot === null || d.assignedSlot === 'skill').length === battle.dice.length;
     if (selectedDieIdx >= 0) {
-      drawText(ctx, '▼ スロットをタップして配置 ▼', w / 2, panelY + 12, 'bold 14px serif', '#f1c40f', 'center', 'top');
+      drawText(ctx, t('battle.hint.place'), w / 2, panelY + 12, 'bold 14px serif', '#f1c40f', 'center', 'top');
     } else if (allUnassigned) {
-      drawText(ctx, '▼ ダイスをタップして選択 → スロットに配置 ▼', w / 2, panelY + 12, 'bold 14px serif', '#f1c40f', 'center', 'top');
+      drawText(ctx, t('battle.hint.select'), w / 2, panelY + 12, 'bold 14px serif', '#f1c40f', 'center', 'top');
     }
   } else if (battle.phase === 'roll') {
-    drawText(ctx, '▼ ダイスを振ろう ▼', w / 2, panelY + 12, 'bold 14px serif', '#3498db', 'center', 'top');
+    drawText(ctx, t('battle.hint.roll'), w / 2, panelY + 12, 'bold 14px serif', '#3498db', 'center', 'top');
   }
 
   // アクションスロット（ドラッグ中/選択中はハイライト）
@@ -510,9 +509,9 @@ export function drawBattle(
   // 行動確定 / ダイスロールボタン
   if (battle.phase === 'assign') {
     const hasAssigned = battle.dice.some((d) => d.assignedSlot !== null);
-    drawButton(ctx, confirmBtnRect, '⚔ 行動確定 ⚔', hasAssigned ? '#c0392b' : '#555', '#fff', 17, 10);
+    drawButton(ctx, confirmBtnRect, t('battle.confirm'), hasAssigned ? '#c0392b' : '#555', '#fff', 17, 10);
   } else if (battle.phase === 'roll') {
-    drawButton(ctx, rollBtnRect, '🎲 ダイスロール！', '#2980b9', '#fff', 17, 10);
+    drawButton(ctx, rollBtnRect, t('battle.roll'), '#2980b9', '#fff', 17, 10);
   }
 
   // ヘルプボタン
@@ -524,13 +523,13 @@ export function drawBattle(
     ctx.fillRect(0, 0, w, h);
     const won = battle.enemy.currentHp <= 0;
     const color = won ? '#2ecc71' : '#e74c3c';
-    const text = won ? '勝利！' : '敗北...';
+    const text = won ? t('battle.victory') : t('battle.defeat');
     ctx.save();
     ctx.shadowColor = color;
     ctx.shadowBlur = 20;
     drawText(ctx, text, w / 2, h / 2, `bold ${Math.min(60, w / 8)}px serif`, color, 'center', 'middle');
     ctx.restore();
-    drawText(ctx, 'タップで続ける', w / 2, h / 2 + 60, '20px serif', '#ccc', 'center', 'top');
+    drawText(ctx, t('battle.continue'), w / 2, h / 2 + 60, '20px serif', '#ccc', 'center', 'top');
   }
 
   // バトルアニメーション: ダメージ数字 + 斬撃エフェクト
@@ -640,11 +639,11 @@ function _drawEnemy(
     ctx.fillStyle = '#2c2c2c';
     drawRoundRect(ctx, portraitX, portraitY, portraitSize, portraitSize, 8);
     ctx.fill();
-    drawText(ctx, enemy.name[0], cx, portraitY + portraitSize / 2, `bold ${portraitSize * 0.4}px serif`, '#e74c3c', 'center', 'middle');
+    drawText(ctx, tn(enemy.name)[0], cx, portraitY + portraitSize / 2, `bold ${portraitSize * 0.4}px serif`, '#e74c3c', 'center', 'middle');
   }
 
   // 敵名
-  drawText(ctx, enemy.name, cx, portraitY + portraitSize + 6, `bold ${Math.min(20, w / 25)}px serif`, '#fff', 'center', 'top');
+  drawText(ctx, tn(enemy.name), cx, portraitY + portraitSize + 6, `bold ${Math.min(20, w / 25)}px serif`, '#fff', 'center', 'top');
 
   // HP バー
   const barW = Math.min(200, w * 0.35);
@@ -655,28 +654,28 @@ function _drawEnemy(
   // インテント表示（具体的なダメージ数値付き）
   const intentText = _intentLabelWithDmg(enemy);
   const intentColor = enemy.currentIntent === 'attack' || enemy.currentIntent === 'special' ? '#e74c3c' : '#3498db';
-  drawText(ctx, `次の行動: ${intentText}`, cx, portraitY + portraitSize + 62, 'bold 14px serif', intentColor, 'center', 'top');
+  drawText(ctx, `${t('battle.nextAction')}: ${intentText}`, cx, portraitY + portraitSize + 62, 'bold 14px serif', intentColor, 'center', 'top');
 
   // 攻撃力・防御力の常時表示
-  drawText(ctx, `攻:${enemy.attack}  防:${enemy.defense}`, cx, portraitY + portraitSize + 80, '12px serif', '#aaa', 'center', 'top');
+  drawText(ctx, `${t('select.atk')}:${enemy.attack}  ${t('select.def')}:${enemy.defense}`, cx, portraitY + portraitSize + 80, '12px serif', '#aaa', 'center', 'top');
 
   // 状態異常
   const statusY = portraitY + portraitSize + 96;
   if (enemy.stunned) {
-    drawText(ctx, '[行動不能]', cx, statusY, 'bold 13px serif', '#9b59b6', 'center', 'top');
+    drawText(ctx, t('battle.stunned'), cx, statusY, 'bold 13px serif', '#9b59b6', 'center', 'top');
   }
   if (enemy.buffed) {
-    drawText(ctx, '[強化中 攻撃1.5倍]', cx, statusY, 'bold 13px serif', '#e67e22', 'center', 'top');
+    drawText(ctx, t('battle.buffed'), cx, statusY, 'bold 13px serif', '#e67e22', 'center', 'top');
   }
 }
 
 function _intentLabelWithDmg(enemy: import('./types').Enemy): string {
   const intent = enemy.currentIntent;
   const atk = enemy.buffed ? Math.floor(enemy.attack * 1.5) : enemy.attack;
-  if (intent === 'attack') return `⚔ 攻撃 ${atk}ダメージ`;
-  if (intent === 'special') return `☆ 必殺技 ${atk * 2}ダメージ`;
-  if (intent === 'defend') return `🛡 防御 +${enemy.defense}`;
-  if (intent === 'buff') return '⬆ 強化（次の攻撃1.5倍）';
+  if (intent === 'attack') return `${t('intent.attack')} ${atk}${t('intent.dmg')}`;
+  if (intent === 'special') return `${t('intent.special')} ${atk * 2}${t('intent.dmg')}`;
+  if (intent === 'defend') return `${t('intent.defend')} +${enemy.defense}`;
+  if (intent === 'buff') return t('intent.buff');
   return intent;
 }
 
@@ -726,7 +725,7 @@ function _drawHeroStatus(
     ctx.fillStyle = '#333';
     drawRoundRect(ctx, x, y, size, size, 6);
     ctx.fill();
-    drawText(ctx, hero.name[0], x + size / 2, y + size / 2, `bold ${size * 0.4}px serif`, factionColor, 'center', 'middle');
+    drawText(ctx, tn(hero.name)[0], x + size / 2, y + size / 2, `bold ${size * 0.4}px serif`, factionColor, 'center', 'middle');
   }
 
   // スキル使用可能ラベル
@@ -735,15 +734,15 @@ function _drawHeroStatus(
     ctx.fillStyle = 'rgba(155,89,182,0.9)';
     drawRoundRect(ctx, x, y + size - 14, size, 16, 3);
     ctx.fill();
-    drawText(ctx, '技発動可！', x + size / 2, y + size - 6, 'bold 10px serif', '#fff', 'center', 'middle');
+    drawText(ctx, t('battle.skillReady'), x + size / 2, y + size - 6, 'bold 10px serif', '#fff', 'center', 'middle');
     ctx.restore();
   }
 
-  drawText(ctx, hero.name, x + size + 8, y + 4, 'bold 15px serif', factionColor, 'left', 'top');
+  drawText(ctx, tn(hero.name), x + size + 8, y + 4, 'bold 15px serif', factionColor, 'left', 'top');
   drawHpBar(ctx, x + size + 8, y + 24, 120, 12, hero.currentHp, hero.stats.maxHp, '#2ecc71');
   drawText(ctx, `${hero.currentHp}/${hero.stats.maxHp}`, x + size + 8, y + 38, '12px serif', '#aaa', 'left', 'top');
   if (block > 0) {
-    drawText(ctx, `🛡 防御 ${block}`, x + size + 8, y + 54, 'bold 13px serif', '#3498db', 'left', 'top');
+    drawText(ctx, `${t('battle.block')} ${block}`, x + size + 8, y + 54, 'bold 13px serif', '#3498db', 'left', 'top');
   }
 }
 
@@ -780,7 +779,9 @@ function _drawDie(ctx: CanvasRenderingContext2D, rect: Rect, die: Die): void {
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     drawRoundRect(ctx, rect.x, rect.y + rect.h - 16, rect.w, 16, 3);
     ctx.fill();
-    drawText(ctx, DIE_SLOT_LABEL[die.assignedSlot ?? 'attack'] ?? '', rect.x + rect.w / 2, rect.y + rect.h - 8, 'bold 11px serif', '#fff', 'center', 'middle');
+    const slotKey = die.assignedSlot ?? 'attack';
+    const slotAbbrKey = slotKey === 'attack' ? 'slot.abbr.atk' : slotKey === 'defense' ? 'slot.abbr.def' : slotKey === 'strategy' ? 'slot.abbr.str' : 'slot.abbr.skill';
+    drawText(ctx, t(slotAbbrKey), rect.x + rect.w / 2, rect.y + rect.h - 8, 'bold 11px serif', '#fff', 'center', 'middle');
   }
 }
 
@@ -813,7 +814,8 @@ function _drawSlots(
       ctx.restore();
     }
 
-    drawText(ctx, SLOT_LABELS[slotKey] ?? slotKey, rect.x + rect.w / 2, rect.y + 8, 'bold 13px serif', '#fff', 'center', 'top');
+    const slotLabelKey = slotKey === 'attack' ? 'slot.attack' : slotKey === 'defense' ? 'slot.defense' : 'slot.strategy';
+    drawText(ctx, t(slotLabelKey), rect.x + rect.w / 2, rect.y + 8, 'bold 13px serif', '#fff', 'center', 'top');
 
     if (slotDice.length > 0) {
       // カウントバッジ
@@ -826,17 +828,19 @@ function _drawSlots(
       // 共通関数で予測値を計算
       const baseStat = slotKey === 'defense' ? hero.stats.defense : hero.stats.attack;
       const value = calcSlotValue(dice, slotKey, baseStat);
-      const unit = SLOT_UNIT[slotKey];
+      const unitColor = SLOT_UNIT_COLORS[slotKey] ?? '#fff';
+      const unitLabelKey = slotKey === 'attack' ? 'slot.damage' : slotKey === 'defense' ? 'slot.defense.label' : 'slot.bonus';
 
-      if (value > 0 && unit) {
-        drawText(ctx, String(value), rect.x + rect.w / 2, rect.y + rect.h / 2 + 4, `bold ${Math.min(22, rect.w / 4)}px serif`, unit.color, 'center', 'middle');
-        drawText(ctx, unit.label, rect.x + rect.w / 2, rect.y + rect.h - 8, '10px serif', '#aaa', 'center', 'bottom');
+      if (value > 0) {
+        drawText(ctx, String(value), rect.x + rect.w / 2, rect.y + rect.h / 2 + 4, `bold ${Math.min(22, rect.w / 4)}px serif`, unitColor, 'center', 'middle');
+        drawText(ctx, t(unitLabelKey), rect.x + rect.w / 2, rect.y + rect.h - 8, '10px serif', '#aaa', 'center', 'bottom');
       } else {
-        drawText(ctx, '効果なし', rect.x + rect.w / 2, rect.y + rect.h / 2 + 6, '12px serif', '#666', 'center', 'middle');
+        drawText(ctx, t('slot.noEffect'), rect.x + rect.w / 2, rect.y + rect.h / 2 + 6, '12px serif', '#666', 'center', 'middle');
       }
     } else {
-      drawText(ctx, SLOT_HINTS[slotKey] ?? '', rect.x + rect.w / 2, rect.y + rect.h / 2 + 2, '11px serif', '#777', 'center', 'middle');
-      drawText(ctx, 'タップで配置', rect.x + rect.w / 2, rect.y + rect.h - 8, '10px serif', '#555', 'center', 'bottom');
+      const hintKey = slotKey === 'attack' ? 'slot.attack.hint' : slotKey === 'defense' ? 'slot.defense.hint' : 'slot.strategy.hint';
+      drawText(ctx, t(hintKey), rect.x + rect.w / 2, rect.y + rect.h / 2 + 2, '11px serif', '#777', 'center', 'middle');
+      drawText(ctx, t('slot.tap'), rect.x + rect.w / 2, rect.y + rect.h - 8, '10px serif', '#555', 'center', 'bottom');
     }
   }
 }
@@ -845,15 +849,15 @@ function _getSkillEffectLabel(hero: import('./types').Hero): string {
   const effect = hero.skill.effect;
   const atk = hero.stats.attack;
   if (effect === 'all_attack') {
-    return `渾身の一撃 +${Math.floor(atk * 1.5)}ダメージ`;
+    return `${t('skill.allAttack')} +${Math.floor(atk * 1.5)}${t('intent.dmg')}`;
   } else if (effect === 'buff_swords') {
-    return '剣ダイス威力 ×1.5倍';
+    return t('skill.buffSwords');
   } else if (effect === 'invincible_counter') {
-    return `無敵 + 反撃${atk * 2}ダメージ`;
+    return `${t('skill.invincible')}${atk * 2}${t('intent.dmg')}`;
   } else if (effect === 'stun_enemy') {
-    return '敵を1ターン行動不能に';
+    return t('skill.stun');
   } else if (effect === 'shield_to_attack') {
-    return '盾の防御力を攻撃に転用';
+    return t('skill.shieldAttack');
   }
   return '';
 }
@@ -865,7 +869,7 @@ function _drawSkillButton(
   canSkill: boolean
 ): void {
   const { face, count } = hero.skill.cost;
-  const costStr = `必要: ${DICE_LABELS[face]} ${DICE_NAMES[face]}×${count}`;
+  const costStr = `${t('skill.cost')}: ${DICE_LABELS[face]} ${t('dice.' + face)}×${count}`;
   const effectStr = _getSkillEffectLabel(hero);
 
   if (canSkill) {
@@ -890,7 +894,7 @@ function _drawSkillButton(
   const cx = rect.x + rect.w / 2;
 
   // スキル名・コスト・効果を表示
-  drawText(ctx, `✦ ${hero.skill.name}`, cx, rect.y + 8, `bold ${Math.min(14, rect.w / 12)}px serif`, textColor, 'center', 'top');
+  drawText(ctx, `✦ ${tn(hero.skill.name)}`, cx, rect.y + 8, `bold ${Math.min(14, rect.w / 12)}px serif`, textColor, 'center', 'top');
   drawText(ctx, costStr, cx, rect.y + 24, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#f8c' : '#666', 'center', 'top');
   drawText(ctx, effectStr, cx, rect.y + 38, `${Math.min(11, rect.w / 16)}px serif`, canSkill ? '#cfc' : '#555', 'center', 'top');
 }
@@ -966,19 +970,19 @@ function _drawHelpOverlay(
   const titleFont = 'bold 14px serif';
   const bodyFont = '12px serif';
 
-  drawText(ctx, 'ヘルプ — バトルの遊び方', panelX + panelW / 2, y, 'bold 16px serif', GOLD_COLOR, 'center', 'top');
+  drawText(ctx, t('help.title'), panelX + panelW / 2, y, 'bold 16px serif', GOLD_COLOR, 'center', 'top');
   y += 26;
 
   // ダイスの出目と効果
-  drawText(ctx, '■ 出目×スロットの相性（適材適所が重要！）', lx, y, titleFont, '#f1c40f', 'left', 'top');
+  drawText(ctx, t('help.dice'), lx, y, titleFont, '#f1c40f', 'left', 'top');
   y += lineH + 2;
   const diceHelp: [string, string][] = [
-    ['⚔ 剣', `攻撃◎(${atk}) 防御△(${Math.floor(def * 0.3)}) 策略△(${Math.floor(atk * 0.2)})`],
-    ['🛡 盾', `防御◎(${def}) 攻撃×(${Math.floor(atk * 0.2)}) 策略×(0)`],
-    ['📜 策', `策略◎(${Math.floor(atk * 0.6)}) 攻撃×(${Math.floor(atk * 0.3)}) 防御×(${Math.floor(def * 0.2)})`],
-    ['🐴 馬', `攻撃△(${Math.floor(atk * 0.5)}) 防御○(${Math.floor(def * 0.7)}) スキルコスト用`],
-    ['🏹 弓', `攻撃◎貫通(${Math.floor(atk * 1.2)}) 策略△(${Math.floor(atk * 0.2)})`],
-    ['⭐ 星', 'ワイルド！どのスロットでも◎の効果'],
+    [`⚔ ${t('dice.sword')}`, `${t('slot.attack')}◎(${atk}) ${t('slot.defense')}△(${Math.floor(def * 0.3)}) ${t('slot.strategy')}△(${Math.floor(atk * 0.2)})`],
+    [`🛡 ${t('dice.shield')}`, `${t('slot.defense')}◎(${def}) ${t('slot.attack')}×(${Math.floor(atk * 0.2)}) ${t('slot.strategy')}×(0)`],
+    [`📜 ${t('dice.strategy')}`, `${t('slot.strategy')}◎(${Math.floor(atk * 0.6)}) ${t('slot.attack')}×(${Math.floor(atk * 0.3)}) ${t('slot.defense')}×(${Math.floor(def * 0.2)})`],
+    [`🐴 ${t('dice.horse')}`, `${t('slot.attack')}△(${Math.floor(atk * 0.5)}) ${t('slot.defense')}○(${Math.floor(def * 0.7)}) ${t('help.skillCost')}`],
+    [`🏹 ${t('dice.arrow')}`, `${t('slot.attack')}◎(${Math.floor(atk * 1.2)}) ${t('slot.strategy')}△(${Math.floor(atk * 0.2)})`],
+    [`⭐ ${t('dice.star')}`, t('help.wild')],
   ];
   for (const [icon, desc] of diceHelp) {
     drawText(ctx, icon, lx + 4, y, bodyFont, '#fff', 'left', 'top');
@@ -988,12 +992,12 @@ function _drawHelpOverlay(
 
   y += 6;
   // スロットの効果
-  drawText(ctx, '■ スロットの役割', lx, y, titleFont, '#f1c40f', 'left', 'top');
+  drawText(ctx, t('help.slots'), lx, y, titleFont, '#f1c40f', 'left', 'top');
   y += lineH + 2;
   const slotHelp: [string, string][] = [
-    ['⚔ 攻撃', '敵にダメージ（剣/弓/星が高効果）'],
-    ['🛡 防御', '敵攻撃をブロック（盾/星が高効果）'],
-    ['📜 策略', '追加ダメージ（策/星が高効果）'],
+    [t('slot.attack'), t('slot.attack.hint')],
+    [t('slot.defense'), t('slot.defense.hint')],
+    [t('slot.strategy'), t('slot.strategy.hint')],
   ];
   for (const [slot, desc] of slotHelp) {
     drawText(ctx, slot, lx + 4, y, bodyFont, '#fff', 'left', 'top');
@@ -1003,14 +1007,14 @@ function _drawHelpOverlay(
 
   y += 6;
   // 操作方法
-  drawText(ctx, '■ 操作方法', lx, y, titleFont, '#f1c40f', 'left', 'top');
+  drawText(ctx, t('help.controls'), lx, y, titleFont, '#f1c40f', 'left', 'top');
   y += lineH + 2;
   const opHelp: string[] = [
-    'ダイスをドラッグ → スロットにドロップして割り当て',
-    'またはダイスをタップ → スロットをタップでも割り当て可',
-    '割当済みダイスをタップ → 割り当て解除',
-    'スキルボタン → コストを消費して特殊能力を発動',
-    '行動確定 → このターンの行動を実行して敵ターンへ',
+    t('help.drag'),
+    t('help.tap'),
+    t('help.unassign'),
+    t('help.skill'),
+    t('help.confirm'),
   ];
   for (const op of opHelp) {
     drawText(ctx, '・' + op, lx, y, bodyFont, '#ccc', 'left', 'top');
@@ -1018,7 +1022,7 @@ function _drawHelpOverlay(
   }
 
   y += 10;
-  drawText(ctx, '画面タップで閉じる', panelX + panelW / 2, y, 'bold 13px serif', '#999', 'center', 'top');
+  drawText(ctx, t('help.close'), panelX + panelW / 2, y, 'bold 13px serif', '#999', 'center', 'top');
 }
 
 export function drawReward(
@@ -1041,12 +1045,12 @@ export function drawReward(
   ctx.save();
   ctx.shadowColor = '#f1c40f';
   ctx.shadowBlur = 15;
-  const titleText = reward.isBoss ? '大勝利！' : '勝利！';
+  const titleText = reward.isBoss ? t('reward.bossVictory') : t('reward.victory');
   drawText(ctx, titleText, w / 2, panelY + 30, `bold ${Math.min(36, w / 12)}px serif`, GOLD_COLOR, 'center', 'middle');
   ctx.restore();
 
   // 敵名
-  drawText(ctx, `${reward.enemyName} を撃破！`, w / 2, panelY + 65, '18px serif', '#ccc', 'center', 'middle');
+  drawText(ctx, `${tn(reward.enemyName)} ${t('reward.defeated')}`, w / 2, panelY + 65, '18px serif', '#ccc', 'center', 'middle');
 
   // 報酬一覧
   const rewardY = panelY + 105;
@@ -1056,20 +1060,20 @@ export function drawReward(
   ctx.fillStyle = 'rgba(241,196,15,0.12)';
   drawRoundRect(ctx, panelX + 20, rewardY, panelW - 40, 36, 6);
   ctx.fill();
-  drawText(ctx, '報酬金', panelX + 40, rewardY + 18, 'bold 16px serif', '#aaa', 'left', 'middle');
-  drawText(ctx, `+${reward.goldEarned} 両`, panelX + panelW - 40, rewardY + 18, 'bold 20px serif', GOLD_COLOR, 'right', 'middle');
+  drawText(ctx, t('reward.gold'), panelX + 40, rewardY + 18, 'bold 16px serif', '#aaa', 'left', 'middle');
+  drawText(ctx, `+${reward.goldEarned} ${t('reward.unit')}`, panelX + panelW - 40, rewardY + 18, 'bold 20px serif', GOLD_COLOR, 'right', 'middle');
 
   // 現在の所持金
   const summaryY = rewardY + lineH + 16;
-  drawText(ctx, `所持金: ${hero.gold} → ${hero.gold + reward.goldEarned} 両`, w / 2, summaryY, '14px serif', '#999', 'center', 'middle');
+  drawText(ctx, `${t('reward.total')}: ${hero.gold} → ${hero.gold + reward.goldEarned} ${t('reward.unit')}`, w / 2, summaryY, '14px serif', '#999', 'center', 'middle');
 
   // ボスの場合は次の章の案内
   if (reward.isBoss) {
-    drawText(ctx, '次の章へ進む...', w / 2, summaryY + 28, 'bold 15px serif', '#f39c12', 'center', 'middle');
+    drawText(ctx, t('reward.nextChapter'), w / 2, summaryY + 28, 'bold 15px serif', '#f39c12', 'center', 'middle');
   }
 
   // 続行プロンプト
-  drawText(ctx, 'タップで続ける', w / 2, panelY + panelH - 20, '15px serif', '#888', 'center', 'middle');
+  drawText(ctx, t('battle.continue'), w / 2, panelY + panelH - 20, '15px serif', '#888', 'center', 'middle');
 }
 
 export function drawAdvisor(
@@ -1081,13 +1085,13 @@ export function drawAdvisor(
 ): void {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, w, h);
-  drawText(ctx, '軍師の進言 — カードを1枚選べ', w / 2, 30, `bold ${Math.min(24, w / 20)}px serif`, GOLD_COLOR, 'center', 'top');
+  drawText(ctx, t('advisor.title'), w / 2, 30, `bold ${Math.min(24, w / 20)}px serif`, GOLD_COLOR, 'center', 'top');
 
   cards.forEach((card, i) => {
     const rect = cardRects[i];
     if (!rect) return;
     drawPanel(ctx, rect, '#1e2a3a', '#4a90d9', 10);
-    drawText(ctx, card.name, rect.x + rect.w / 2, rect.y + 16, 'bold 16px serif', '#fff', 'center', 'top');
+    drawText(ctx, tn(card.name), rect.x + rect.w / 2, rect.y + 16, 'bold 16px serif', '#fff', 'center', 'top');
     wrapText(ctx, card.description, rect.x + 10, rect.y + 46, rect.w - 20, 18, '13px serif', '#ccc');
   });
 }
@@ -1103,20 +1107,20 @@ export function drawMerchant(
 ): void {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, w, h);
-  drawText(ctx, '商人の店', w / 2, 28, `bold ${Math.min(26, w / 20)}px serif`, GOLD_COLOR, 'center', 'top');
-  drawText(ctx, `所持金: ${gold}両`, w - 20, 30, '16px serif', GOLD_COLOR, 'right', 'middle');
+  drawText(ctx, t('merchant.title'), w / 2, 28, `bold ${Math.min(26, w / 20)}px serif`, GOLD_COLOR, 'center', 'top');
+  drawText(ctx, `${t('merchant.gold')}: ${gold}${t('reward.unit')}`, w - 20, 30, '16px serif', GOLD_COLOR, 'right', 'middle');
 
   items.forEach((item, i) => {
     const rect = itemRects[i];
     if (!rect) return;
     const canBuy = gold >= item.cost;
     drawPanel(ctx, rect, canBuy ? '#1a2e1a' : '#2a1a1a', canBuy ? '#2ecc71' : '#555', 8);
-    drawText(ctx, item.name, rect.x + rect.w / 2, rect.y + 12, 'bold 15px serif', canBuy ? '#fff' : '#888', 'center', 'top');
+    drawText(ctx, tn(item.name), rect.x + rect.w / 2, rect.y + 12, 'bold 15px serif', canBuy ? '#fff' : '#888', 'center', 'top');
     drawText(ctx, item.description, rect.x + rect.w / 2, rect.y + 34, '12px serif', '#aaa', 'center', 'top');
-    drawText(ctx, `${item.cost}両`, rect.x + rect.w / 2, rect.y + 54, 'bold 16px serif', canBuy ? GOLD_COLOR : '#666', 'center', 'top');
+    drawText(ctx, `${item.cost}${t('reward.unit')}`, rect.x + rect.w / 2, rect.y + 54, 'bold 16px serif', canBuy ? GOLD_COLOR : '#666', 'center', 'top');
   });
 
-  drawButton(ctx, leaveBtn, '立ち去る', '#555', '#ddd', 16, 8);
+  drawButton(ctx, leaveBtn, t('merchant.leave'), '#555', '#ddd', 16, 8);
 }
 
 export function drawRest(
@@ -1130,11 +1134,11 @@ export function drawRest(
 ): void {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, w, h);
-  drawText(ctx, '休息地', w / 2, h * 0.2, `bold ${Math.min(36, w / 15)}px serif`, GOLD_COLOR, 'center', 'middle');
-  drawText(ctx, '静かな村で英気を養う...', w / 2, h * 0.33, '18px serif', '#aaa', 'center', 'middle');
-  drawText(ctx, `現在HP: ${heroHp} / ${heroMaxHp}`, w / 2, h * 0.44, '16px serif', '#2ecc71', 'center', 'middle');
-  drawButton(ctx, healBtn, `回復する（HP+${Math.floor(heroMaxHp * 0.3)}）`, '#2980b9', '#fff', 16, 8);
-  drawButton(ctx, leaveBtn, '出発する', '#555', '#ddd', 16, 8);
+  drawText(ctx, t('rest.title'), w / 2, h * 0.2, `bold ${Math.min(36, w / 15)}px serif`, GOLD_COLOR, 'center', 'middle');
+  drawText(ctx, t('rest.desc'), w / 2, h * 0.33, '18px serif', '#aaa', 'center', 'middle');
+  drawText(ctx, `${t('rest.currentHp')}: ${heroHp} / ${heroMaxHp}`, w / 2, h * 0.44, '16px serif', '#2ecc71', 'center', 'middle');
+  drawButton(ctx, healBtn, `${t('rest.heal')}（HP+${Math.floor(heroMaxHp * 0.3)}）`, '#2980b9', '#fff', 16, 8);
+  drawButton(ctx, leaveBtn, t('rest.leave'), '#555', '#ddd', 16, 8);
 }
 
 export function drawEvent(
@@ -1147,7 +1151,7 @@ export function drawEvent(
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, w, h);
   drawPanel(ctx, { x: w * 0.1, y: h * 0.15, w: w * 0.8, h: h * 0.45 }, '#1a1e2e', PANEL_BORDER, 12);
-  drawText(ctx, `【${event.title}】`, w / 2, h * 0.2, `bold ${Math.min(22, w / 22)}px serif`, GOLD_COLOR, 'center', 'top');
+  drawText(ctx, `【${tn(event.title)}】`, w / 2, h * 0.2, `bold ${Math.min(22, w / 22)}px serif`, GOLD_COLOR, 'center', 'top');
   wrapText(ctx, event.description, w * 0.13, h * 0.28, w * 0.74, 22, '15px serif', TEXT_LIGHT);
 
   event.options.forEach((opt, i) => {
@@ -1168,10 +1172,10 @@ export function drawGameOver(
   ctx.save();
   ctx.shadowColor = '#e74c3c';
   ctx.shadowBlur = 30;
-  drawText(ctx, '戦死', w / 2, h * 0.35, `bold ${Math.min(72, w / 6)}px serif`, '#e74c3c', 'center', 'middle');
+  drawText(ctx, t('gameover.title'), w / 2, h * 0.35, `bold ${Math.min(72, w / 6)}px serif`, '#e74c3c', 'center', 'middle');
   ctx.restore();
-  drawText(ctx, '武将は倒れ、乱世は続く...', w / 2, h * 0.52, '20px serif', '#888', 'center', 'middle');
-  drawButton(ctx, retryBtn, '新たな英傑で再起せよ', '#c0392b', '#fff', 18, 8);
+  drawText(ctx, t('gameover.msg'), w / 2, h * 0.52, '20px serif', '#888', 'center', 'middle');
+  drawButton(ctx, retryBtn, t('gameover.retry'), '#c0392b', '#fff', 18, 8);
 }
 
 export function drawEnding(
@@ -1186,10 +1190,10 @@ export function drawEnding(
   ctx.save();
   ctx.shadowColor = '#f1c40f';
   ctx.shadowBlur = 25;
-  drawText(ctx, '赤壁大勝利！', w / 2, h * 0.3, `bold ${Math.min(56, w / 9)}px serif`, GOLD_COLOR, 'center', 'middle');
+  drawText(ctx, t('ending.title'), w / 2, h * 0.3, `bold ${Math.min(56, w / 9)}px serif`, GOLD_COLOR, 'center', 'middle');
   ctx.restore();
-  drawText(ctx, `${heroName}は曹操を破り天下に名を轟かせた！`, w / 2, h * 0.46, '20px serif', '#2ecc71', 'center', 'middle');
-  drawButton(ctx, retryBtn, 'もう一度プレイ', GOLD_COLOR, TEXT_DARK, 18, 8);
+  drawText(ctx, `${tn(heroName)}${t('ending.msg')}`, w / 2, h * 0.46, '20px serif', '#2ecc71', 'center', 'middle');
+  drawButton(ctx, retryBtn, t('ending.retry'), GOLD_COLOR, TEXT_DARK, 18, 8);
 }
 
 /** マップチュートリアルオーバーレイ */
@@ -1204,26 +1208,26 @@ function _drawMapTutorial(
 
   const STEPS = [
     {
-      title: 'マップの進め方',
+      title: t('mapTut.title1'),
       lines: [
-        '光っているノードをタップして進みます。',
-        'ノードの種類で発生するイベントが変わります。',
+        t('mapTut.line1'),
+        t('mapTut.line2'),
         '',
-        'タップして次へ →',
+        t('mapTut.next'),
       ],
     },
     {
-      title: 'ノードの種類',
+      title: t('mapTut.title2'),
       lines: [
-        '⚔ 戦闘 — 敵と戦う（メイン）',
-        '☆ 精鋭 — 強い敵（報酬多め）',
-        '軍師 — 武将を強化できる',
-        '商人 — ゴールドでアイテム購入',
-        '休息 — HPを回復',
-        '？ — ランダムイベント',
-        '☠ ボス — 章の最終戦',
+        t('mapTut.battle'),
+        t('mapTut.elite'),
+        t('mapTut.advisor'),
+        t('mapTut.merchant'),
+        t('mapTut.rest'),
+        t('mapTut.event'),
+        t('mapTut.boss'),
         '',
-        'タップして冒険を始めよう！',
+        t('mapTut.go'),
       ],
     },
   ];
@@ -1277,12 +1281,12 @@ function _drawTutorialOverlay(
     {
       // Step 1: 戦闘画面の全体説明
       highlight: () => null,
-      title: 'バトル開始！',
+      title: t('batTut.title1'),
       lines: [
-        'ダイスを振って攻撃・防御・策略に',
-        '割り振って戦います。',
+        t('batTut.line1a'),
+        t('batTut.line1b'),
         '',
-        'タップして次へ →',
+        t('mapTut.next'),
       ],
     },
     {
@@ -1293,13 +1297,13 @@ function _drawTutorialOverlay(
         const last = diceRects[diceRects.length - 1];
         return { x: first.x - 6, y: first.y - 6, w: last.x + last.w - first.x + 12, h: first.h + 12 };
       },
-      title: 'ダイスの出目',
+      title: t('batTut.title2'),
       lines: [
-        '⚔剣 🛡盾 📜策 🐴馬 🏹弓 ⭐星',
-        'スロットとの相性でダメージが変わります。',
-        '⭐星はどこに置いても最大効果！',
+        t('batTut.line2a'),
+        t('batTut.line2b'),
+        t('batTut.line2c'),
         '',
-        'タップして次へ →',
+        t('mapTut.next'),
       ],
       arrow: 'down',
     },
@@ -1312,13 +1316,13 @@ function _drawTutorialOverlay(
         const last = slotRects[keys[keys.length - 1]];
         return { x: first.x - 4, y: first.y - 4, w: last.x + last.w - first.x + 8, h: first.h + 8 };
       },
-      title: 'スロットに配置',
+      title: t('batTut.title3'),
       lines: [
-        '⚔攻撃 → 敵にダメージ（剣が高効果）',
-        '🛡防御 → 敵の攻撃を軽減（盾が高効果）',
-        '📜策略 → 追加ダメージ（策が高効果）',
+        t('batTut.line3a'),
+        t('batTut.line3b'),
+        t('batTut.line3c'),
         '',
-        'タップして次へ →',
+        t('mapTut.next'),
       ],
       arrow: 'up',
     },
@@ -1338,20 +1342,20 @@ function _drawTutorialOverlay(
           h: lastSlot.y + lastSlot.h - first.y + 12,
         };
       },
-      title: 'やってみよう！',
+      title: t('batTut.title4'),
       lines: [
-        'ダイスをタップ → スロットをタップで配置。',
-        '全てのダイスを配置してみましょう！',
+        t('batTut.line4a'),
+        t('batTut.line4b'),
       ],
       arrow: 'up',
     },
     {
       // Step 5: 行動確定ボタンを押そう
       highlight: () => ({ x: confirmBtnRect.x - 4, y: confirmBtnRect.y - 4, w: confirmBtnRect.w + 8, h: confirmBtnRect.h + 8 }),
-      title: '行動確定で攻撃！',
+      title: t('batTut.title5'),
       lines: [
-        '配置が終わったら「行動確定」を押そう！',
-        '✦ スキルボタンで必殺技も使えます',
+        t('batTut.line5a'),
+        t('batTut.line5b'),
       ],
       arrow: 'up',
     },
