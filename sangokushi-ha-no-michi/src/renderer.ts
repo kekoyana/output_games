@@ -367,30 +367,49 @@ export function drawMap(
 
   // ノードを描画
   const r = 22;
+  const now = performance.now();
+  // 今後到達可能なノードを再帰的に算出
+  const currentNode = currentNodeId !== null ? nodes.find((n) => n.id === currentNodeId) : null;
+  const futureReachableIds = new Set<number>();
+  const queue = currentNode ? [...currentNode.connections] : [];
+  while (queue.length > 0) {
+    const nid = queue.pop()!;
+    if (futureReachableIds.has(nid)) continue;
+    const nd = nodes.find((n) => n.id === nid);
+    if (!nd || nd.visited) continue;
+    futureReachableIds.add(nid);
+    for (const cid of nd.connections) queue.push(cid);
+  }
   for (const node of nodes) {
     const isCurrent = node.id === currentNodeId;
     const isAvailable = node.available;
     const isVisited = node.visited;
+    const isReachable = futureReachableIds.has(node.id);
 
     const color = NODE_COLORS[node.type] || '#888';
 
     if (isVisited) {
-      ctx.globalAlpha = 0.4;
+      ctx.globalAlpha = 0.35;
     } else if (isAvailable) {
       ctx.globalAlpha = 1.0;
+    } else if (!isReachable && !isCurrent) {
+      // 今後選択できないノード: さらに暗く
+      ctx.globalAlpha = 0.2;
     } else {
       ctx.globalAlpha = 0.5;
     }
 
-    // 外枠のグロー
+    // 選択可能ノードの脈動グロー
     if (isAvailable && !isVisited) {
+      const pulse = 0.4 + 0.6 * Math.abs(Math.sin(now * 0.003));
+      const glowSize = 16 + 6 * Math.abs(Math.sin(now * 0.002));
       ctx.save();
       ctx.shadowColor = color;
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = glowSize;
       ctx.beginPath();
-      ctx.arc(node.x, node.y, r + 3, 0, Math.PI * 2);
+      ctx.arc(node.x, node.y, r + 4, 0, Math.PI * 2);
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = pulse * 0.35;
       ctx.fill();
       ctx.restore();
       ctx.globalAlpha = 1.0;
@@ -400,49 +419,61 @@ export function drawMap(
     ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
-    ctx.strokeStyle = isCurrent ? '#fff' : '#aaa';
-    ctx.lineWidth = isCurrent ? 3 : 1.5;
+
+    if (isAvailable && !isVisited) {
+      // 選択可能ノードは明るい白枠
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+    } else if (isCurrent) {
+      ctx.strokeStyle = GOLD_COLOR;
+      ctx.lineWidth = 3;
+    } else {
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 1;
+    }
     ctx.stroke();
 
     ctx.globalAlpha = 1.0;
 
+    // 到達不可能ノードはラベルも暗く
+    const labelAlpha = (!isVisited && !isAvailable && !isReachable && !isCurrent) ? 0.3 : 1.0;
+    ctx.globalAlpha = labelAlpha;
     const label = t('node.' + node.type);
     const fontSize = Math.min(13, 220 / label.length);
     drawText(ctx, label, node.x, node.y, `bold ${fontSize}px serif`, '#fff', 'center', 'middle');
+    ctx.globalAlpha = 1.0;
   }
 
-  // 現在地にヒーローアイコンを表示（ノードの下に配置）
-  if (currentNodeId !== null && heroPortraitKey) {
-    const currentNode = nodes.find((n) => n.id === currentNodeId);
-    if (currentNode) {
-      const iconSize = 34;
-      const iconX = currentNode.x - iconSize / 2;
-      const iconY = currentNode.y + r + 4;
-      const iconCenterY = iconY + iconSize / 2;
-      const heroImg = getImage(heroPortraitKey);
+  // 現在地にヒーローアイコンを表示（上下にふわふわアニメーション）
+  if (currentNodeId !== null && heroPortraitKey && currentNode) {
+    const iconSize = 34;
+    const bobOffset = Math.sin(now * 0.004) * 5; // 上下に5pxふわふわ
+    const iconX = currentNode.x - iconSize / 2;
+    const iconY = currentNode.y + r + 4 + bobOffset;
+    const iconCenterY = iconY + iconSize / 2;
+    const heroImg = getImage(heroPortraitKey);
 
-      // 背景の円
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(currentNode.x, iconCenterY, iconSize / 2 + 3, 0, Math.PI * 2);
-      ctx.fillStyle = '#0d0d1e';
-      ctx.fill();
-      ctx.strokeStyle = GOLD_COLOR;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    // 背景の円
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(currentNode.x, iconCenterY, iconSize / 2 + 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d1e';
+    ctx.fill();
+    ctx.strokeStyle = GOLD_COLOR;
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-      // ポートレート画像（円形クリップ）
-      ctx.beginPath();
-      ctx.arc(currentNode.x, iconCenterY, iconSize / 2, 0, Math.PI * 2);
-      ctx.clip();
-      if (heroImg) {
-        ctx.drawImage(heroImg, iconX, iconY, iconSize, iconSize);
-      } else {
-        ctx.fillStyle = '#333';
-        ctx.fillRect(iconX, iconY, iconSize, iconSize);
-      }
-      ctx.restore();
+    // ポートレート画像（円形クリップ）
+    ctx.beginPath();
+    ctx.arc(currentNode.x, iconCenterY, iconSize / 2, 0, Math.PI * 2);
+    ctx.clip();
+    if (heroImg) {
+      ctx.drawImage(heroImg, iconX, iconY, iconSize, iconSize);
+    } else {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(iconX, iconY, iconSize, iconSize);
     }
+    ctx.restore();
   }
 
   ctx.restore();
