@@ -86,8 +86,8 @@ export const HERO_DEFS: HeroDef[] = [
 export const ENEMY_DEFS: EnemyDef[] = [
   // ===== 第1章: 黄巾賊 =====
   {
-    id: 'yellow_soldier',
-    name: '黄巾賊兵',
+    id: 'bo_cai',
+    name: '波才',
     maxHp: 35,
     attack: 6,
     defense: 2,
@@ -168,8 +168,8 @@ export const ENEMY_DEFS: EnemyDef[] = [
 
   // ===== 第2章: 董卓軍 =====
   {
-    id: 'dong_zhuo_soldier',
-    name: '西涼兵',
+    id: 'xu_rong',
+    name: '徐栄',
     maxHp: 50,
     attack: 9,
     defense: 4,
@@ -250,8 +250,8 @@ export const ENEMY_DEFS: EnemyDef[] = [
 
   // ===== 第3章: 徐州攻防戦 =====
   {
-    id: 'xuzhou_soldier',
-    name: '徐州守備兵',
+    id: 'hou_cheng',
+    name: '侯成',
     maxHp: 55,
     attack: 10,
     defense: 5,
@@ -321,8 +321,8 @@ export const ENEMY_DEFS: EnemyDef[] = [
 
   // ===== 第4章: 偽帝袁術 =====
   {
-    id: 'yuan_shu_soldier',
-    name: '袁術軍兵',
+    id: 'zhang_xun',
+    name: '張勲',
     maxHp: 60,
     attack: 11,
     defense: 6,
@@ -392,8 +392,8 @@ export const ENEMY_DEFS: EnemyDef[] = [
 
   // ===== 第5章: 赤壁の戦い =====
   {
-    id: 'cao_soldier',
-    name: '曹操軍兵',
+    id: 'cao_ren',
+    name: '曹仁',
     maxHp: 70,
     attack: 12,
     defense: 6,
@@ -590,10 +590,10 @@ export const GAME_EVENTS: GameEvent[] = [
   {
     id: 'fortune_teller',
     title: '占い師の予言',
-    description: '老婆が吉凶を占ってくれる。',
+    description: '老婆が吉凶を占ってくれる。吉と出るか凶と出るか…',
     options: [
-      { text: '大吉（HP+20）', effect: 'hp_up', value: 20 },
-      { text: '大凶（HP-15）', effect: 'hp_down', value: 15 },
+      { text: '占ってもらう（HP+20 or HP-15）', effect: 'hp_up', value: 20 },
+      { text: '断る', effect: 'nothing', value: 0 },
     ],
   },
   {

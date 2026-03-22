@@ -43,7 +43,7 @@ import {
   pointInRect,
 } from './renderer';
 import { choose, shuffle, clamp } from './utils';
-import { setLang, type Lang } from './i18n';
+import { setLang, t, type Lang } from './i18n';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -165,7 +165,7 @@ export class Game {
       x: legUpgradeX, y: legUpgradeStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
     }));
     this.legacyBackRect = { x: (w - 200) / 2, y: h * 0.88, w: 200, h: 44 };
-    this.legacyResetRect = { x: (w - 140) / 2, y: h * 0.95, w: 140, h: 32 };
+    this.legacyResetRect = { x: w - 140 - 12, y: 12, w: 140, h: 32 };
 
     // キャラクター選択（スマホ対応: カードサイズ縮小＋スクロール）
     const cols = w < 500 ? 2 : 3;
@@ -481,7 +481,6 @@ export class Game {
   private _handleLegacyClick(p: { x: number; y: number }): void {
     // タイトルに戻る
     if (pointInRect(p, this.legacyBackRect)) {
-      this.legacyResetConfirm = false;
       this.state = this._initialState();
       this.selectedHeroId = null;
       this.mapScrollY = 0;
@@ -489,21 +488,14 @@ export class Game {
     }
     // リセットボタン
     if (pointInRect(p, this.legacyResetRect)) {
-      if (this.legacyResetConfirm) {
-        // 2回目: 実行
+      if (window.confirm(t('legacy.resetConfirm'))) {
         const defaultLegacy = getDefaultLegacyData();
         this._saveLegacy(defaultLegacy);
         try { localStorage.removeItem('sangokushi_tutorial_done'); } catch { /* ignore */ }
-        this.legacyResetConfirm = false;
         this.state = { ...this.state, legacyData: defaultLegacy };
-      } else {
-        // 1回目: 確認状態に
-        this.legacyResetConfirm = true;
       }
       return;
     }
-    // 他の場所をタップしたら確認状態を解除
-    this.legacyResetConfirm = false;
     // アップグレード購入
     const legacy = this.state.legacyData;
     this.legacyUpgradeRects.forEach((rect, i) => {
@@ -941,14 +933,25 @@ export class Game {
       const opt = currentEvent.options[i];
       if (opt && pointInRect(p, rect)) {
         let newHero = { ...hero };
-        if (opt.effect === 'hp_up') {
-          newHero.currentHp = clamp(hero.currentHp + opt.value, 0, hero.stats.maxHp);
-        } else if (opt.effect === 'hp_down') {
-          newHero.currentHp = Math.max(0, hero.currentHp - opt.value);
-        } else if (opt.effect === 'gold_up') {
-          newHero.gold = hero.gold + opt.value;
-        } else if (opt.effect === 'gold_down') {
-          newHero.gold = Math.max(0, hero.gold - opt.value);
+        let effect = opt.effect;
+        let value = opt.value;
+
+        // 占い師: 50%で凶（HP-15）に変わる
+        if (currentEvent.id === 'fortune_teller' && effect === 'hp_up') {
+          if (Math.random() < 0.5) {
+            effect = 'hp_down';
+            value = 15;
+          }
+        }
+
+        if (effect === 'hp_up') {
+          newHero.currentHp = clamp(hero.currentHp + value, 0, hero.stats.maxHp);
+        } else if (effect === 'hp_down') {
+          newHero.currentHp = Math.max(0, hero.currentHp - value);
+        } else if (effect === 'gold_up') {
+          newHero.gold = hero.gold + value;
+        } else if (effect === 'gold_down') {
+          newHero.gold = Math.max(0, hero.gold - value);
         }
         this.state = { ...this.state, hero: newHero, phase: 'map', currentEvent: null };
       }
@@ -985,7 +988,7 @@ export class Game {
     } else if (phase === 'event' && this.state.currentEvent) {
       drawEvent(ctx, w, h, this.state.currentEvent, this.eventOptionRects);
     } else if (phase === 'legacy') {
-      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect, this.legacyResetConfirm);
+      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect);
     } else if (phase === 'game_over') {
       drawGameOver(ctx, w, h, this.retryBtnRect);
     } else if (phase === 'ending' && hero) {

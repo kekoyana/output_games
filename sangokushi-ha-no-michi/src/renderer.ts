@@ -1575,8 +1575,7 @@ export function drawLegacy(
   legacyData: LegacyData,
   upgradeRects: Rect[],
   backBtnRect: Rect,
-  resetBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 },
-  resetConfirm: boolean = false
+  resetBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 }
 ): void {
   ctx.fillStyle = '#0d0d1e';
   ctx.fillRect(0, 0, w, h);
@@ -1669,10 +1668,7 @@ export function drawLegacy(
 
   // リセットボタン
   if (resetBtnRect.w > 0) {
-    const resetLabel = resetConfirm ? t('legacy.resetConfirm') : t('legacy.reset');
-    const resetColor = resetConfirm ? '#c0392b' : '#444';
-    const resetFontSize = resetConfirm ? Math.min(12, w / 35) : 12;
-    drawButton(ctx, resetBtnRect, resetLabel, resetColor, '#aaa', resetFontSize, 6);
+    drawButton(ctx, resetBtnRect, t('legacy.reset'), '#c0392b', '#fff', 12, 6);
   }
 }
 
