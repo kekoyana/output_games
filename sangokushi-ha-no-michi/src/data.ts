@@ -8,14 +8,14 @@ export const HERO_DEFS: HeroDef[] = [
     portraitKey: 'liu_bei_portrait',
     diceSet: ['shield', 'shield', 'sword', 'strategy'],
     skill: {
-      id: 'benevolence',
-      name: '仁徳の御旗',
-      description: '盾×1消費 → 防御を攻撃に転用（盾の数×攻撃力）',
+      id: 'benevolent_heal',
+      name: '仁徳の施し',
+      description: '盾×1消費 → HP回復（防御力分）',
       cost: { face: 'shield', count: 1 },
-      effect: 'shield_to_attack',
+      effect: 'heal',
     },
     stats: { maxHp: 85, attack: 7, defense: 8, diceCount: 4 },
-    description: '蜀の君主。仁徳で民を守り、盾を力に変える。',
+    description: '蜀の君主。仁徳で民を癒す。',
   },
   {
     id: 'guan_yu',
@@ -80,6 +80,22 @@ export const HERO_DEFS: HeroDef[] = [
     },
     stats: { maxHp: 75, attack: 8, defense: 4, diceCount: 4 },
     description: '蜀の軍師。策略で敵を翻弄する。',
+  },
+  {
+    id: 'pang_tong',
+    name: '龐統',
+    faction: 'shu',
+    portraitKey: 'pang_tong_portrait',
+    diceSet: ['shield', 'shield', 'sword', 'strategy'],
+    skill: {
+      id: 'benevolence',
+      name: '仁徳の御旗',
+      description: '盾×1消費 → 防御を攻撃に転用（盾の数×攻撃力）',
+      cost: { face: 'shield', count: 1 },
+      effect: 'shield_to_attack',
+    },
+    stats: { maxHp: 80, attack: 8, defense: 7, diceCount: 4 },
+    description: '蜀の副軍師。守りを攻めに転じる鳳雛。',
   },
 ];
 
@@ -766,6 +782,7 @@ export const HERO_UNLOCK_UPGRADES: LegacyUpgradeDef[] = [
   { id: 'unlock_zhang_fei', maxLevel: 1, costs: [50], effects: [1], stat: 'unlockHero', heroId: 'zhang_fei' },
   { id: 'unlock_zhao_yun', maxLevel: 1, costs: [60], effects: [1], stat: 'unlockHero', heroId: 'zhao_yun' },
   { id: 'unlock_zhuge_liang', maxLevel: 1, costs: [80], effects: [1], stat: 'unlockHero', heroId: 'zhuge_liang' },
+  { id: 'unlock_pang_tong', maxLevel: 1, costs: [60], effects: [1], stat: 'unlockHero', heroId: 'pang_tong' },
 ];
 
 export function getDefaultLegacyData(): LegacyData {

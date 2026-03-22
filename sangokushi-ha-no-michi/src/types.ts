@@ -33,7 +33,7 @@ export interface SkillDef {
   name: string;
   description: string;
   cost: { face: DiceFace; count: number };
-  effect: 'all_attack' | 'buff_swords' | 'invincible_counter' | 'stun_enemy' | 'shield_to_attack';
+  effect: 'all_attack' | 'buff_swords' | 'invincible_counter' | 'stun_enemy' | 'shield_to_attack' | 'heal';
 }
 
 export interface HeroStats {

@@ -1006,6 +1006,8 @@ function _getSkillEffectLabel(hero: import('./types').Hero): string {
     return t('skill.stun');
   } else if (effect === 'shield_to_attack') {
     return t('skill.shieldAttack');
+  } else if (effect === 'heal') {
+    return t('skill.heal');
   }
   return '';
 }
@@ -1601,7 +1603,9 @@ export function drawLegacy(
   backBtnRect: Rect,
   resetBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 },
   heroUnlockRects: Rect[] = [],
-  scrollY: number = 0
+  scrollY: number = 0,
+  activeTab: number = 0,
+  tabRects: Rect[] = []
 ): void {
   ctx.fillStyle = '#0d0d1e';
   ctx.fillRect(0, 0, w, h);
@@ -1624,81 +1628,82 @@ export function drawLegacy(
   const bestText = legacyData.bestChapter > 0 ? t('legacy.bestCh', { n: legacyData.bestChapter }) : t('legacy.noBest');
   drawText(ctx, `${runText}  ${bestText}`, w / 2, statsY, '13px serif', '#888', 'center', 'top');
 
-  // スクロール対応（アップグレード一覧以降）
+  // スクロール対応（タブコンテンツ以降）- タブ下からクリップ
+  const clipTop = tabRects.length > 0 ? tabRects[0].y + tabRects[0].h : h * 0.28;
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, clipTop, w, h - clipTop);
+  ctx.clip();
   ctx.translate(0, -scrollY);
 
-  // アップグレード一覧
-  const nameKeys: Record<string, string> = {
-    legacy_hp: 'legacy.hp', legacy_atk: 'legacy.atk', legacy_def: 'legacy.def',
-    legacy_gold: 'legacy.gold', legacy_heal: 'legacy.heal',
-  };
+  if (activeTab === 0) {
+    // 能力強化タブ
+    const nameKeys: Record<string, string> = {
+      legacy_hp: 'legacy.hp', legacy_atk: 'legacy.atk', legacy_def: 'legacy.def',
+      legacy_gold: 'legacy.gold', legacy_heal: 'legacy.heal',
+    };
 
-  LEGACY_UPGRADES.forEach((upg, i) => {
-    const rect = upgradeRects[i];
-    if (!rect) return;
-    const level = legacyData.upgrades[upg.id] ?? 0;
-    const isMaxed = level >= upg.maxLevel;
-    const nextCost = isMaxed ? 0 : upg.costs[level];
-    const canBuy = !isMaxed && legacyData.legacyPoints >= nextCost;
+    LEGACY_UPGRADES.forEach((upg, i) => {
+      const rect = upgradeRects[i];
+      if (!rect) return;
+      const level = legacyData.upgrades[upg.id] ?? 0;
+      const isMaxed = level >= upg.maxLevel;
+      const nextCost = isMaxed ? 0 : upg.costs[level];
+      const canBuy = !isMaxed && legacyData.legacyPoints >= nextCost;
 
-    // 背景
-    const bgColor = canBuy ? '#1a2a1a' : '#1a1a2e';
-    const borderColor = canBuy ? '#27ae60' : isMaxed ? '#f1c40f' : '#444';
-    drawPanel(ctx, rect, bgColor, borderColor, 8);
+      // 背景
+      const bgColor = canBuy ? '#1a2a1a' : '#1a1a2e';
+      const borderColor = canBuy ? '#27ae60' : isMaxed ? '#f1c40f' : '#444';
+      drawPanel(ctx, rect, bgColor, borderColor, 8);
 
-    const nameKey = nameKeys[upg.id] ?? upg.id;
+      const nameKey = nameKeys[upg.id] ?? upg.id;
 
-    // 名前
-    drawText(ctx, t(nameKey), rect.x + 12, rect.y + 8, 'bold 14px serif', '#fff', 'left', 'top');
+      // 名前
+      drawText(ctx, t(nameKey), rect.x + 12, rect.y + 8, 'bold 14px serif', '#fff', 'left', 'top');
 
-    // レベル
-    const levelText = isMaxed ? t('legacy.maxed') : t('legacy.level', { n: level, max: upg.maxLevel });
-    drawText(ctx, levelText, rect.x + rect.w - 12, rect.y + 8, '13px serif', isMaxed ? '#f1c40f' : '#aaa', 'right', 'top');
+      // レベル
+      const levelText = isMaxed ? t('legacy.maxed') : t('legacy.level', { n: level, max: upg.maxLevel });
+      drawText(ctx, levelText, rect.x + rect.w - 12, rect.y + 8, '13px serif', isMaxed ? '#f1c40f' : '#aaa', 'right', 'top');
 
-    // 効果説明
-    let totalEffect = 0;
-    for (let j = 0; j < level; j++) totalEffect += upg.effects[j];
-    const nextEffect = isMaxed ? 0 : upg.effects[level];
-    const descKey = `legacy.desc.${upg.stat}`;
-    if (totalEffect > 0) {
-      drawText(ctx, t(descKey, { n: totalEffect }), rect.x + 12, rect.y + 28, '12px serif', '#8f8', 'left', 'top');
-    }
-    if (!isMaxed) {
-      const nextDesc = `→ +${nextEffect}`;
-      drawText(ctx, nextDesc, rect.x + 12 + (totalEffect > 0 ? 80 : 0), rect.y + 28, '12px serif', '#aaa', 'left', 'top');
-    }
+      // 効果説明
+      let totalEffect = 0;
+      for (let j = 0; j < level; j++) totalEffect += upg.effects[j];
+      const nextEffect = isMaxed ? 0 : upg.effects[level];
+      const descKey = `legacy.desc.${upg.stat}`;
+      if (totalEffect > 0) {
+        drawText(ctx, t(descKey, { n: totalEffect }), rect.x + 12, rect.y + 28, '12px serif', '#8f8', 'left', 'top');
+      }
+      if (!isMaxed) {
+        const nextDesc = `→ +${nextEffect}`;
+        drawText(ctx, nextDesc, rect.x + 12 + (totalEffect > 0 ? 80 : 0), rect.y + 28, '12px serif', '#aaa', 'left', 'top');
+      }
 
-    // コスト / 購入ボタン
-    if (!isMaxed) {
-      const costText = t('legacy.cost', { n: nextCost });
-      const btnColor = canBuy ? '#27ae60' : '#555';
-      const btnX = rect.x + rect.w - 90;
-      const btnY = rect.y + rect.h - 30;
-      drawRoundRect(ctx, btnX, btnY, 80, 24, 4);
-      ctx.fillStyle = btnColor;
-      ctx.fill();
-      drawText(ctx, `${t('legacy.buy')} ${costText}`, btnX + 40, btnY + 12, '11px serif', '#fff', 'center', 'middle');
-    }
+      // コスト / 購入ボタン
+      if (!isMaxed) {
+        const costText = t('legacy.cost', { n: nextCost });
+        const btnColor = canBuy ? '#27ae60' : '#555';
+        const btnX = rect.x + rect.w - 90;
+        const btnY = rect.y + rect.h - 30;
+        drawRoundRect(ctx, btnX, btnY, 80, 24, 4);
+        ctx.fillStyle = btnColor;
+        ctx.fill();
+        drawText(ctx, `${t('legacy.buy')} ${costText}`, btnX + 40, btnY + 12, '11px serif', '#fff', 'center', 'middle');
+      }
 
-    // レベルバー
-    const barX = rect.x + 12;
-    const barY = rect.y + rect.h - 10;
-    const barW = rect.w - (isMaxed ? 24 : 114);
-    for (let j = 0; j < upg.maxLevel; j++) {
-      const segW = barW / upg.maxLevel - 2;
-      const segX = barX + j * (segW + 2);
-      ctx.fillStyle = j < level ? '#f1c40f' : '#333';
-      drawRoundRect(ctx, segX, barY, segW, 4, 2);
-      ctx.fill();
-    }
-  });
-
-  // 武将解放セクション
-  if (heroUnlockRects.length > 0) {
-    const sectionLabelY = (heroUnlockRects[0]?.y ?? 0) - 20;
-    drawText(ctx, t('legacy.heroUnlock'), w / 2, sectionLabelY, `bold ${Math.min(18, w / 22)}px serif`, GOLD_COLOR, 'center', 'top');
-
+      // レベルバー
+      const barX = rect.x + 12;
+      const barY = rect.y + rect.h - 10;
+      const barW = rect.w - (isMaxed ? 24 : 114);
+      for (let j = 0; j < upg.maxLevel; j++) {
+        const segW = barW / upg.maxLevel - 2;
+        const segX = barX + j * (segW + 2);
+        ctx.fillStyle = j < level ? '#f1c40f' : '#333';
+        drawRoundRect(ctx, segX, barY, segW, 4, 2);
+        ctx.fill();
+      }
+    });
+  } else {
+    // 武将解放タブ
     HERO_UNLOCK_UPGRADES.forEach((upg, i) => {
       const rect = heroUnlockRects[i];
       if (!rect) return;
@@ -1707,7 +1712,7 @@ export function drawLegacy(
       const cost = upg.costs[0];
       const canBuy = !isUnlocked && legacyData.legacyPoints >= cost;
 
-      const heroDef = HERO_DEFS.find((h) => h.id === upg.heroId);
+      const heroDef = HERO_DEFS.find((hd) => hd.id === upg.heroId);
       if (!heroDef) return;
 
       const bgColor = canBuy ? '#1a2a1a' : '#1a1a2e';
@@ -1757,6 +1762,42 @@ export function drawLegacy(
   drawButton(ctx, backBtnRect, t('legacy.back'), '#555', '#fff', 16, 8);
 
   ctx.restore(); // スクロール translate を戻す
+
+  // ヘッダー＋タブ再描画（固定位置 - スクロールコンテンツの上に上書き）
+  if (tabRects.length > 0) {
+    const headerBottom = tabRects[0].y + tabRects[0].h;
+    ctx.fillStyle = '#0d0d1e';
+    ctx.fillRect(0, 0, w, headerBottom);
+  }
+  // タイトル
+  drawText(ctx, t('legacy.title'), w / 2, h * 0.06, `bold ${Math.min(28, w / 16)}px serif`, GOLD_COLOR, 'center', 'top');
+  // ポイント表示
+  drawText(ctx, `${t('legacy.points')}: ${legacyData.legacyPoints}pt`, w / 2, h * 0.13, `bold ${Math.min(22, w / 20)}px serif`, '#fff', 'center', 'top');
+  // 直前の獲得ポイント
+  if (legacyData.lastEarnedPoints > 0) {
+    drawText(ctx, t('legacy.earned', { n: legacyData.lastEarnedPoints }), w / 2, h * 0.19, '16px serif', '#f1c40f', 'center', 'top');
+  }
+  // 統計
+  {
+    const sY = h * 0.23;
+    const rText = legacyData.totalRuns > 0 ? t('legacy.runStats', { n: legacyData.totalRuns }) : '';
+    const bText = legacyData.bestChapter > 0 ? t('legacy.bestCh', { n: legacyData.bestChapter }) : t('legacy.noBest');
+    drawText(ctx, `${rText}  ${bText}`, w / 2, sY, '13px serif', '#888', 'center', 'top');
+  }
+  // タブ
+  const tabLabels = [t('legacy.tabAbility'), t('legacy.tabHero')];
+  tabRects.forEach((rect, i) => {
+    const isActive = i === activeTab;
+    ctx.fillStyle = isActive ? '#2a2a4e' : '#151528';
+    drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
+    ctx.fill();
+    if (isActive) {
+      ctx.fillStyle = GOLD_COLOR;
+      ctx.fillRect(rect.x + 4, rect.y + rect.h - 3, rect.w - 8, 3);
+    }
+    const textColor = isActive ? GOLD_COLOR : '#666';
+    drawText(ctx, tabLabels[i], rect.x + rect.w / 2, rect.y + rect.h / 2, `bold 14px serif`, textColor, 'center', 'middle');
+  });
 
   // リセットボタン（固定位置）
   if (resetBtnRect.w > 0) {

@@ -56,6 +56,8 @@ export class Game {
   private charScrollMax: number = 0;
   private legacyScrollY: number = 0;
   private legacyScrollMax: number = 0;
+  private legacyTab: number = 0; // 0=能力強化, 1=武将解放
+  private legacyTabRects: Rect[] = [];
   private selectedHeroId: string | null = null;
 
   // ドラッグ＆ドロップ状態
@@ -163,16 +165,33 @@ export class Game {
     const legUpgradeW = Math.min(w - 40, 400);
     const legUpgradeH = 60;
     const legUpgradeX = (w - legUpgradeW) / 2;
-    const legUpgradeStartY = h * 0.28;
+
+    // タブボタン
+    const tabW = legUpgradeW / 2;
+    const tabH = 36;
+    const tabY = h * 0.27;
+    this.legacyTabRects = [
+      { x: legUpgradeX, y: tabY, w: tabW, h: tabH },
+      { x: legUpgradeX + tabW, y: tabY, w: tabW, h: tabH },
+    ];
+
+    // タブ以下のコンテンツ開始Y（両タブ共通）
+    const contentStartY = tabY + tabH + 12;
+
+    // 能力強化タブ
     this.legacyUpgradeRects = LEGACY_UPGRADES.map((_, i) => ({
-      x: legUpgradeX, y: legUpgradeStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
+      x: legUpgradeX, y: contentStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
     }));
-    // 武将解放セクション（ステータス強化の下、+30pxはセクションラベル分）
-    const heroUnlockStartY = legUpgradeStartY + LEGACY_UPGRADES.length * (legUpgradeH + 8) + 30;
+    const upgradeContentBottom = contentStartY + LEGACY_UPGRADES.length * (legUpgradeH + 8) + 20;
+
+    // 武将解放タブ
     this.legacyHeroUnlockRects = HERO_UNLOCK_UPGRADES.map((_, i) => ({
-      x: legUpgradeX, y: heroUnlockStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
+      x: legUpgradeX, y: contentStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
     }));
-    const legacyContentBottom = heroUnlockStartY + HERO_UNLOCK_UPGRADES.length * (legUpgradeH + 8) + 20;
+    const heroContentBottom = contentStartY + HERO_UNLOCK_UPGRADES.length * (legUpgradeH + 8) + 20;
+
+    // アクティブタブに応じたコンテンツ下端
+    const legacyContentBottom = this.legacyTab === 0 ? upgradeContentBottom : heroContentBottom;
     this.legacyBackRect = { x: (w - 200) / 2, y: legacyContentBottom, w: 200, h: 44 };
     this.legacyScrollMax = Math.max(0, legacyContentBottom + 44 + 20 - h);
     this.legacyResetRect = { x: w - 140 - 12, y: 12, w: 140, h: 32 };
@@ -517,6 +536,17 @@ export class Game {
       }
       return;
     }
+    // タブ切り替え（固定位置、スクロール影響なし）
+    for (let i = 0; i < this.legacyTabRects.length; i++) {
+      if (pointInRect(p, this.legacyTabRects[i])) {
+        if (this.legacyTab !== i) {
+          this.legacyTab = i;
+          this.legacyScrollY = 0;
+          this._recalcLayout();
+        }
+        return;
+      }
+    }
     // スクロールオフセット適用
     const scrolled = { x: p.x, y: p.y + this.legacyScrollY };
     // タイトルに戻る
@@ -524,45 +554,49 @@ export class Game {
       this.state = this._initialState();
       this.selectedHeroId = null;
       this.mapScrollY = 0;
+      this.legacyTab = 0;
       return;
     }
-    // アップグレード購入
     const legacy = this.state.legacyData;
-    this.legacyUpgradeRects.forEach((rect, i) => {
-      if (pointInRect(scrolled, rect)) {
-        const upg = LEGACY_UPGRADES[i];
-        if (!upg) return;
-        const level = legacy.upgrades[upg.id] ?? 0;
-        if (level >= upg.maxLevel) return;
-        const cost = upg.costs[level];
-        if (legacy.legacyPoints < cost) return;
-        const newLegacy = {
-          ...legacy,
-          legacyPoints: legacy.legacyPoints - cost,
-          upgrades: { ...legacy.upgrades, [upg.id]: level + 1 },
-        };
-        this._saveLegacy(newLegacy);
-        this.state = { ...this.state, legacyData: newLegacy };
-      }
-    });
-    // 武将解放購入
-    this.legacyHeroUnlockRects.forEach((rect, i) => {
-      if (pointInRect(scrolled, rect)) {
-        const upg = HERO_UNLOCK_UPGRADES[i];
-        if (!upg) return;
-        const level = legacy.upgrades[upg.id] ?? 0;
-        if (level >= upg.maxLevel) return;
-        const cost = upg.costs[level];
-        if (legacy.legacyPoints < cost) return;
-        const newLegacy = {
-          ...legacy,
-          legacyPoints: legacy.legacyPoints - cost,
-          upgrades: { ...legacy.upgrades, [upg.id]: level + 1 },
-        };
-        this._saveLegacy(newLegacy);
-        this.state = { ...this.state, legacyData: newLegacy };
-      }
-    });
+    if (this.legacyTab === 0) {
+      // アップグレード購入
+      this.legacyUpgradeRects.forEach((rect, i) => {
+        if (pointInRect(scrolled, rect)) {
+          const upg = LEGACY_UPGRADES[i];
+          if (!upg) return;
+          const level = legacy.upgrades[upg.id] ?? 0;
+          if (level >= upg.maxLevel) return;
+          const cost = upg.costs[level];
+          if (legacy.legacyPoints < cost) return;
+          const newLegacy = {
+            ...legacy,
+            legacyPoints: legacy.legacyPoints - cost,
+            upgrades: { ...legacy.upgrades, [upg.id]: level + 1 },
+          };
+          this._saveLegacy(newLegacy);
+          this.state = { ...this.state, legacyData: newLegacy };
+        }
+      });
+    } else {
+      // 武将解放購入
+      this.legacyHeroUnlockRects.forEach((rect, i) => {
+        if (pointInRect(scrolled, rect)) {
+          const upg = HERO_UNLOCK_UPGRADES[i];
+          if (!upg) return;
+          const level = legacy.upgrades[upg.id] ?? 0;
+          if (level >= upg.maxLevel) return;
+          const cost = upg.costs[level];
+          if (legacy.legacyPoints < cost) return;
+          const newLegacy = {
+            ...legacy,
+            legacyPoints: legacy.legacyPoints - cost,
+            upgrades: { ...legacy.upgrades, [upg.id]: level + 1 },
+          };
+          this._saveLegacy(newLegacy);
+          this.state = { ...this.state, legacyData: newLegacy };
+        }
+      });
+    }
   }
 
   private _loadLegacy(): import('./types').LegacyData {
@@ -1044,7 +1078,7 @@ export class Game {
     } else if (phase === 'event' && this.state.currentEvent) {
       drawEvent(ctx, w, h, this.state.currentEvent, this.eventOptionRects);
     } else if (phase === 'legacy') {
-      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect, this.legacyHeroUnlockRects, this.legacyScrollY);
+      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect, this.legacyHeroUnlockRects, this.legacyScrollY, this.legacyTab, this.legacyTabRects);
     } else if (phase === 'game_over') {
       drawGameOver(ctx, w, h, this.retryBtnRect);
     } else if (phase === 'ending' && hero) {

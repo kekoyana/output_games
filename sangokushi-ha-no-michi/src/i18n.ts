@@ -87,6 +87,7 @@ const UI: Translations = {
   'skill.invincible': { ja: '無敵 + 反撃', en: 'Invincible + Counter', zh: '无敌 + 反击' },
   'skill.stun': { ja: '敵を1ターン行動不能に', en: 'Stun enemy 1 turn', zh: '使敌人1回合无法行动' },
   'skill.shieldAttack': { ja: '盾の防御力を攻撃に転用', en: 'Convert defense to attack', zh: '将防御力转为攻击' },
+  'skill.heal': { ja: 'HP回復（防御力分）', en: 'Heal HP (DEF amount)', zh: '回复HP（防御力量）' },
 
   // 報酬
   'reward.bossVictory': { ja: '大勝利！', en: 'Great Victory!', zh: '大胜利！' },
@@ -185,6 +186,7 @@ const UI: Translations = {
   'log.skillAllAtk': { ja: '発動！渾身の一撃', en: ' activated! Mighty blow', zh: '发动！全力一击' },
   'log.skillStun': { ja: '発動！敵を行動不能に！', en: ' activated! Enemy stunned!', zh: '发动！使敌人无法行动！' },
   'log.skillInv': { ja: '発動！無敵＋反撃準備！', en: ' activated! Invincible + counter!', zh: '发动！无敌+反击准备！' },
+  'log.skillHeal': { ja: '発動！HP{n}回復！', en: ' activated! Healed {n} HP!', zh: '发动！回复{n}HP！' },
   'log.skillActivate': { ja: 'を発動！', en: ' activated!', zh: '发动了！' },
 
   // ノードラベル
@@ -214,13 +216,15 @@ const UI: Translations = {
   'skill.desc.lone_rescue': { ja: '馬×2消費 → 無敵1ターン＋反撃', en: 'Horse×2 → Invincible 1 turn + counter', zh: '马×2消耗 → 无敌1回合+反击' },
   'skill.desc.empty_city': { ja: '策×3消費 → 敵を1ターン行動不能', en: 'Strategy×3 → Stun enemy 1 turn', zh: '策×3消耗 → 使敌人1回合无法行动' },
   'skill.desc.benevolence': { ja: '盾×1消費 → 防御を攻撃に転用（盾の数×攻撃力）', en: 'Shield×1 → Convert defense to attack', zh: '盾×1消耗 → 将防御转为攻击（盾数×攻击力）' },
+  'skill.desc.benevolent_heal': { ja: '盾×1消費 → HP回復（防御力分）', en: 'Shield×1 → Heal HP (DEF amount)', zh: '盾×1消耗 → 回复HP（防御力量）' },
 
   // 英雄説明
   'hero.desc.guan_yu': { ja: '蜀の猛将。剣ダイスが多く攻撃力に優れる。', en: 'Fierce warrior of Shu. Excels in attack with many sword dice.', zh: '蜀国猛将。剑骰多，攻击力出众。' },
   'hero.desc.zhang_fei': { ja: '蜀の豪傑。咆哮で剣を強化する。', en: 'Hero of Shu. Buffs swords with his roar.', zh: '蜀国豪杰。咆哮强化剑骰。' },
   'hero.desc.zhao_yun': { ja: '蜀の白馬将軍。機動力と防御が光る。', en: 'White Horse General. Agile and defensive.', zh: '蜀国白马将军。机动力与防御出色。' },
   'hero.desc.zhuge_liang': { ja: '蜀の軍師。策略で敵を翻弄する。', en: 'Strategist of Shu. Outwits enemies with tactics.', zh: '蜀国军师。以策略翻弄敌人。' },
-  'hero.desc.liu_bei': { ja: '蜀の君主。仁徳で民を守り、盾を力に変える。', en: 'Lord of Shu. Protects people with virtue, turns defense into offense.', zh: '蜀国君主。以仁德守护百姓，将防御化为力量。' },
+  'hero.desc.liu_bei': { ja: '蜀の君主。仁徳で民を癒す。', en: 'Lord of Shu. Heals allies with virtue.', zh: '蜀国君主。以仁德治愈民众。' },
+  'hero.desc.pang_tong': { ja: '蜀の副軍師。守りを攻めに転じる鳳雛。', en: 'Vice-strategist of Shu. The Young Phoenix who turns defense into offense.', zh: '蜀国副军师。将防御转为进攻的凤雏。' },
 
   // 章のあらすじ
   'synopsis.1.title': { ja: '第一章：黄巾の乱', en: 'Chapter 1: Yellow Turban Rebellion', zh: '第一章：黄巾之乱' },
@@ -287,6 +291,8 @@ const UI: Translations = {
   'legacy.noBest': { ja: '最高到達: -', en: 'Best: -', zh: '最高到达: -' },
   'legacy.reset': { ja: 'データリセット', en: 'Reset Data', zh: '重置数据' },
   'legacy.resetConfirm': { ja: '本当にリセットしますか？', en: 'Really reset?', zh: '确定重置吗？' },
+  'legacy.tabAbility': { ja: '能力強化', en: 'Upgrades', zh: '能力强化' },
+  'legacy.tabHero': { ja: '武将解放', en: 'Heroes', zh: '解锁武将' },
   'legacy.heroUnlock': { ja: '武将解放', en: 'Unlock Heroes', zh: '解锁武将' },
   'legacy.unlocked': { ja: '解放済', en: 'Unlocked', zh: '已解锁' },
   'legacy.unlock': { ja: '解放', en: 'Unlock', zh: '解锁' },
@@ -301,12 +307,14 @@ const NAMES: Record<string, Record<Lang, string>> = {
   '趙雲': { ja: '趙雲', en: 'Zhao Yun', zh: '赵云' },
   '諸葛亮': { ja: '諸葛亮', en: 'Zhuge Liang', zh: '诸葛亮' },
   '劉備': { ja: '劉備', en: 'Liu Bei', zh: '刘备' },
+  '龐統': { ja: '龐統', en: 'Pang Tong', zh: '庞统' },
   // 英雄スキル
   '青龍偃月刀': { ja: '青龍偃月刀', en: 'Green Dragon Blade', zh: '青龙偃月刀' },
   '蛇矛の突き': { ja: '蛇矛の突き', en: 'Serpent Spear', zh: '蛇矛突刺' },
   '単騎救主': { ja: '単騎救主', en: 'Lone Rider Rescue', zh: '单骑救主' },
   '空城の計': { ja: '空城の計', en: 'Empty Fort Strategy', zh: '空城计' },
   '仁徳の御旗': { ja: '仁徳の御旗', en: 'Banner of Virtue', zh: '仁德之旗' },
+  '仁徳の施し': { ja: '仁徳の施し', en: 'Benevolent Aid', zh: '仁德之施' },
   // 第1章の敵
   '波才': { ja: '波才', en: 'Bo Cai', zh: '波才' },
   '裴元紹': { ja: '裴元紹', en: 'Pei Yuanshao', zh: '裴元绍' },

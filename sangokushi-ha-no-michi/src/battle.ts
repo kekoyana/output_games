@@ -96,6 +96,10 @@ export function executeBattle(
       const bonus = Math.floor(hero.stats.attack * 1.5);
       enemyDmg += bonus;
       log.push(`${tn(hero.skill.name)} ${t('log.skillAllAtk')} +${bonus}!`);
+    } else if (effect === 'heal') {
+      const healAmount = hero.stats.defense;
+      hero.currentHp = Math.min(hero.currentHp + healAmount, hero.stats.maxHp);
+      log.push(`${tn(hero.skill.name)} ${t('log.skillHeal', { n: healAmount })}`);
     } else if (effect === 'stun_enemy') {
       newState.enemy = { ...newState.enemy, stunned: true };
       log.push(`${tn(hero.skill.name)} ${t('log.skillStun')}`);
