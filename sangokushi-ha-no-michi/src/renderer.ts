@@ -399,10 +399,12 @@ export function drawBattle(
   rollBtnRect: Rect,
   helpBtnRect: Rect,
   dragInfo: { dieIdx: number; pos: { x: number; y: number } } | null = null,
-  selectedDieIdx: number = -1
+  selectedDieIdx: number = -1,
+  battleAnims: { type: 'attack' | 'hit'; value: number; startTime: number }[] = []
 ): void {
   const battle = state.battle!;
   const hero = state.hero!;
+  const now = performance.now();
 
   _drawBackground(ctx, w, h, 'battle_background');
 
@@ -411,13 +413,34 @@ export function drawBattle(
   const panelY = h - panelH - 6;
   const panelW = w - 16;
 
-  // 敵表示エリア（上半分）
+  // 敵表示エリア（上半分）— 攻撃アニメ時にシェイク
   const enemyAreaH = panelY - 10;
-  _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape);
+  const attackAnim = battleAnims.find((a) => a.type === 'attack');
+  const attackElapsed = attackAnim ? now - attackAnim.startTime : -1;
+  if (attackAnim && attackElapsed >= 0 && attackElapsed < 500) {
+    const shakeAmount = Math.sin(attackElapsed * 0.05) * 8 * (1 - attackElapsed / 500);
+    ctx.save();
+    ctx.translate(shakeAmount, 0);
+    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape);
+    ctx.restore();
+  } else {
+    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape);
+  }
 
-  // 英雄HP（スキル使用可能時にグロー）
+  // 英雄HP（スキル使用可能時にグロー）— 被ダメ時にフラッシュ
   const canSkill = canActivateSkill(battle, hero) && battle.phase === 'assign';
+  const hitAnim = battleAnims.find((a) => a.type === 'hit');
+  const hitElapsed = hitAnim ? now - hitAnim.startTime : -1;
   _drawHeroStatus(ctx, w, hero, battle.heroBlock, canSkill);
+  if (hitAnim && hitElapsed >= 0 && hitElapsed < 400) {
+    const flash = Math.sin(hitElapsed * 0.02) * 0.4;
+    if (flash > 0) {
+      ctx.fillStyle = `rgba(255,0,0,${flash})`;
+      const heroSize = Math.min(70, w * 0.12);
+      drawRoundRect(ctx, 20, 20, heroSize, heroSize, 6);
+      ctx.fill();
+    }
+  }
 
   // バトルログ（パネル上部に表示）
   _drawBattleLog(ctx, w, panelY, battle.log, battle.turnCount);
@@ -508,6 +531,78 @@ export function drawBattle(
     drawText(ctx, text, w / 2, h / 2, `bold ${Math.min(60, w / 8)}px serif`, color, 'center', 'middle');
     ctx.restore();
     drawText(ctx, 'タップで続ける', w / 2, h / 2 + 60, '20px serif', '#ccc', 'center', 'top');
+  }
+
+  // バトルアニメーション: ダメージ数字 + 斬撃エフェクト
+  for (const anim of battleAnims) {
+    const elapsed = now - anim.startTime;
+    if (elapsed < 0 || elapsed > 800) continue;
+
+    if (anim.type === 'attack') {
+      // 敵へのダメージ: 斬撃ライン + 浮き上がるダメージ数字
+      const enemyCx = isLandscape ? w * 0.7 : w / 2;
+      const enemyPortraitSize = Math.min(enemyAreaH * 0.5, isLandscape ? 180 : 140);
+      const enemyCy = enemyAreaH * 0.05 + enemyPortraitSize / 2;
+
+      // 斬撃エフェクト（最初の300ms）
+      if (elapsed < 300) {
+        const progress = elapsed / 300;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255,220,100,${1 - progress})`;
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.shadowColor = '#ff6';
+        ctx.shadowBlur = 20 * (1 - progress);
+        const slashLen = enemyPortraitSize * 0.8;
+        const sx = enemyCx - slashLen / 2 + slashLen * progress * 0.3;
+        const sy = enemyCy - slashLen / 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + slashLen * progress, sy + slashLen * progress);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx + slashLen, sy);
+        ctx.lineTo(sx + slashLen - slashLen * progress, sy + slashLen * progress);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // ダメージ数字（浮き上がる）
+      const floatY = enemyCy - 20 - elapsed * 0.06;
+      const alpha = Math.max(0, 1 - elapsed / 800);
+      const fontSize = Math.min(36, w / 14);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      drawText(ctx, `-${anim.value}`, enemyCx, floatY, `bold ${fontSize}px serif`, '#ff3333', 'center', 'middle');
+      ctx.restore();
+    } else if (anim.type === 'hit') {
+      // ヒーローへのダメージ: 画面端フラッシュ + 浮き上がるダメージ数字
+      const heroSize = Math.min(70, w * 0.12);
+      const heroCx = 20 + heroSize / 2;
+      const heroCy = 20 + heroSize / 2;
+
+      // 画面端の赤フラッシュ（ビネット）
+      if (elapsed < 400) {
+        const flashAlpha = 0.25 * (1 - elapsed / 400);
+        const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
+        grad.addColorStop(0, 'rgba(255,0,0,0)');
+        grad.addColorStop(1, `rgba(255,0,0,${flashAlpha})`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // ダメージ数字
+      const floatY = heroCy - 10 - elapsed * 0.05;
+      const alpha = Math.max(0, 1 - elapsed / 800);
+      const fontSize = Math.min(28, w / 18);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      drawText(ctx, `-${anim.value}`, heroCx + heroSize, floatY, `bold ${fontSize}px serif`, '#ff5555', 'center', 'middle');
+      ctx.restore();
+    }
   }
 
   // ヘルプオーバーレイ

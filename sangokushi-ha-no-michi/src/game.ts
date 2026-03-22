@@ -76,6 +76,14 @@ export class Game {
   private eventOptionRects: Rect[] = [];
   private retryBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
+  // バトルアニメーション
+  private battleAnims: {
+    type: 'attack' | 'hit';
+    value: number;
+    startTime: number;
+  }[] = [];
+  private animBlocked: boolean = false;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
@@ -592,8 +600,8 @@ export class Game {
       // 行動確定
       if (pointInRect(p, this.confirmBtnRect)) {
         const hasAssigned = battle.dice.some((d) => d.assignedSlot !== null);
-        if (!hasAssigned) return;
-        const { state: newBattle, heroDmg } = executeBattle(battle, hero);
+        if (!hasAssigned || this.animBlocked) return;
+        const { state: newBattle, heroDmg, enemyDmg } = executeBattle(battle, hero);
         const newHp = hero.currentHp - heroDmg;
         const newHero = { ...hero, currentHp: Math.max(0, newHp) };
 
@@ -601,23 +609,39 @@ export class Game {
           this.state = { ...this.state, tutorialStep: -1 };
         }
 
-        if (newHp <= 0) {
-          // 敗北 → game_over
-          this.state = { ...this.state, phase: 'game_over', battle: newBattle, hero: newHero };
-        } else if (newBattle.enemy.currentHp <= 0) {
-          // 勝利 → 直接 reward（result画面をスキップ）
-          const nodeType = this.state.map?.nodes.find((n) => n.id === this.state.map?.currentNodeId)?.type ?? 'battle';
-          const gold = getGoldReward(nodeType, this.state.map?.chapter ?? 1);
-          const rewardInfo = {
-            goldEarned: gold,
-            enemyName: newBattle.enemy.name,
-            isBoss: newBattle.enemy.isBoss,
-          };
-          this.state = { ...this.state, phase: 'reward', battle: newBattle, hero: newHero, rewardInfo };
-        } else {
-          // 戦闘継続
-          this.state = { ...this.state, battle: newBattle, hero: newHero };
+        // アニメーション開始
+        const now = performance.now();
+        this.battleAnims = [];
+        if (enemyDmg > 0) {
+          this.battleAnims.push({ type: 'attack', value: enemyDmg, startTime: now });
         }
+        if (heroDmg > 0) {
+          this.battleAnims.push({ type: 'hit', value: heroDmg, startTime: now + 600 });
+        }
+
+        // アニメーション中は操作ブロック、終了後に状態反映
+        const totalDelay = (heroDmg > 0 ? 1200 : 600);
+        this.animBlocked = true;
+
+        // 先にバトル状態（ログ等）を更新、HPは段階的に反映
+        this.state = { ...this.state, battle: newBattle, hero: newHero };
+
+        setTimeout(() => {
+          this.animBlocked = false;
+          this.battleAnims = [];
+          if (newHp <= 0) {
+            this.state = { ...this.state, phase: 'game_over' };
+          } else if (newBattle.enemy.currentHp <= 0) {
+            const nodeType = this.state.map?.nodes.find((n) => n.id === this.state.map?.currentNodeId)?.type ?? 'battle';
+            const gold = getGoldReward(nodeType, this.state.map?.chapter ?? 1);
+            const rewardInfo = {
+              goldEarned: gold,
+              enemyName: newBattle.enemy.name,
+              isBoss: newBattle.enemy.isBoss,
+            };
+            this.state = { ...this.state, phase: 'reward', rewardInfo };
+          }
+        }, totalDelay);
       }
     }
   }
@@ -753,7 +777,7 @@ export class Game {
       const dragInfo = this.isDragging && this.draggingDieIdx >= 0
         ? { dieIdx: this.draggingDieIdx, pos: this.dragPos }
         : null;
-      drawBattle(ctx, w, h, this.state, this.diceRects, this.slotRects, this.skillBtnRect, this.confirmBtnRect, this.rollBtnRect, this.helpBtnRect, dragInfo, this.selectedDieIdx);
+      drawBattle(ctx, w, h, this.state, this.diceRects, this.slotRects, this.skillBtnRect, this.confirmBtnRect, this.rollBtnRect, this.helpBtnRect, dragInfo, this.selectedDieIdx, this.battleAnims);
     } else if (phase === 'advisor') {
       drawAdvisor(ctx, w, h, this.state.advisorCards, this.advisorRects);
     } else if (phase === 'merchant' && hero) {
