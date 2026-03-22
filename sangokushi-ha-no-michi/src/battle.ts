@@ -78,11 +78,11 @@ export function executeBattle(
   const countFace = (face: DiceFace): number =>
     newState.dice.filter((d) => d.face === face || d.face === 'star').length;
 
-  let skillMultiplier = 1;
+  let swordMultiplier = 1;
   if (newState.skillActivated) {
     const effect = hero.skill.effect;
     if (effect === 'buff_swords') {
-      skillMultiplier = 1.5;
+      swordMultiplier = 1.5;
       log.push(`${tn(hero.skill.name)} ${t('log.skillSword')}`);
     } else if (effect === 'shield_to_attack') {
       const shieldCount = countFace('shield');
@@ -103,8 +103,19 @@ export function executeBattle(
   }
 
   // 攻撃・策略・防御の効果値を共通テーブルで計算
-  const attackDmg = calcSlotValue(newState.dice, 'attack', hero.stats.attack);
-  enemyDmg += Math.floor(attackDmg * skillMultiplier);
+  // buff_swords: 剣ダイスのみ1.5倍（他のダイスは通常倍率）
+  if (swordMultiplier > 1) {
+    const attackMultipliers = SLOT_MULTIPLIERS['attack']!;
+    for (const d of newState.dice) {
+      if (d.assignedSlot !== 'attack') continue;
+      const mult = attackMultipliers[d.face] ?? 0;
+      const base = Math.floor(hero.stats.attack * mult);
+      const bonus = (d.face === 'sword') ? swordMultiplier : 1;
+      enemyDmg += Math.floor(base * bonus);
+    }
+  } else {
+    enemyDmg += calcSlotValue(newState.dice, 'attack', hero.stats.attack);
+  }
   enemyDmg += calcSlotValue(newState.dice, 'strategy', hero.stats.attack);
   const block = calcSlotValue(newState.dice, 'defense', hero.stats.defense);
   newState.heroBlock = block;
