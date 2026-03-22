@@ -2,16 +2,16 @@ import { Game } from './game';
 import { loadImages } from './renderer';
 
 // アセットのインポート
-import guanYuPortrait from './assets/portraits/guan_yu_portrait.png';
-import zhangFeiPortrait from './assets/portraits/zhang_fei_portrait.png';
-import zhaoYunPortrait from './assets/portraits/zhao_yun_portrait.png';
-import zhugeLiangPortrait from './assets/portraits/zhuge_liang_portrait.png';
-import caoCaoPortrait from './assets/portraits/cao_cao_portrait.png';
-import luBuPortrait from './assets/portraits/lu_bu_portrait.png';
-import liuBeiPortrait from './assets/portraits/liu_bei_portrait.png';
-import zhangJiaoPortrait from './assets/portraits/zhang_jiao_portrait.png';
-import dongZhuoPortrait from './assets/portraits/dong_zhuo_portrait.png';
-import yuanShuPortrait from './assets/portraits/yuan_shu_portrait.png';
+import guanYuPortrait from './assets/portraits/guan_yu_portrait.webp';
+import zhangFeiPortrait from './assets/portraits/zhang_fei_portrait.webp';
+import zhaoYunPortrait from './assets/portraits/zhao_yun_portrait.webp';
+import zhugeLiangPortrait from './assets/portraits/zhuge_liang_portrait.webp';
+import caoCaoPortrait from './assets/portraits/cao_cao_portrait.webp';
+import luBuPortrait from './assets/portraits/lu_bu_portrait.webp';
+import liuBeiPortrait from './assets/portraits/liu_bei_portrait.webp';
+import zhangJiaoPortrait from './assets/portraits/zhang_jiao_portrait.webp';
+import dongZhuoPortrait from './assets/portraits/dong_zhuo_portrait.webp';
+import yuanShuPortrait from './assets/portraits/yuan_shu_portrait.webp';
 import battleBackground from './assets/backgrounds/battle_background2.jpg';
 import mapBackground from './assets/backgrounds/map_background.jpg';
 import titleBackground from './assets/backgrounds/title_background.jpg';

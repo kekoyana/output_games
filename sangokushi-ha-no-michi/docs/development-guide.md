@@ -104,6 +104,34 @@ const layout = await page.evaluate(() => ({
 
 renderer.tsの描画で使う静的データ（`SLOT_LABELS`, `SLOT_COLORS`, `DICE_NAMES`, `CHAPTER_NAMES`等）はモジュールスコープに定義。毎フレーム再生成を避ける。
 
+## 画像生成ルール
+
+### 基本方針
+- ポートレートは **WebP形式**（quality=85）で保存する。PNGは `raw/` に元データとして残す
+- 生成には `ai-sprites-local/`（ローカルComfyUI、無料）を使用する
+- プロダクト固有の生成スクリプトは `scripts/` ディレクトリに配置する
+- 汎用モジュール（comfyui_client, workflows等）は `ai-sprites-local/` を `sys.path` 経由で参照する
+
+### ポートレート生成の統一ルール
+- **スタイル**: `anime game art, Three Kingdoms era`
+- **構図**: `close-up head and shoulders portrait, face centered and large in frame`（顔のクローズアップで統一）
+- **サイズ**: 512x512 で生成 → WebP (quality=85) に変換して保存
+- **モデル**: AUTO_MODEL（メモリに応じて sdxl/flux/sd15 を自動選択）
+- **ネガティブ**: `full body, waist shot, far away, small face` を必ず含める（画角ずれ防止）
+
+### 新キャラ追加手順
+1. `scripts/` にキャラ固有の生成スクリプトを作成
+2. ComfyUIで生成 → `src/assets/portraits/raw/{name}.png`（元データ）
+3. 512x512にリサイズ → `src/assets/portraits/{name}.webp`（WebP変換）
+4. `src/assets/manifest.json` の `portraits` にエントリ追加
+5. `src/main.ts` に `.webp` のimport文を追加し `IMAGE_PATHS` に登録
+6. `src/data.ts` の敵/英雄定義に `portraitKey` を設定
+
+### 背景画像
+- JPG形式、960x540 程度
+- `src/assets/backgrounds/` に配置
+- manifest.json の `backgrounds` に登録
+
 ## よくある落とし穴
 
 - **Canvas compositing**: `destination-out` はバトル画面の暗いオーバーレイも消してしまう。くり抜きには4矩形方式を使う
