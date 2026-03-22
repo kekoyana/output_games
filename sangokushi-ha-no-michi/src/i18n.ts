@@ -263,9 +263,9 @@ const UI: Translations = {
   'synopsis.5.6': { ja: '天下の行方を決める、最終決戦の火蓋が切られた。', en: 'The final battle that will decide the fate of the land begins.', zh: '决定天下命运的最终决战拉开帷幕。' },
 
   // ローグライト（レガシー）
-  'legacy.title': { ja: '英雄の遺産', en: 'Hero Legacy', zh: '英雄遗产' },
-  'legacy.points': { ja: '功績ポイント', en: 'Legacy Points', zh: '功绩点数' },
-  'legacy.earned': { ja: '今回の功績: +{n}', en: 'Earned: +{n}', zh: '本次功绩: +{n}' },
+  'legacy.title': { ja: '宝玉の間', en: 'Jade Chamber', zh: '宝玉之间' },
+  'legacy.points': { ja: '宝玉', en: 'Jade', zh: '宝玉' },
+  'legacy.earned': { ja: '宝玉獲得: +{n}', en: 'Jade earned: +{n}', zh: '获得宝玉: +{n}' },
   'legacy.hp': { ja: '体力強化', en: 'HP Boost', zh: '体力强化' },
   'legacy.atk': { ja: '武力強化', en: 'ATK Boost', zh: '武力强化' },
   'legacy.def': { ja: '守備強化', en: 'DEF Boost', zh: '防御强化' },
@@ -276,7 +276,7 @@ const UI: Translations = {
   'legacy.maxed': { ja: '最大', en: 'MAX', zh: '已满' },
   'legacy.buy': { ja: '強化', en: 'Upgrade', zh: '强化' },
   'legacy.back': { ja: 'タイトルに戻る', en: 'Back to Title', zh: '返回标题' },
-  'legacy.btn': { ja: '遺産', en: 'Legacy', zh: '遗产' },
+  'legacy.btn': { ja: '宝玉', en: 'Jade', zh: '宝玉' },
   'legacy.desc.maxHp': { ja: '最大HP+{n}', en: 'Max HP +{n}', zh: '最大HP+{n}' },
   'legacy.desc.attack': { ja: '攻撃力+{n}', en: 'ATK +{n}', zh: '攻击力+{n}' },
   'legacy.desc.defense': { ja: '防御力+{n}', en: 'DEF +{n}', zh: '防御力+{n}' },
@@ -285,6 +285,8 @@ const UI: Translations = {
   'legacy.runStats': { ja: '挑戦回数: {n}', en: 'Total Runs: {n}', zh: '挑战次数: {n}' },
   'legacy.bestCh': { ja: '最高到達: 第{n}章', en: 'Best: Chapter {n}', zh: '最高到达: 第{n}章' },
   'legacy.noBest': { ja: '最高到達: -', en: 'Best: -', zh: '最高到达: -' },
+  'legacy.reset': { ja: 'データリセット', en: 'Reset Data', zh: '重置数据' },
+  'legacy.resetConfirm': { ja: '本当にリセットしますか？', en: 'Really reset?', zh: '确定重置吗？' },
 };
 
 // 名前の翻訳テーブル（英雄・敵・アイテム等）

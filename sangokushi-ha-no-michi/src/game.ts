@@ -83,6 +83,8 @@ export class Game {
   private legacyBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private legacyUpgradeRects: Rect[] = [];
   private legacyBackRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private legacyResetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private legacyResetConfirm: boolean = false;
 
   // バトルアニメーション
   private battleAnims: {
@@ -102,6 +104,7 @@ export class Game {
   }
 
   private _initialState(): GameState {
+    const tutorialDone = this._isTutorialDone();
     return {
       phase: 'title',
       hero: null,
@@ -113,8 +116,8 @@ export class Game {
       currentEvent: null,
       showHelp: false,
       battleCount: 0,
-      tutorialStep: 0,
-      mapTutorialStep: 0,
+      tutorialStep: tutorialDone ? -1 : 0,
+      mapTutorialStep: tutorialDone ? -1 : 0,
       lang: 'ja',
       legacyData: this._loadLegacy(),
       enemiesDefeated: 0,
@@ -162,6 +165,7 @@ export class Game {
       x: legUpgradeX, y: legUpgradeStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
     }));
     this.legacyBackRect = { x: (w - 200) / 2, y: h * 0.88, w: 200, h: 44 };
+    this.legacyResetRect = { x: (w - 140) / 2, y: h * 0.95, w: 140, h: 32 };
 
     // キャラクター選択（スマホ対応: カードサイズ縮小＋スクロール）
     const cols = w < 500 ? 2 : 3;
@@ -446,7 +450,9 @@ export class Game {
     } else if (phase === 'map') {
       if (this.state.mapTutorialStep >= 1) {
         const next = this.state.mapTutorialStep + 1;
-        this.state = { ...this.state, mapTutorialStep: next > 2 ? -1 : next as 1 | 2 };
+        const done = next > 2;
+        this.state = { ...this.state, mapTutorialStep: done ? -1 : next as 1 | 2 };
+        if (done) this._markTutorialDone();
         return;
       }
       this._handleMapClick(p);
@@ -475,11 +481,29 @@ export class Game {
   private _handleLegacyClick(p: { x: number; y: number }): void {
     // タイトルに戻る
     if (pointInRect(p, this.legacyBackRect)) {
+      this.legacyResetConfirm = false;
       this.state = this._initialState();
       this.selectedHeroId = null;
       this.mapScrollY = 0;
       return;
     }
+    // リセットボタン
+    if (pointInRect(p, this.legacyResetRect)) {
+      if (this.legacyResetConfirm) {
+        // 2回目: 実行
+        const defaultLegacy = getDefaultLegacyData();
+        this._saveLegacy(defaultLegacy);
+        try { localStorage.removeItem('sangokushi_tutorial_done'); } catch { /* ignore */ }
+        this.legacyResetConfirm = false;
+        this.state = { ...this.state, legacyData: defaultLegacy };
+      } else {
+        // 1回目: 確認状態に
+        this.legacyResetConfirm = true;
+      }
+      return;
+    }
+    // 他の場所をタップしたら確認状態を解除
+    this.legacyResetConfirm = false;
     // アップグレード購入
     const legacy = this.state.legacyData;
     this.legacyUpgradeRects.forEach((rect, i) => {
@@ -518,6 +542,18 @@ export class Game {
     } catch { /* ignore */ }
   }
 
+  private _isTutorialDone(): boolean {
+    try {
+      return localStorage.getItem('sangokushi_tutorial_done') === '1';
+    } catch { return false; }
+  }
+
+  private _markTutorialDone(): void {
+    try {
+      localStorage.setItem('sangokushi_tutorial_done', '1');
+    } catch { /* ignore */ }
+  }
+
   private _calcLegacyBonuses(data: import('./types').LegacyData): { maxHp: number; attack: number; defense: number; gold: number; healPercent: number } {
     const bonuses = { maxHp: 0, attack: 0, defense: 0, gold: 0, healPercent: 0 };
     for (const upg of LEGACY_UPGRADES) {
@@ -532,8 +568,8 @@ export class Game {
   private _earnLegacyPoints(): number {
     const { chaptersReached, enemiesDefeated, bossesDefeated } = this.state;
     const cleared = this.state.phase === 'ending';
-    let pts = chaptersReached * 10 + enemiesDefeated * 2 + bossesDefeated * 20;
-    if (cleared) pts += 50;
+    let pts = chaptersReached * 15 + enemiesDefeated * 5 + bossesDefeated * 25;
+    if (cleared) pts += 60;
     return pts;
   }
 
@@ -658,6 +694,7 @@ export class Game {
       this.state = { ...this.state, tutorialStep: (step + 1) as import('./types').TutorialStep };
     } else if (step === 5) {
       this.state = { ...this.state, tutorialStep: -1 };
+      this._markTutorialDone();
     }
   }
 
@@ -759,6 +796,7 @@ export class Game {
 
         if (this.state.tutorialStep === 5) {
           this.state = { ...this.state, tutorialStep: -1 };
+          this._markTutorialDone();
         }
 
         // アニメーション開始
@@ -947,7 +985,7 @@ export class Game {
     } else if (phase === 'event' && this.state.currentEvent) {
       drawEvent(ctx, w, h, this.state.currentEvent, this.eventOptionRects);
     } else if (phase === 'legacy') {
-      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect);
+      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect, this.legacyResetConfirm);
     } else if (phase === 'game_over') {
       drawGameOver(ctx, w, h, this.retryBtnRect);
     } else if (phase === 'ending' && hero) {

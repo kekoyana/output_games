@@ -445,18 +445,20 @@ export function drawMap(
   }
 
   // 現在地にヒーローアイコンを表示（上下にふわふわアニメーション）
-  if (currentNodeId !== null && heroPortraitKey && currentNode) {
+  // 初期状態（currentNodeId === null）では最初のavailableノードにマーカーを表示
+  const markerNode = currentNode ?? nodes.find((n) => n.available && !n.visited);
+  if (heroPortraitKey && markerNode) {
     const iconSize = 34;
     const bobOffset = Math.sin(now * 0.004) * 5; // 上下に5pxふわふわ
-    const iconX = currentNode.x - iconSize / 2;
-    const iconY = currentNode.y + r + 4 + bobOffset;
+    const iconX = markerNode.x - iconSize / 2;
+    const iconY = markerNode.y - r - iconSize - 4 + bobOffset;
     const iconCenterY = iconY + iconSize / 2;
     const heroImg = getImage(heroPortraitKey);
 
     // 背景の円
     ctx.save();
     ctx.beginPath();
-    ctx.arc(currentNode.x, iconCenterY, iconSize / 2 + 3, 0, Math.PI * 2);
+    ctx.arc(markerNode.x, iconCenterY, iconSize / 2 + 3, 0, Math.PI * 2);
     ctx.fillStyle = '#0d0d1e';
     ctx.fill();
     ctx.strokeStyle = GOLD_COLOR;
@@ -465,7 +467,7 @@ export function drawMap(
 
     // ポートレート画像（円形クリップ）
     ctx.beginPath();
-    ctx.arc(currentNode.x, iconCenterY, iconSize / 2, 0, Math.PI * 2);
+    ctx.arc(markerNode.x, iconCenterY, iconSize / 2, 0, Math.PI * 2);
     ctx.clip();
     if (heroImg) {
       ctx.drawImage(heroImg, iconX, iconY, iconSize, iconSize);
@@ -1572,7 +1574,9 @@ export function drawLegacy(
   h: number,
   legacyData: LegacyData,
   upgradeRects: Rect[],
-  backBtnRect: Rect
+  backBtnRect: Rect,
+  resetBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 },
+  resetConfirm: boolean = false
 ): void {
   ctx.fillStyle = '#0d0d1e';
   ctx.fillRect(0, 0, w, h);
@@ -1662,6 +1666,14 @@ export function drawLegacy(
 
   // 戻るボタン
   drawButton(ctx, backBtnRect, t('legacy.back'), '#555', '#fff', 16, 8);
+
+  // リセットボタン
+  if (resetBtnRect.w > 0) {
+    const resetLabel = resetConfirm ? t('legacy.resetConfirm') : t('legacy.reset');
+    const resetColor = resetConfirm ? '#c0392b' : '#444';
+    const resetFontSize = resetConfirm ? Math.min(12, w / 35) : 12;
+    drawButton(ctx, resetBtnRect, resetLabel, resetColor, '#aaa', resetFontSize, 6);
+  }
 }
 
 export { pointInRect };
