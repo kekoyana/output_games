@@ -1,4 +1,4 @@
-import type { HeroDef, EnemyDef, AdvisorCard, MerchantItem, GameEvent, DiceFace } from './types';
+import type { HeroDef, EnemyDef, AdvisorCard, MerchantItem, GameEvent, DiceFace, LegacyUpgradeDef, LegacyData } from './types';
 
 export const HERO_DEFS: HeroDef[] = [
   {
@@ -14,7 +14,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'sword', count: 2 },
       effect: 'all_attack',
     },
-    stats: { maxHp: 100, attack: 12, defense: 5, diceCount: 4 },
+    stats: { maxHp: 90, attack: 10, defense: 4, diceCount: 4 },
     description: '蜀の猛将。剣ダイスが多く攻撃力に優れる。',
   },
   {
@@ -30,7 +30,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'strategy', count: 1 },
       effect: 'buff_swords',
     },
-    stats: { maxHp: 110, attack: 10, defense: 6, diceCount: 4 },
+    stats: { maxHp: 95, attack: 9, defense: 5, diceCount: 4 },
     description: '蜀の豪傑。咆哮で剣を強化する。',
   },
   {
@@ -46,7 +46,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'horse', count: 2 },
       effect: 'invincible_counter',
     },
-    stats: { maxHp: 95, attack: 10, defense: 8, diceCount: 4 },
+    stats: { maxHp: 85, attack: 9, defense: 7, diceCount: 4 },
     description: '蜀の白馬将軍。機動力と防御が光る。',
   },
   {
@@ -62,7 +62,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'strategy', count: 3 },
       effect: 'stun_enemy',
     },
-    stats: { maxHp: 80, attack: 8, defense: 4, diceCount: 4 },
+    stats: { maxHp: 75, attack: 8, defense: 4, diceCount: 4 },
     description: '蜀の軍師。策略で敵を翻弄する。',
   },
   {
@@ -78,7 +78,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'shield', count: 1 },
       effect: 'shield_to_attack',
     },
-    stats: { maxHp: 95, attack: 8, defense: 10, diceCount: 4 },
+    stats: { maxHp: 85, attack: 7, defense: 8, diceCount: 4 },
     description: '蜀の君主。仁徳で民を守り、盾を力に変える。',
   },
 ];
@@ -144,8 +144,8 @@ export const ENEMY_DEFS: EnemyDef[] = [
   {
     id: 'elite_zhang_mancheng',
     name: '張曼成',
-    maxHp: 80,
-    attack: 11,
+    maxHp: 90,
+    attack: 12,
     defense: 5,
     isBoss: false,
     portraitKey: '',
@@ -156,13 +156,14 @@ export const ENEMY_DEFS: EnemyDef[] = [
   {
     id: 'zhang_jiao',
     name: '張角',
-    maxHp: 120,
-    attack: 12,
+    maxHp: 140,
+    attack: 14,
     defense: 6,
     isBoss: true,
     portraitKey: 'zhang_jiao_portrait',
     intents: ['buff', 'special', 'attack', 'special', 'defend'],
     chapter: 1,
+    gimmick: 'zhang_jiao_sorcery',
   },
 
   // ===== 第2章: 董卓軍 =====
@@ -244,6 +245,7 @@ export const ENEMY_DEFS: EnemyDef[] = [
     portraitKey: 'dong_zhuo_portrait',
     intents: ['attack', 'buff', 'attack', 'special', 'defend'],
     chapter: 2,
+    gimmick: 'dong_zhuo_tyranny',
   },
 
   // ===== 第3章: 徐州攻防戦 =====
@@ -314,6 +316,7 @@ export const ENEMY_DEFS: EnemyDef[] = [
     portraitKey: 'lu_bu_portrait',
     intents: ['attack', 'special', 'buff', 'attack', 'special', 'attack'],
     chapter: 3,
+    gimmick: 'lu_bu_halberd',
   },
 
   // ===== 第4章: 偽帝袁術 =====
@@ -384,6 +387,7 @@ export const ENEMY_DEFS: EnemyDef[] = [
     portraitKey: 'yuan_shu_portrait',
     intents: ['buff', 'special', 'attack', 'defend', 'special', 'attack'],
     chapter: 4,
+    gimmick: 'yuan_shu_seal',
   },
 
   // ===== 第5章: 赤壁の戦い =====
@@ -465,6 +469,7 @@ export const ENEMY_DEFS: EnemyDef[] = [
     portraitKey: 'cao_cao_portrait',
     intents: ['buff', 'attack', 'attack', 'special', 'defend', 'attack'],
     chapter: 5,
+    gimmick: 'cao_cao_scheme',
   },
 ];
 
@@ -746,6 +751,25 @@ export const FACTION_NAMES: Record<string, string> = {
   wu: '呉',
   other: '無所属',
 };
+
+export const LEGACY_UPGRADES: LegacyUpgradeDef[] = [
+  { id: 'legacy_hp', maxLevel: 3, costs: [30, 50, 80], effects: [5, 10, 15], stat: 'maxHp' },
+  { id: 'legacy_atk', maxLevel: 3, costs: [40, 60, 100], effects: [1, 2, 2], stat: 'attack' },
+  { id: 'legacy_def', maxLevel: 3, costs: [40, 60, 100], effects: [1, 2, 2], stat: 'defense' },
+  { id: 'legacy_gold', maxLevel: 2, costs: [30, 60], effects: [20, 30], stat: 'gold' },
+  { id: 'legacy_heal', maxLevel: 2, costs: [50, 80], effects: [5, 5], stat: 'healPercent' },
+];
+
+export function getDefaultLegacyData(): LegacyData {
+  return {
+    version: 1,
+    totalRuns: 0,
+    bestChapter: 0,
+    legacyPoints: 0,
+    upgrades: {},
+    lastEarnedPoints: 0,
+  };
+}
 
 export function rollDie(): DiceFace {
   const faces: DiceFace[] = ['sword', 'shield', 'strategy', 'horse', 'arrow', 'star'];

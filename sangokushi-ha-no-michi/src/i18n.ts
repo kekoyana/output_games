@@ -42,6 +42,7 @@ const UI: Translations = {
   'battle.defeat': { ja: '敗北...', en: 'Defeat...', zh: '战败...' },
   'battle.continue': { ja: 'タップで続ける', en: 'Tap to continue', zh: '点击继续' },
   'battle.nextAction': { ja: '次の行動', en: 'Next action', zh: '下一动作' },
+  'battle.lastAction': { ja: '前回の行動', en: 'Last action', zh: '上次行动' },
   'battle.stunned': { ja: '[行動不能]', en: '[Stunned]', zh: '[无法行动]' },
   'battle.buffed': { ja: '[強化中 攻撃1.5倍]', en: '[Buffed ATK x1.5]', zh: '[强化中 攻击1.5倍]' },
   'battle.skillReady': { ja: '技発動可！', en: 'Skill OK!', zh: '技能就绪！' },
@@ -260,6 +261,30 @@ const UI: Translations = {
   'synopsis.5.4': { ja: '劉備と孫権の連合軍は、揚子江の要衝・赤壁にて', en: 'The allied forces of Liu Bei and Sun Quan stand', zh: '刘备与孙权的联合军在长江要塞赤壁' },
   'synopsis.5.5': { ja: '曹操の百万の大軍を迎え撃つ。', en: 'at Red Cliffs to face Cao Cao\'s million-strong army.', zh: '迎击曹操的百万大军。' },
   'synopsis.5.6': { ja: '天下の行方を決める、最終決戦の火蓋が切られた。', en: 'The final battle that will decide the fate of the land begins.', zh: '决定天下命运的最终决战拉开帷幕。' },
+
+  // ローグライト（レガシー）
+  'legacy.title': { ja: '英雄の遺産', en: 'Hero Legacy', zh: '英雄遗产' },
+  'legacy.points': { ja: '功績ポイント', en: 'Legacy Points', zh: '功绩点数' },
+  'legacy.earned': { ja: '今回の功績: +{n}', en: 'Earned: +{n}', zh: '本次功绩: +{n}' },
+  'legacy.hp': { ja: '体力強化', en: 'HP Boost', zh: '体力强化' },
+  'legacy.atk': { ja: '武力強化', en: 'ATK Boost', zh: '武力强化' },
+  'legacy.def': { ja: '守備強化', en: 'DEF Boost', zh: '防御强化' },
+  'legacy.gold': { ja: '軍資金増加', en: 'Starting Gold', zh: '军资增加' },
+  'legacy.heal': { ja: '休息強化', en: 'Better Rest', zh: '休息强化' },
+  'legacy.level': { ja: 'Lv.{n}/{max}', en: 'Lv.{n}/{max}', zh: 'Lv.{n}/{max}' },
+  'legacy.cost': { ja: '{n}pt', en: '{n}pt', zh: '{n}pt' },
+  'legacy.maxed': { ja: '最大', en: 'MAX', zh: '已满' },
+  'legacy.buy': { ja: '強化', en: 'Upgrade', zh: '强化' },
+  'legacy.back': { ja: 'タイトルに戻る', en: 'Back to Title', zh: '返回标题' },
+  'legacy.btn': { ja: '遺産', en: 'Legacy', zh: '遗产' },
+  'legacy.desc.maxHp': { ja: '最大HP+{n}', en: 'Max HP +{n}', zh: '最大HP+{n}' },
+  'legacy.desc.attack': { ja: '攻撃力+{n}', en: 'ATK +{n}', zh: '攻击力+{n}' },
+  'legacy.desc.defense': { ja: '防御力+{n}', en: 'DEF +{n}', zh: '防御力+{n}' },
+  'legacy.desc.gold': { ja: '初期金+{n}', en: 'Starting gold +{n}', zh: '初始金+{n}' },
+  'legacy.desc.healPercent': { ja: '休息回復+{n}%', en: 'Rest heals +{n}%', zh: '休息恢复+{n}%' },
+  'legacy.runStats': { ja: '挑戦回数: {n}', en: 'Total Runs: {n}', zh: '挑战次数: {n}' },
+  'legacy.bestCh': { ja: '最高到達: 第{n}章', en: 'Best: Chapter {n}', zh: '最高到达: 第{n}章' },
+  'legacy.noBest': { ja: '最高到達: -', en: 'Best: -', zh: '最高到达: -' },
 };
 
 // 名前の翻訳テーブル（英雄・敵・アイテム等）
@@ -336,6 +361,13 @@ const NAMES: Record<string, Record<Lang, string>> = {
   '古の兵法書': { ja: '古の兵法書', en: 'Ancient Scrolls', zh: '古兵法书' },
   '村人の嘆願': { ja: '村人の嘆願', en: 'Village Plea', zh: '村民的请愿' },
   '秘湯発見': { ja: '秘湯発見', en: 'Hot Spring Found', zh: '发现秘汤' },
+
+  // レガシー強化
+  '体力強化': { ja: '体力強化', en: 'HP Boost', zh: '体力强化' },
+  '武力強化': { ja: '武力強化', en: 'ATK Boost', zh: '武力强化' },
+  '守備強化': { ja: '守備強化', en: 'DEF Boost', zh: '防御强化' },
+  '軍資金増加': { ja: '軍資金増加', en: 'Starting Gold', zh: '军资增加' },
+  '休息強化': { ja: '休息強化', en: 'Better Rest', zh: '休息强化' },
 };
 
 /** UIテキストを取得。{n}はplaceholderとして置換可能 */

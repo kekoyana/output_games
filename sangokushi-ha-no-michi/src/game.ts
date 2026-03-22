@@ -13,6 +13,8 @@ import {
   ADVISOR_CARDS,
   MERCHANT_ITEMS,
   GAME_EVENTS,
+  LEGACY_UPGRADES,
+  getDefaultLegacyData,
 } from './data';
 import { generateMap, advanceMap } from './mapGen';
 import {
@@ -37,6 +39,7 @@ import {
   drawEvent,
   drawGameOver,
   drawEnding,
+  drawLegacy,
   pointInRect,
 } from './renderer';
 import { choose, shuffle, clamp } from './utils';
@@ -77,6 +80,9 @@ export class Game {
   private eventOptionRects: Rect[] = [];
   private retryBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private langBtnRects: Rect[] = [];
+  private legacyBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private legacyUpgradeRects: Rect[] = [];
+  private legacyBackRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   // バトルアニメーション
   private battleAnims: {
@@ -110,6 +116,10 @@ export class Game {
       tutorialStep: 0,
       mapTutorialStep: 0,
       lang: 'ja',
+      legacyData: this._loadLegacy(),
+      enemiesDefeated: 0,
+      bossesDefeated: 0,
+      chaptersReached: 0,
     };
   }
 
@@ -139,6 +149,19 @@ export class Game {
       w: langBtnW,
       h: langBtnH,
     }));
+
+    // レガシーボタン（タイトル画面）
+    this.legacyBtnRect = { x: w / 2 - 60, y: h * 0.78, w: 120, h: 36 };
+
+    // レガシー画面レイアウト
+    const legUpgradeW = Math.min(w - 40, 400);
+    const legUpgradeH = 60;
+    const legUpgradeX = (w - legUpgradeW) / 2;
+    const legUpgradeStartY = h * 0.28;
+    this.legacyUpgradeRects = LEGACY_UPGRADES.map((_, i) => ({
+      x: legUpgradeX, y: legUpgradeStartY + i * (legUpgradeH + 8), w: legUpgradeW, h: legUpgradeH,
+    }));
+    this.legacyBackRect = { x: (w - 200) / 2, y: h * 0.88, w: 200, h: 44 };
 
     // キャラクター選択（スマホ対応: カードサイズ縮小＋スクロール）
     const cols = w < 500 ? 2 : 3;
@@ -335,7 +358,7 @@ export class Game {
       if (phase === 'map') {
         e.preventDefault();
         const dy = lastTouchY - e.touches[0].clientY;
-        this.mapScrollY = clamp(this.mapScrollY + dy, 0, 300);
+        this.mapScrollY = clamp(this.mapScrollY + dy, 0, 400);
         lastTouchY = e.touches[0].clientY;
       } else if (phase === 'character_select') {
         e.preventDefault();
@@ -347,7 +370,7 @@ export class Game {
 
     this.canvas.addEventListener('wheel', (e) => {
       if (this.state.phase === 'map') {
-        this.mapScrollY = clamp(this.mapScrollY + e.deltaY * 0.5, 0, 300);
+        this.mapScrollY = clamp(this.mapScrollY + e.deltaY * 0.5, 0, 400);
       } else if (this.state.phase === 'character_select') {
         this.charScrollY = clamp(this.charScrollY + e.deltaY * 0.5, 0, this.charScrollMax);
       }
@@ -393,20 +416,30 @@ export class Game {
           return;
         }
       }
+      // レガシーボタン
+      if (this.state.legacyData.totalRuns > 0 && pointInRect(p, this.legacyBtnRect)) {
+        this.state = { ...this.state, phase: 'legacy' };
+        return;
+      }
       if (pointInRect(p, this.startBtnRect)) {
         this.charScrollY = 0;
         this.state = { ...this.state, phase: 'character_select' };
       }
     } else if (phase === 'character_select') {
+      // 決定ボタンは画面下部に固定表示（スクロール座標ではなく画面座標で判定）
+      const ch = this.canvas.height;
+      const btnAreaH = 60;
+      const fixedBtn: Rect = { x: this.confirmSelectRect.x, y: ch - btnAreaH + 8, w: this.confirmSelectRect.w, h: this.confirmSelectRect.h };
+      if (this.selectedHeroId && pointInRect(p, fixedBtn)) {
+        this._startGame(this.selectedHeroId);
+        return;
+      }
       const scrolled = { x: p.x, y: p.y + this.charScrollY };
       this.heroRects.forEach((rect, i) => {
         if (pointInRect(scrolled, rect)) {
           this.selectedHeroId = HERO_DEFS[i].id;
         }
       });
-      if (this.selectedHeroId && pointInRect(scrolled, this.confirmSelectRect)) {
-        this._startGame(this.selectedHeroId);
-      }
     } else if (phase === 'synopsis') {
       const startMapTutorial = this.state.mapTutorialStep === 0;
       this.state = { ...this.state, phase: 'map', mapTutorialStep: startMapTutorial ? 1 : this.state.mapTutorialStep };
@@ -429,13 +462,91 @@ export class Game {
       this._handleRestClick(p);
     } else if (phase === 'event') {
       this._handleEventClick(p);
+    } else if (phase === 'legacy') {
+      this._handleLegacyClick(p);
     } else if (phase === 'game_over' || phase === 'ending') {
       if (pointInRect(p, this.retryBtnRect)) {
-        this.state = this._initialState();
-        this.selectedHeroId = null;
-        this.mapScrollY = 0;
+        this._finishRun();
+        this.state = { ...this.state, phase: 'legacy' };
       }
     }
+  }
+
+  private _handleLegacyClick(p: { x: number; y: number }): void {
+    // タイトルに戻る
+    if (pointInRect(p, this.legacyBackRect)) {
+      this.state = this._initialState();
+      this.selectedHeroId = null;
+      this.mapScrollY = 0;
+      return;
+    }
+    // アップグレード購入
+    const legacy = this.state.legacyData;
+    this.legacyUpgradeRects.forEach((rect, i) => {
+      if (pointInRect(p, rect)) {
+        const upg = LEGACY_UPGRADES[i];
+        if (!upg) return;
+        const level = legacy.upgrades[upg.id] ?? 0;
+        if (level >= upg.maxLevel) return;
+        const cost = upg.costs[level];
+        if (legacy.legacyPoints < cost) return;
+        const newLegacy = {
+          ...legacy,
+          legacyPoints: legacy.legacyPoints - cost,
+          upgrades: { ...legacy.upgrades, [upg.id]: level + 1 },
+        };
+        this._saveLegacy(newLegacy);
+        this.state = { ...this.state, legacyData: newLegacy };
+      }
+    });
+  }
+
+  private _loadLegacy(): import('./types').LegacyData {
+    try {
+      const raw = localStorage.getItem('sangokushi_legacy');
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data && data.version === 1) return data;
+      }
+    } catch { /* ignore */ }
+    return getDefaultLegacyData();
+  }
+
+  private _saveLegacy(data: import('./types').LegacyData): void {
+    try {
+      localStorage.setItem('sangokushi_legacy', JSON.stringify(data));
+    } catch { /* ignore */ }
+  }
+
+  private _calcLegacyBonuses(data: import('./types').LegacyData): { maxHp: number; attack: number; defense: number; gold: number; healPercent: number } {
+    const bonuses = { maxHp: 0, attack: 0, defense: 0, gold: 0, healPercent: 0 };
+    for (const upg of LEGACY_UPGRADES) {
+      const level = data.upgrades[upg.id] ?? 0;
+      let total = 0;
+      for (let i = 0; i < level; i++) total += upg.effects[i];
+      (bonuses as Record<string, number>)[upg.stat] = total;
+    }
+    return bonuses;
+  }
+
+  private _earnLegacyPoints(): number {
+    const { chaptersReached, enemiesDefeated, bossesDefeated } = this.state;
+    const cleared = this.state.phase === 'ending';
+    let pts = chaptersReached * 10 + enemiesDefeated * 2 + bossesDefeated * 20;
+    if (cleared) pts += 50;
+    return pts;
+  }
+
+  private _finishRun(): void {
+    const earned = this._earnLegacyPoints();
+    const legacy = { ...this.state.legacyData };
+    legacy.totalRuns++;
+    legacy.legacyPoints += earned;
+    legacy.lastEarnedPoints = earned;
+    const currentCh = this.state.map?.chapter ?? 0;
+    if (currentCh > legacy.bestChapter) legacy.bestChapter = currentCh;
+    this._saveLegacy(legacy);
+    this.state = { ...this.state, legacyData: legacy };
   }
 
   private _startGame(heroId: string): void {
@@ -444,9 +555,18 @@ export class Game {
     const hero: Hero = {
       ...heroDef,
       currentHp: heroDef.stats.maxHp,
-      gold: 100,
+      gold: 80,
       upgrades: [],
     };
+    const bonuses = this._calcLegacyBonuses(this.state.legacyData);
+    hero.stats = {
+      ...hero.stats,
+      maxHp: hero.stats.maxHp + bonuses.maxHp,
+      attack: hero.stats.attack + bonuses.attack,
+      defense: hero.stats.defense + bonuses.defense,
+    };
+    hero.currentHp = hero.stats.maxHp;
+    hero.gold += bonuses.gold;
     const map = generateMap();
     this.state = {
       ...this.state,
@@ -462,9 +582,11 @@ export class Game {
     if (!map) return;
 
     const w = this.canvas.width;
-    const scale = Math.min(w / 780, 1.2);
-    const offsetX = w * 0.1;
-    const offsetY = 60 - this.mapScrollY;
+    const scale = Math.max(0.7, Math.min(w / 780, 1.2));
+    const mapContentW = 700 * scale;
+    const offsetX = Math.max(8, (w - mapContentW) / 2);
+    const mapHeaderH = w < 500 ? 62 : 50;
+    const offsetY = mapHeaderH + 10 - this.mapScrollY;
 
     for (const node of map.nodes) {
       if (!node.available || node.visited) continue;
@@ -573,7 +695,13 @@ export class Game {
           enemyName: battle.enemy.name,
           isBoss,
         };
-        this.state = { ...this.state, phase: 'reward', rewardInfo };
+        this.state = {
+          ...this.state,
+          phase: 'reward',
+          rewardInfo,
+          enemiesDefeated: this.state.enemiesDefeated + 1,
+          bossesDefeated: this.state.bossesDefeated + (isBoss ? 1 : 0),
+        };
       } else {
         this.state = { ...this.state, phase: 'game_over' };
       }
@@ -658,12 +786,19 @@ export class Game {
           } else if (newBattle.enemy.currentHp <= 0) {
             const nodeType = this.state.map?.nodes.find((n) => n.id === this.state.map?.currentNodeId)?.type ?? 'battle';
             const gold = getGoldReward(nodeType, this.state.map?.chapter ?? 1);
+            const wasBoss = newBattle.enemy.isBoss;
             const rewardInfo = {
               goldEarned: gold,
               enemyName: newBattle.enemy.name,
-              isBoss: newBattle.enemy.isBoss,
+              isBoss: wasBoss,
             };
-            this.state = { ...this.state, phase: 'reward', rewardInfo };
+            this.state = {
+              ...this.state,
+              phase: 'reward',
+              rewardInfo,
+              enemiesDefeated: this.state.enemiesDefeated + 1,
+              bossesDefeated: this.state.bossesDefeated + (wasBoss ? 1 : 0),
+            };
           }
         }, totalDelay);
       }
@@ -679,11 +814,11 @@ export class Game {
     if (rewardInfo.isBoss) {
       const currentChapter = this.state.map?.chapter ?? 1;
       if (currentChapter >= 5) {
-        this.state = { ...this.state, hero: newHero, phase: 'ending', battle: null, rewardInfo: null };
+        this.state = { ...this.state, hero: newHero, phase: 'ending', battle: null, rewardInfo: null, chaptersReached: currentChapter };
       } else {
         const newMap = generateMap();
         newMap.chapter = currentChapter + 1;
-        this.state = { ...this.state, hero: newHero, battle: null, map: newMap, phase: 'synopsis', rewardInfo: null };
+        this.state = { ...this.state, hero: newHero, battle: null, map: newMap, phase: 'synopsis', rewardInfo: null, chaptersReached: currentChapter };
         this.mapScrollY = 0;
         this._recalcLayout();
       }
@@ -751,7 +886,8 @@ export class Game {
     const { hero } = this.state;
     if (!hero) return;
     if (pointInRect(p, this.restHealRect)) {
-      const heal = Math.floor(hero.stats.maxHp * 0.3);
+      const healPercent = (30 + this._calcLegacyBonuses(this.state.legacyData).healPercent) / 100;
+      const heal = Math.floor(hero.stats.maxHp * healPercent);
       const newHp = clamp(hero.currentHp + heal, 0, hero.stats.maxHp);
       this.state = { ...this.state, hero: { ...hero, currentHp: newHp }, phase: 'map' };
     } else if (pointInRect(p, this.restLeaveRect)) {
@@ -788,13 +924,13 @@ export class Game {
     const { phase, hero, map, battle } = this.state;
 
     if (phase === 'title') {
-      drawTitle(ctx, w, h, this.startBtnRect, this.langBtnRects, this.state.lang);
+      drawTitle(ctx, w, h, this.startBtnRect, this.langBtnRects, this.state.lang, this.state.legacyData, this.legacyBtnRect);
     } else if (phase === 'character_select') {
       drawCharacterSelect(ctx, w, h, this.selectedHeroId, this.confirmSelectRect, this.heroRects, this.charScrollY, this.charScrollMax);
     } else if (phase === 'synopsis' && map) {
       drawSynopsis(ctx, w, h, map.chapter);
     } else if (phase === 'map' && map && hero) {
-      drawMap(ctx, w, h, map.nodes, map.currentNodeId, map.chapter, hero.currentHp, hero.stats.maxHp, hero.gold, this.mapScrollY, this.state.mapTutorialStep);
+      drawMap(ctx, w, h, map.nodes, map.currentNodeId, map.chapter, hero.currentHp, hero.stats.maxHp, hero.gold, this.mapScrollY, this.state.mapTutorialStep, hero.portraitKey);
     } else if (phase === 'reward' && hero && this.state.rewardInfo) {
       drawReward(ctx, w, h, this.state.rewardInfo, hero);
     } else if (phase === 'battle' && battle && hero) {
@@ -810,6 +946,8 @@ export class Game {
       drawRest(ctx, w, h, hero.currentHp, hero.stats.maxHp, this.restHealRect, this.restLeaveRect);
     } else if (phase === 'event' && this.state.currentEvent) {
       drawEvent(ctx, w, h, this.state.currentEvent, this.eventOptionRects);
+    } else if (phase === 'legacy') {
+      drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect);
     } else if (phase === 'game_over') {
       drawGameOver(ctx, w, h, this.retryBtnRect);
     } else if (phase === 'ending' && hero) {

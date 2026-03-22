@@ -1,4 +1,4 @@
-import type { GameState, MapNode, Die, Rect } from './types';
+import type { GameState, MapNode, Die, Rect, LegacyData } from './types';
 import {
   drawRoundRect,
   drawButton,
@@ -15,8 +15,9 @@ import {
   FACTION_COLORS,
   HERO_DEFS,
   CHAPTER_SYNOPSIS,
+  LEGACY_UPGRADES,
 } from './data';
-import { canActivateSkill, calcSlotValue } from './battle';
+import { canActivateSkill, calcSlotValue, getSkillCost } from './battle';
 import { t, tn } from './i18n';
 import type { Lang } from './i18n';
 
@@ -112,7 +113,9 @@ export function drawTitle(
   h: number,
   startBtn: Rect,
   langBtnRects: Rect[] = [],
-  lang: string = 'ja'
+  lang: string = 'ja',
+  legacyData: LegacyData | null = null,
+  legacyBtnRect: Rect | null = null
 ): void {
   _drawBackground(ctx, w, h, 'title_background');
 
@@ -129,6 +132,11 @@ export function drawTitle(
     ctx, t('title.desc'),
     w / 2, h * 0.48, `${Math.min(18, w / 40)}px serif`, '#aaa', 'center', 'middle'
   );
+
+  // レガシーボタン（プレイ実績がある場合のみ）
+  if (legacyData && legacyData.totalRuns > 0 && legacyBtnRect) {
+    drawButton(ctx, legacyBtnRect, `⚜ ${t('legacy.btn')} (${legacyData.legacyPoints}pt)`, '#8e44ad', '#fff', Math.min(14, w / 40), 6);
+  }
 
   // スタートボタン
   drawButton(ctx, startBtn, t('title.start'), GOLD_COLOR, TEXT_DARK, Math.min(22, w / 30), 10);
@@ -235,11 +243,24 @@ export function drawCharacterSelect(
     wrapText(ctx, t(`skill.desc.${hero.skill.id}`), rect.x + 6, skillY + 15, skillDescMaxW, 13, skillDescFont, '#aaa');
   });
 
-  if (selectedId) {
-    drawButton(ctx, confirmBtn, t('select.confirm'), GOLD_COLOR, TEXT_DARK, Math.min(20, w / 32), 8);
-  }
-
   ctx.restore(); // スクロール translate を戻す
+
+  // 決定ボタンをスクロール外に固定表示（画面下部）
+  if (selectedId) {
+    // ボタン背景のグラデーション（コンテンツとの境界をなじませる）
+    const fadeH = 30;
+    const btnAreaH = 60;
+    const grad = ctx.createLinearGradient(0, h - btnAreaH - fadeH, 0, h - btnAreaH);
+    grad.addColorStop(0, 'rgba(26,26,46,0)');
+    grad.addColorStop(1, BG_COLOR);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, h - btnAreaH - fadeH, w, fadeH);
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, h - btnAreaH, w, btnAreaH);
+
+    const fixedBtn: Rect = { x: confirmBtn.x, y: h - btnAreaH + 8, w: confirmBtn.w, h: confirmBtn.h };
+    drawButton(ctx, fixedBtn, t('select.confirm'), GOLD_COLOR, TEXT_DARK, Math.min(20, w / 32), 8);
+  }
 
   // スクロールインジケーター
   if (scrollMax > 0) {
@@ -297,21 +318,33 @@ export function drawMap(
   heroMaxHp: number,
   heroGold: number,
   scrollY: number,
-  mapTutorialStep: number = -1
+  mapTutorialStep: number = -1,
+  heroPortraitKey: string = ''
 ): void {
   _drawBackground(ctx, w, h, 'map_background', 0.45);
 
-  // ヘッダー
-  drawPanel(ctx, { x: 0, y: 0, w, h: 50 }, '#0d0d1e', '#333');
+  // ヘッダー（スマホでは2行にして重なりを防止）
+  const mapHeaderH = w < 500 ? 62 : 50;
+  drawPanel(ctx, { x: 0, y: 0, w, h: mapHeaderH }, '#0d0d1e', '#333');
   const chapterTitle = t('ch.' + chapter);
-  drawText(ctx, `${t('map.chapter', { n: chapter })} ${chapterTitle}`, w / 2, 25, 'bold 20px serif', GOLD_COLOR, 'center', 'middle');
-  drawText(ctx, `HP: ${heroHp}/${heroMaxHp}`, 20, 25, '16px serif', '#2ecc71', 'left', 'middle');
-  drawText(ctx, `${t('map.gold')}: ${heroGold}`, w - 90, 25, '16px serif', GOLD_COLOR, 'right', 'middle');
+  if (w < 500) {
+    drawText(ctx, `${t('map.chapter', { n: chapter })} ${chapterTitle}`, w / 2, 18, `bold ${Math.min(18, w / 22)}px serif`, GOLD_COLOR, 'center', 'middle');
+    drawText(ctx, `HP: ${heroHp}/${heroMaxHp}`, 12, 46, '14px serif', '#2ecc71', 'left', 'middle');
+    drawText(ctx, `${t('map.gold')}: ${heroGold}`, w - 12, 46, '14px serif', GOLD_COLOR, 'right', 'middle');
+  } else {
+    drawText(ctx, `${t('map.chapter', { n: chapter })} ${chapterTitle}`, w / 2, 25, 'bold 20px serif', GOLD_COLOR, 'center', 'middle');
+    drawText(ctx, `HP: ${heroHp}/${heroMaxHp}`, 20, 25, '16px serif', '#2ecc71', 'left', 'middle');
+    drawText(ctx, `${t('map.gold')}: ${heroGold}`, w - 20, 25, '16px serif', GOLD_COLOR, 'right', 'middle');
+  }
+
+  // スマホではスケール下限を設けて可読性を確保（スクロールで対応）
+  const scale = Math.max(0.7, Math.min(w / 780, 1.2));
+  // スケールが大きい場合は中央寄せ、小さい場合は左寄せ気味に
+  const mapContentW = 700 * scale; // ノード座標空間の概算幅
+  const offsetX = Math.max(8, (w - mapContentW) / 2);
 
   ctx.save();
-  ctx.translate(w * 0.1, 60 - scrollY);
-
-  const scale = Math.min(w / 780, 1.2);
+  ctx.translate(offsetX, mapHeaderH + 10 - scrollY);
   ctx.scale(scale, scale);
 
   // ノード間の接続線を描画
@@ -333,8 +366,8 @@ export function drawMap(
   }
 
   // ノードを描画
+  const r = 22;
   for (const node of nodes) {
-    const r = 22;
     const isCurrent = node.id === currentNodeId;
     const isAvailable = node.available;
     const isVisited = node.visited;
@@ -374,8 +407,42 @@ export function drawMap(
     ctx.globalAlpha = 1.0;
 
     const label = t('node.' + node.type);
-    const fontSize = Math.min(12, 200 / label.length);
+    const fontSize = Math.min(13, 220 / label.length);
     drawText(ctx, label, node.x, node.y, `bold ${fontSize}px serif`, '#fff', 'center', 'middle');
+  }
+
+  // 現在地にヒーローアイコンを表示（ノードの下に配置）
+  if (currentNodeId !== null && heroPortraitKey) {
+    const currentNode = nodes.find((n) => n.id === currentNodeId);
+    if (currentNode) {
+      const iconSize = 34;
+      const iconX = currentNode.x - iconSize / 2;
+      const iconY = currentNode.y + r + 4;
+      const iconCenterY = iconY + iconSize / 2;
+      const heroImg = getImage(heroPortraitKey);
+
+      // 背景の円
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(currentNode.x, iconCenterY, iconSize / 2 + 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#0d0d1e';
+      ctx.fill();
+      ctx.strokeStyle = GOLD_COLOR;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // ポートレート画像（円形クリップ）
+      ctx.beginPath();
+      ctx.arc(currentNode.x, iconCenterY, iconSize / 2, 0, Math.PI * 2);
+      ctx.clip();
+      if (heroImg) {
+        ctx.drawImage(heroImg, iconX, iconY, iconSize, iconSize);
+      } else {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(iconX, iconY, iconSize, iconSize);
+      }
+      ctx.restore();
+    }
   }
 
   ctx.restore();
@@ -420,10 +487,10 @@ export function drawBattle(
     const shakeAmount = Math.sin(attackElapsed * 0.05) * 8 * (1 - attackElapsed / 500);
     ctx.save();
     ctx.translate(shakeAmount, 0);
-    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape);
+    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape, battle.phase);
     ctx.restore();
   } else {
-    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape);
+    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape, battle.phase);
   }
 
   // 英雄HP（スキル使用可能時にグロー）— 被ダメ時にフラッシュ
@@ -504,7 +571,7 @@ export function drawBattle(
   }
 
   // スキルボタン（使用可能時にグローエフェクト）
-  _drawSkillButton(ctx, skillBtnRect, hero, canSkill);
+  _drawSkillButton(ctx, skillBtnRect, hero, canSkill, battle);
 
   // 行動確定 / ダイスロールボタン
   if (battle.phase === 'assign') {
@@ -620,7 +687,8 @@ function _drawEnemy(
   w: number,
   areaH: number,
   enemy: import('./types').Enemy,
-  isLandscape: boolean
+  isLandscape: boolean,
+  battlePhase: import('./types').BattlePhase = 'assign'
 ): void {
   const cx = isLandscape ? w * 0.7 : w / 2;
   const portraitSize = Math.min(areaH * 0.5, isLandscape ? 180 : 140);
@@ -652,9 +720,14 @@ function _drawEnemy(
   drawText(ctx, `${enemy.currentHp}/${enemy.maxHp}`, cx, portraitY + portraitSize + 46, '13px serif', '#fff', 'center', 'top');
 
   // インテント表示（具体的なダメージ数値付き）
+  // rollフェーズでは前回の行動を表示、それ以外では次の行動を表示
   const intentText = _intentLabelWithDmg(enemy);
   const intentColor = enemy.currentIntent === 'attack' || enemy.currentIntent === 'special' ? '#e74c3c' : '#3498db';
-  drawText(ctx, `${t('battle.nextAction')}: ${intentText}`, cx, portraitY + portraitSize + 62, 'bold 14px serif', intentColor, 'center', 'top');
+  if (battlePhase === 'roll') {
+    drawText(ctx, `${t('battle.lastAction')}: ${intentText}`, cx, portraitY + portraitSize + 62, 'bold 14px serif', '#888', 'center', 'top');
+  } else {
+    drawText(ctx, `${t('battle.nextAction')}: ${intentText}`, cx, portraitY + portraitSize + 62, 'bold 14px serif', intentColor, 'center', 'top');
+  }
 
   // 攻撃力・防御力の常時表示
   drawText(ctx, `${t('select.atk')}:${enemy.attack}  ${t('select.def')}:${enemy.defense}`, cx, portraitY + portraitSize + 80, '12px serif', '#aaa', 'center', 'top');
@@ -667,6 +740,13 @@ function _drawEnemy(
   if (enemy.buffed) {
     drawText(ctx, t('battle.buffed'), cx, statusY, 'bold 13px serif', '#e67e22', 'center', 'top');
   }
+
+  // ボスギミック表示
+  if (enemy.gimmick) {
+    const gimmickY = statusY + 16;
+    const gName = _getGimmickLabel(enemy.gimmick);
+    drawText(ctx, `⚡ ${gName}`, cx, gimmickY, 'bold 12px serif', '#f39c12', 'center', 'top');
+  }
 }
 
 function _intentLabelWithDmg(enemy: import('./types').Enemy): string {
@@ -677,6 +757,17 @@ function _intentLabelWithDmg(enemy: import('./types').Enemy): string {
   if (intent === 'defend') return `${t('intent.defend')} +${enemy.defense}`;
   if (intent === 'buff') return t('intent.buff');
   return intent;
+}
+
+function _getGimmickLabel(gimmick: import('./types').BossGimmick): string {
+  const labels: Record<import('./types').BossGimmick, string> = {
+    zhang_jiao_sorcery: '妖術：ダイス変換',
+    dong_zhuo_tyranny: '暴虐：防御無視攻撃',
+    lu_bu_halberd: '方天画戟：瀕死で強化',
+    yuan_shu_seal: '玉璽の威光：防御半減',
+    cao_cao_scheme: '覇者の策謀：技コスト+1',
+  };
+  return labels[gimmick];
 }
 
 function _drawHeroStatus(
@@ -866,10 +957,14 @@ function _drawSkillButton(
   ctx: CanvasRenderingContext2D,
   rect: Rect,
   hero: import('./types').Hero,
-  canSkill: boolean
+  canSkill: boolean,
+  battle: import('./types').BattleState
 ): void {
-  const { face, count } = hero.skill.cost;
-  const costStr = `${t('skill.cost')}: ${DICE_LABELS[face]} ${t('dice.' + face)}×${count}`;
+  const { face } = hero.skill.cost;
+  const actualCost = getSkillCost(battle, hero);
+  const baseCost = hero.skill.cost.count;
+  const costLabel = actualCost > baseCost ? `×${actualCost}(+${actualCost - baseCost})` : `×${actualCost}`;
+  const costStr = `${t('skill.cost')}: ${DICE_LABELS[face]} ${t('dice.' + face)}${costLabel}`;
   const effectStr = _getSkillEffectLabel(hero);
 
   if (canSkill) {
@@ -1165,7 +1260,8 @@ export function drawGameOver(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  retryBtn: Rect
+  retryBtn: Rect,
+  earnedPoints: number = 0
 ): void {
   ctx.fillStyle = '#0d0005';
   ctx.fillRect(0, 0, w, h);
@@ -1175,6 +1271,9 @@ export function drawGameOver(
   drawText(ctx, t('gameover.title'), w / 2, h * 0.35, `bold ${Math.min(72, w / 6)}px serif`, '#e74c3c', 'center', 'middle');
   ctx.restore();
   drawText(ctx, t('gameover.msg'), w / 2, h * 0.52, '20px serif', '#888', 'center', 'middle');
+  if (earnedPoints > 0) {
+    drawText(ctx, t('legacy.earned', { n: earnedPoints }), w / 2, h * 0.58, 'bold 18px serif', '#f1c40f', 'center', 'middle');
+  }
   drawButton(ctx, retryBtn, t('gameover.retry'), '#c0392b', '#fff', 18, 8);
 }
 
@@ -1183,7 +1282,8 @@ export function drawEnding(
   w: number,
   h: number,
   heroName: string,
-  retryBtn: Rect
+  retryBtn: Rect,
+  earnedPoints: number = 0
 ): void {
   ctx.fillStyle = '#0d1a0a';
   ctx.fillRect(0, 0, w, h);
@@ -1193,6 +1293,9 @@ export function drawEnding(
   drawText(ctx, t('ending.title'), w / 2, h * 0.3, `bold ${Math.min(56, w / 9)}px serif`, GOLD_COLOR, 'center', 'middle');
   ctx.restore();
   drawText(ctx, `${tn(heroName)}${t('ending.msg')}`, w / 2, h * 0.46, '20px serif', '#2ecc71', 'center', 'middle');
+  if (earnedPoints > 0) {
+    drawText(ctx, t('legacy.earned', { n: earnedPoints }), w / 2, h * 0.56, 'bold 18px serif', '#f1c40f', 'center', 'middle');
+  }
   drawButton(ctx, retryBtn, t('ending.retry'), GOLD_COLOR, TEXT_DARK, 18, 8);
 }
 
@@ -1430,6 +1533,104 @@ function _drawTutorialOverlay(
     ctx.fillStyle = i === stepIdx ? '#fff' : '#666';
     ctx.fill();
   }
+}
+
+export function drawLegacy(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  legacyData: LegacyData,
+  upgradeRects: Rect[],
+  backBtnRect: Rect
+): void {
+  ctx.fillStyle = '#0d0d1e';
+  ctx.fillRect(0, 0, w, h);
+
+  // タイトル
+  drawText(ctx, t('legacy.title'), w / 2, h * 0.06, `bold ${Math.min(28, w / 16)}px serif`, GOLD_COLOR, 'center', 'top');
+
+  // ポイント表示
+  drawText(ctx, `${t('legacy.points')}: ${legacyData.legacyPoints}pt`, w / 2, h * 0.13, `bold ${Math.min(22, w / 20)}px serif`, '#fff', 'center', 'top');
+
+  // 直前の獲得ポイント
+  if (legacyData.lastEarnedPoints > 0) {
+    drawText(ctx, t('legacy.earned', { n: legacyData.lastEarnedPoints }), w / 2, h * 0.19, '16px serif', '#f1c40f', 'center', 'top');
+  }
+
+  // 統計
+  const statsY = h * 0.23;
+  const runText = legacyData.totalRuns > 0 ? t('legacy.runStats', { n: legacyData.totalRuns }) : '';
+  const bestText = legacyData.bestChapter > 0 ? t('legacy.bestCh', { n: legacyData.bestChapter }) : t('legacy.noBest');
+  drawText(ctx, `${runText}  ${bestText}`, w / 2, statsY, '13px serif', '#888', 'center', 'top');
+
+  // アップグレード一覧
+  const nameKeys: Record<string, string> = {
+    legacy_hp: 'legacy.hp', legacy_atk: 'legacy.atk', legacy_def: 'legacy.def',
+    legacy_gold: 'legacy.gold', legacy_heal: 'legacy.heal',
+  };
+
+  LEGACY_UPGRADES.forEach((upg, i) => {
+    const rect = upgradeRects[i];
+    if (!rect) return;
+    const level = legacyData.upgrades[upg.id] ?? 0;
+    const isMaxed = level >= upg.maxLevel;
+    const nextCost = isMaxed ? 0 : upg.costs[level];
+    const canBuy = !isMaxed && legacyData.legacyPoints >= nextCost;
+
+    // 背景
+    const bgColor = canBuy ? '#1a2a1a' : '#1a1a2e';
+    const borderColor = canBuy ? '#27ae60' : isMaxed ? '#f1c40f' : '#444';
+    drawPanel(ctx, rect, bgColor, borderColor, 8);
+
+    const nameKey = nameKeys[upg.id] ?? upg.id;
+
+    // 名前
+    drawText(ctx, t(nameKey), rect.x + 12, rect.y + 8, 'bold 14px serif', '#fff', 'left', 'top');
+
+    // レベル
+    const levelText = isMaxed ? t('legacy.maxed') : t('legacy.level', { n: level, max: upg.maxLevel });
+    drawText(ctx, levelText, rect.x + rect.w - 12, rect.y + 8, '13px serif', isMaxed ? '#f1c40f' : '#aaa', 'right', 'top');
+
+    // 効果説明
+    let totalEffect = 0;
+    for (let j = 0; j < level; j++) totalEffect += upg.effects[j];
+    const nextEffect = isMaxed ? 0 : upg.effects[level];
+    const descKey = `legacy.desc.${upg.stat}`;
+    if (totalEffect > 0) {
+      drawText(ctx, t(descKey, { n: totalEffect }), rect.x + 12, rect.y + 28, '12px serif', '#8f8', 'left', 'top');
+    }
+    if (!isMaxed) {
+      const nextDesc = `→ +${nextEffect}`;
+      drawText(ctx, nextDesc, rect.x + 12 + (totalEffect > 0 ? 80 : 0), rect.y + 28, '12px serif', '#aaa', 'left', 'top');
+    }
+
+    // コスト / 購入ボタン
+    if (!isMaxed) {
+      const costText = t('legacy.cost', { n: nextCost });
+      const btnColor = canBuy ? '#27ae60' : '#555';
+      const btnX = rect.x + rect.w - 90;
+      const btnY = rect.y + rect.h - 30;
+      drawRoundRect(ctx, btnX, btnY, 80, 24, 4);
+      ctx.fillStyle = btnColor;
+      ctx.fill();
+      drawText(ctx, `${t('legacy.buy')} ${costText}`, btnX + 40, btnY + 12, '11px serif', '#fff', 'center', 'middle');
+    }
+
+    // レベルバー
+    const barX = rect.x + 12;
+    const barY = rect.y + rect.h - 10;
+    const barW = rect.w - (isMaxed ? 24 : 114);
+    for (let j = 0; j < upg.maxLevel; j++) {
+      const segW = barW / upg.maxLevel - 2;
+      const segX = barX + j * (segW + 2);
+      ctx.fillStyle = j < level ? '#f1c40f' : '#333';
+      drawRoundRect(ctx, segX, barY, segW, 4, 2);
+      ctx.fill();
+    }
+  });
+
+  // 戻るボタン
+  drawButton(ctx, backBtnRect, t('legacy.back'), '#555', '#fff', 16, 8);
 }
 
 export { pointInRect };

@@ -1,4 +1,4 @@
-import type { BattleState, Die, DiceFace, ActionSlot, Hero, EnemyDef, Enemy } from './types';
+import type { BattleState, Die, DiceFace, ActionSlot, Hero, EnemyDef, Enemy, BossGimmick } from './types';
 import { choose, clamp, randomInt } from './utils';
 import { rollDie } from './data';
 import { t, tn } from './i18n';
@@ -18,6 +18,7 @@ export function createBattleState(hero: Hero, enemyDef: EnemyDef): BattleState {
     blockAmount: 0,
     buffed: false,
     stunned: false,
+    gimmickActivated: false,
   };
 
   // 初回ロール
@@ -44,6 +45,8 @@ export function rerollDice(state: BattleState): BattleState {
     assignedSlot: null,
     locked: false,
   }));
+  // ダイスロール時に敵の次の行動を決定する
+  const nextIntent = choose(state.enemy.intents);
   return {
     ...state,
     dice: newDice,
@@ -51,6 +54,7 @@ export function rerollDice(state: BattleState): BattleState {
     heroBlock: 0,
     skillActivated: false,
     message: t('log.assignDice'),
+    enemy: { ...state.enemy, currentIntent: nextIntent },
   };
 }
 
@@ -117,7 +121,11 @@ export function executeBattle(
     enemyDmg += calcSlotValue(newState.dice, 'attack', hero.stats.attack);
   }
   enemyDmg += calcSlotValue(newState.dice, 'strategy', hero.stats.attack);
-  const block = calcSlotValue(newState.dice, 'defense', hero.stats.defense);
+  let block = calcSlotValue(newState.dice, 'defense', hero.stats.defense);
+  // 袁術ギミック: 防御効果半減
+  if (newState.enemy.gimmick === 'yuan_shu_seal') {
+    block = Math.floor(block / 2);
+  }
   newState.heroBlock = block;
 
   // ダメージを敵に与える（防御差し引き）
@@ -178,9 +186,12 @@ export function executeBattle(
     log.push(t('log.stunned'));
   }
 
-  // 次のインテントを設定
-  const nextIntent = choose(newState.enemy.intents);
-  newState.enemy = { ...newState.enemy, currentIntent: nextIntent };
+  // ボス固有ギミック処理
+  const gimmickResult = applyBossGimmick(newState, hero, heroDmg, log);
+  newState = gimmickResult.state;
+  heroDmg = gimmickResult.heroDmg;
+
+  // 次のインテントはダイスロール時に設定する（結果表示中は今回の行動を表示）
 
   return {
     state: {
@@ -191,7 +202,7 @@ export function executeBattle(
       skillActivated: false,
       turnCount: newState.turnCount + 1,
       message: t('log.rollDice'),
-      log: log.slice(-5),
+      log: log.slice(-6),
     },
     heroDmg,
     enemyDmg: actualEnemyDmg,
@@ -224,18 +235,27 @@ export function calcSlotValue(
 
 export function canActivateSkill(state: BattleState, hero: Hero): boolean {
   const { face, count } = hero.skill.cost;
+  const costIncrease = state.enemy.gimmick === 'cao_cao_scheme' ? 1 : 0;
+  const totalCost = count + costIncrease;
   const available = state.dice.filter(
     (d) => (d.face === face || d.face === 'star') && d.assignedSlot === null
   );
-  return available.length >= count && !state.skillActivated;
+  return available.length >= totalCost && !state.skillActivated;
+}
+
+/** スキルコスト（ギミック込み）を返す */
+export function getSkillCost(state: BattleState, hero: Hero): number {
+  const costIncrease = state.enemy.gimmick === 'cao_cao_scheme' ? 1 : 0;
+  return hero.skill.cost.count + costIncrease;
 }
 
 export function activateSkill(state: BattleState, hero: Hero): BattleState {
   if (!canActivateSkill(state, hero)) return state;
-  const { face, count } = hero.skill.cost;
+  const { face } = hero.skill.cost;
+  const totalCost = getSkillCost(state, hero);
   let consumed = 0;
   const newDice = state.dice.map((d) => {
-    if (consumed < count && (d.face === face || d.face === 'star') && d.assignedSlot === null) {
+    if (consumed < totalCost && (d.face === face || d.face === 'star') && d.assignedSlot === null) {
       consumed++;
       return { ...d, assignedSlot: 'skill' as ActionSlot };
     }
@@ -267,4 +287,107 @@ export function getEnemyForNode(
 export function getGoldReward(nodeType: string, chapter: number): number {
   const base = nodeType === 'elite' ? 40 : nodeType === 'boss' ? 100 : 20;
   return base + randomInt(0, chapter * 10);
+}
+
+// === ボス固有ギミック ===
+
+/** ボスギミック名を返す（UI表示用） */
+export function getGimmickName(gimmick: BossGimmick | undefined): string {
+  if (!gimmick) return '';
+  const names: Record<BossGimmick, string> = {
+    zhang_jiao_sorcery: '妖術',
+    dong_zhuo_tyranny: '暴虐',
+    lu_bu_halberd: '方天画戟',
+    yuan_shu_seal: '玉璽の威光',
+    cao_cao_scheme: '覇者の策謀',
+  };
+  return names[gimmick];
+}
+
+/** ボスギミック説明を返す（UI表示用） */
+export function getGimmickDescription(gimmick: BossGimmick | undefined): string {
+  if (!gimmick) return '';
+  const descs: Record<BossGimmick, string> = {
+    zhang_jiao_sorcery: 'ターン終了時、ダイス1個が策に変わる',
+    dong_zhuo_tyranny: '3ターンごとに防御無視の追加ダメージ',
+    lu_bu_halberd: 'HP半分以下で攻撃力が永続1.5倍',
+    yuan_shu_seal: '防御スロットの効果が半減する',
+    cao_cao_scheme: 'スキル発動コストが+1される',
+  };
+  return descs[gimmick];
+}
+
+/** ターン終了時にボスギミックを適用する */
+function applyBossGimmick(
+  state: BattleState,
+  _hero: Hero,
+  heroDmg: number,
+  log: string[]
+): { state: BattleState; heroDmg: number } {
+  const gimmick = state.enemy.gimmick;
+  if (!gimmick) return { state, heroDmg };
+
+  let newState = { ...state };
+
+  switch (gimmick) {
+    case 'zhang_jiao_sorcery': {
+      // ダイス1個をランダムに策に変換
+      const nonStrategyIdx: number[] = [];
+      newState.dice.forEach((d, i) => {
+        if (d.face !== 'strategy' && d.face !== 'star') nonStrategyIdx.push(i);
+      });
+      if (nonStrategyIdx.length > 0) {
+        const targetIdx = choose(nonStrategyIdx);
+        const newDice = newState.dice.map((d, i) =>
+          i === targetIdx ? { ...d, face: 'strategy' as DiceFace } : d
+        );
+        newState = { ...newState, dice: newDice };
+        log.push('【妖術】ダイスが策に変えられた！');
+      }
+      break;
+    }
+
+    case 'dong_zhuo_tyranny': {
+      // 3ターンごとに防御無視の固定ダメージ
+      if (newState.turnCount % 3 === 0) {
+        const tyrannyDmg = Math.floor(newState.enemy.attack * 0.8);
+        heroDmg += tyrannyDmg;
+        log.push(`【暴虐】防御無視の${tyrannyDmg}ダメージ！`);
+      }
+      break;
+    }
+
+    case 'lu_bu_halberd': {
+      // HP50%以下で永続攻撃力1.5倍（一度のみ発動）
+      if (!newState.enemy.gimmickActivated && newState.enemy.currentHp <= newState.enemy.maxHp / 2) {
+        newState.enemy = {
+          ...newState.enemy,
+          attack: Math.floor(newState.enemy.attack * 1.5),
+          gimmickActivated: true,
+        };
+        log.push('【方天画戟】呂布の攻撃力が上昇した！');
+      }
+      break;
+    }
+
+    case 'yuan_shu_seal': {
+      // 防御半減は executeBattle 内で処理済み。ログは初回のみ
+      if (!newState.enemy.gimmickActivated) {
+        newState.enemy = { ...newState.enemy, gimmickActivated: true };
+        log.push('【玉璽の威光】防御効果が半減している！');
+      }
+      break;
+    }
+
+    case 'cao_cao_scheme': {
+      // スキルコスト+1は canActivateSkill/activateSkill で処理済み。ログは初回のみ
+      if (!newState.enemy.gimmickActivated) {
+        newState.enemy = { ...newState.enemy, gimmickActivated: true };
+        log.push('【覇者の策謀】スキルコストが増加している！');
+      }
+      break;
+    }
+  }
+
+  return { state: newState, heroDmg };
 }

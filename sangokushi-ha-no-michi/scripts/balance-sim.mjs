@@ -39,23 +39,50 @@ function calcSlotValue(dice, slot, baseStat) {
   return total;
 }
 
-// ===== 英雄データ =====
+// ===== レガシーアップグレード定義 =====
+const LEGACY_UPGRADES = [
+  { id: 'legacy_hp', effects: [5, 10, 15], stat: 'maxHp' },
+  { id: 'legacy_atk', effects: [1, 2, 2], stat: 'attack' },
+  { id: 'legacy_def', effects: [1, 2, 2], stat: 'defense' },
+  { id: 'legacy_gold', effects: [20, 30], stat: 'gold' },
+  { id: 'legacy_heal', effects: [5, 5], stat: 'healPercent' },
+];
+
+function applyLegacy(heroDef, legacyLevel) {
+  // legacyLevel: 0=なし, 1=半分, 2=MAX
+  const hero = { ...heroDef, stats: { ...heroDef.stats }, diceSet: [...heroDef.diceSet] };
+  let goldBonus = 0, healBonus = 0;
+  for (const upg of LEGACY_UPGRADES) {
+    const maxLv = upg.effects.length;
+    const lv = legacyLevel === 0 ? 0 : legacyLevel === 1 ? Math.ceil(maxLv / 2) : maxLv;
+    let total = 0;
+    for (let i = 0; i < lv; i++) total += upg.effects[i];
+    if (upg.stat === 'maxHp') hero.stats.maxHp += total;
+    else if (upg.stat === 'attack') hero.stats.attack += total;
+    else if (upg.stat === 'defense') hero.stats.defense += total;
+    else if (upg.stat === 'gold') goldBonus = total;
+    else if (upg.stat === 'healPercent') healBonus = total;
+  }
+  return { hero, goldBonus, healBonus };
+}
+
+// ===== 英雄データ（ナーフ後） =====
 const HERO_DEFS = [
   { id: 'guan_yu', name: '関羽', diceSet: ['sword','sword','sword','star'],
     skill: { cost: { face: 'sword', count: 2 }, effect: 'all_attack' },
-    stats: { maxHp: 100, attack: 12, defense: 5 } },
+    stats: { maxHp: 90, attack: 10, defense: 4 } },
   { id: 'zhang_fei', name: '張飛', diceSet: ['sword','sword','strategy','sword'],
     skill: { cost: { face: 'strategy', count: 1 }, effect: 'buff_swords' },
-    stats: { maxHp: 110, attack: 10, defense: 6 } },
+    stats: { maxHp: 95, attack: 9, defense: 5 } },
   { id: 'zhao_yun', name: '趙雲', diceSet: ['sword','horse','horse','shield'],
     skill: { cost: { face: 'horse', count: 2 }, effect: 'invincible_counter' },
-    stats: { maxHp: 95, attack: 10, defense: 8 } },
+    stats: { maxHp: 85, attack: 9, defense: 7 } },
   { id: 'zhuge_liang', name: '諸葛亮', diceSet: ['strategy','strategy','strategy','arrow'],
     skill: { cost: { face: 'strategy', count: 3 }, effect: 'stun_enemy' },
-    stats: { maxHp: 80, attack: 8, defense: 4 } },
+    stats: { maxHp: 75, attack: 8, defense: 4 } },
   { id: 'liu_bei', name: '劉備', diceSet: ['shield','shield','sword','strategy'],
     skill: { cost: { face: 'shield', count: 1 }, effect: 'shield_to_attack' },
-    stats: { maxHp: 95, attack: 8, defense: 10 } },
+    stats: { maxHp: 85, attack: 7, defense: 8 } },
 ];
 
 // ===== 全敵データ =====
@@ -66,8 +93,8 @@ const ALL_ENEMIES = [
   { chapter: 1, isBoss: false, name: '程遠志', maxHp: 50, attack: 9, defense: 3, intents: ['attack','special','defend','attack'] },
   { chapter: 1, isBoss: false, name: '張宝', maxHp: 65, attack: 10, defense: 5, intents: ['buff','special','attack','defend'] },
   { chapter: 1, isBoss: false, name: '張梁', maxHp: 70, attack: 10, defense: 4, intents: ['attack','attack','buff','special'] },
-  { chapter: 1, isElite: true, isBoss: false, name: '張曼成', maxHp: 80, attack: 11, defense: 5, intents: ['buff','attack','attack','special','defend'] },
-  { chapter: 1, isBoss: true, name: '張角', maxHp: 120, attack: 12, defense: 6, intents: ['buff','special','attack','special','defend'] },
+  { chapter: 1, isElite: true, isBoss: false, name: '張曼成', maxHp: 90, attack: 12, defense: 5, intents: ['buff','attack','attack','special','defend'] },
+  { chapter: 1, isBoss: true, name: '張角', maxHp: 140, attack: 14, defense: 6, intents: ['buff','special','attack','special','defend'] },
   // Ch2
   { chapter: 2, isBoss: false, name: '西涼兵', maxHp: 45, attack: 8, defense: 4, intents: ['attack','attack','defend'] },
   { chapter: 2, isBoss: false, name: '李傕', maxHp: 60, attack: 10, defense: 5, intents: ['attack','buff','attack','defend'] },
@@ -344,7 +371,7 @@ function simulateFullGame(heroDef) {
     diceSet: [...heroDef.diceSet],
     stats: { ...heroDef.stats },
     currentHp: heroDef.stats.maxHp,
-    gold: 100,
+    gold: 80,
   };
 
   const chapterLog = [];
@@ -534,3 +561,64 @@ for (const heroDef of HERO_DEFS) {
 }
 
 console.log('');
+
+// ===== レガシーレベル別シミュレーション =====
+const LEGACY_LABELS = ['Lv0 (新規)', 'Lv中間', 'Lv MAX'];
+console.log('=== レガシーレベル別クリア率 ===\n');
+console.log('─'.repeat(70));
+console.log('レガシー'.padEnd(12) + HERO_DEFS.map(h => h.name).map(s => s.padStart(12)).join(''));
+console.log('─'.repeat(70));
+
+for (let legLv = 0; legLv <= 2; legLv++) {
+  let row = LEGACY_LABELS[legLv].padEnd(12);
+  for (const heroDef of HERO_DEFS) {
+    const { hero: boostedHero, goldBonus, healBonus } = applyLegacy(heroDef, legLv);
+    let clears = 0;
+    for (let i = 0; i < TRIALS; i++) {
+      const hero = {
+        ...boostedHero, diceSet: [...boostedHero.diceSet], stats: { ...boostedHero.stats },
+        currentHp: boostedHero.stats.maxHp, gold: 80 + goldBonus,
+      };
+      let cleared = true;
+      for (let chapter = 1; chapter <= 5; chapter++) {
+        const path = generatePath();
+        const chapterEnemies = ALL_ENEMIES.filter(e => e.chapter === chapter && !e.isBoss);
+        const eliteEnemies = ALL_ENEMIES.filter(e => e.chapter === chapter && e.isElite);
+        const boss = ALL_ENEMIES.find(e => e.chapter === chapter && e.isBoss);
+        for (const nodeType of path) {
+          if (hero.currentHp <= 0) { cleared = false; break; }
+          if (nodeType === 'battle' || nodeType === 'elite') {
+            const pool = nodeType === 'elite' && eliteEnemies.length > 0 ? eliteEnemies : chapterEnemies.filter(e => !e.isElite);
+            const r = simulateBattle(hero, choose(pool));
+            if (!r.won) { cleared = false; break; }
+            hero.gold += getGoldReward(nodeType, chapter);
+          } else if (nodeType === 'boss') {
+            const r = simulateBattle(hero, boss);
+            if (!r.won) { cleared = false; break; }
+            hero.gold += getGoldReward('boss', chapter);
+          } else if (nodeType === 'advisor') {
+            applyEffect(hero, aiPickAdvisor(hero, shuffle(ADVISOR_CARDS).slice(0, 3)).effect);
+          } else if (nodeType === 'merchant') {
+            aiBuyItems(hero, shuffle(MERCHANT_ITEMS).slice(0, 3));
+          } else if (nodeType === 'rest') {
+            const pct = (30 + healBonus) / 100;
+            hero.currentHp = clamp(hero.currentHp + Math.floor(hero.stats.maxHp * pct), 0, hero.stats.maxHp);
+          } else if (nodeType === 'event') {
+            const ev = choose(EVENTS);
+            const opt = aiPickEvent(hero, ev);
+            if (opt.effect === 'hp_up') hero.currentHp = clamp(hero.currentHp + opt.value, 0, hero.stats.maxHp);
+            else if (opt.effect === 'hp_down') hero.currentHp = Math.max(1, hero.currentHp - opt.value);
+            else if (opt.effect === 'gold_up') hero.gold += opt.value;
+            else if (opt.effect === 'gold_down') hero.gold = Math.max(0, hero.gold - opt.value);
+          }
+        }
+        if (!cleared) break;
+      }
+      if (cleared) clears++;
+    }
+    row += ((clears / TRIALS * 100).toFixed(1) + '%').padStart(12);
+  }
+  console.log(row);
+}
+
+console.log('\n(全5章クリア率)\n');

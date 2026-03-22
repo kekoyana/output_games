@@ -12,7 +12,8 @@ export type GamePhase =
   | 'event'
   | 'advisor'
   | 'game_over'
-  | 'ending';
+  | 'ending'
+  | 'legacy';
 
 export type Faction = 'shu' | 'wei' | 'wu' | 'other';
 
@@ -79,6 +80,14 @@ export interface GameMap {
 
 export type EnemyIntent = 'attack' | 'defend' | 'buff' | 'special';
 
+/** ボス固有ギミックID */
+export type BossGimmick =
+  | 'zhang_jiao_sorcery'    // 妖術: ダイス1個を策に変換
+  | 'dong_zhuo_tyranny'     // 暴虐: 3ターンごとに防御無視ダメージ
+  | 'lu_bu_halberd'         // 方天画戟: HP50%以下で攻撃永続1.5倍
+  | 'yuan_shu_seal'         // 玉璽の威光: 防御スロット効果半減
+  | 'cao_cao_scheme';       // 覇者の策謀: スキルコスト+1
+
 export interface EnemyDef {
   id: string;
   name: string;
@@ -88,7 +97,8 @@ export interface EnemyDef {
   isBoss: boolean;
   portraitKey: string;
   intents: EnemyIntent[];
-  chapter?: number; // 出現する章（1=黄巾, 2=董卓軍, 3=曹操軍）
+  chapter?: number;
+  gimmick?: BossGimmick;
 }
 
 export interface Enemy extends EnemyDef {
@@ -97,6 +107,7 @@ export interface Enemy extends EnemyDef {
   blockAmount: number;
   buffed: boolean;
   stunned: boolean;
+  gimmickActivated: boolean;
 }
 
 export type BattlePhase = 'roll' | 'assign' | 'execute' | 'enemy_turn' | 'result';
@@ -157,6 +168,25 @@ export interface RewardInfo {
 /** チュートリアルステップ: 0=非表示, 1〜=各ステップ, -1=完了済み */
 export type TutorialStep = -1 | 0 | 1 | 2 | 3 | 4 | 5;
 
+/** ローグライト永続アップグレード定義 */
+export interface LegacyUpgradeDef {
+  id: string;
+  maxLevel: number;
+  costs: number[];
+  effects: number[]; // 各レベルの効果量
+  stat: 'maxHp' | 'attack' | 'defense' | 'gold' | 'healPercent';
+}
+
+/** ローグライト永続データ（localStorage保存） */
+export interface LegacyData {
+  version: number;
+  totalRuns: number;
+  bestChapter: number;
+  legacyPoints: number;
+  upgrades: Record<string, number>; // upgradeId → 購入レベル
+  lastEarnedPoints: number; // 直前のランで獲得したポイント
+}
+
 export interface GameState {
   phase: GamePhase;
   hero: Hero | null;
@@ -171,6 +201,10 @@ export interface GameState {
   tutorialStep: TutorialStep;
   mapTutorialStep: 0 | 1 | 2 | -1;
   lang: 'ja' | 'en' | 'zh';
+  legacyData: LegacyData;
+  enemiesDefeated: number;
+  bossesDefeated: number;
+  chaptersReached: number;
 }
 
 export interface Point {
