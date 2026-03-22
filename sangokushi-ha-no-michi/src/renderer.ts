@@ -53,7 +53,7 @@ const SLOT_UNIT: Record<string, { label: string; color: string }> = {
   strategy: { label: '追加ダメ', color: '#cc99ff' },
 };
 const CHAPTER_NAMES: Record<number, string> = {
-  1: '黄巾の乱', 2: '董卓の専横', 3: '赤壁の戦い',
+  1: '黄巾の乱', 2: '董卓の専横', 3: '徐州攻防戦', 4: '偽帝袁術', 5: '赤壁の戦い',
 };
 
 type ImageCache = Record<string, HTMLImageElement>;
@@ -297,7 +297,8 @@ export function drawMap(
   heroHp: number,
   heroMaxHp: number,
   heroGold: number,
-  scrollY: number
+  scrollY: number,
+  mapTutorialStep: number = -1
 ): void {
   _drawBackground(ctx, w, h, 'map_background', 0.45);
 
@@ -379,6 +380,11 @@ export function drawMap(
   }
 
   ctx.restore();
+
+  // マップチュートリアルオーバーレイ
+  if (mapTutorialStep >= 1) {
+    _drawMapTutorial(ctx, w, h, mapTutorialStep);
+  }
 }
 
 export function drawBattle(
@@ -1091,7 +1097,76 @@ export function drawEnding(
   drawButton(ctx, retryBtn, 'もう一度プレイ', GOLD_COLOR, TEXT_DARK, 18, 8);
 }
 
-/** チュートリアルオーバーレイ */
+/** マップチュートリアルオーバーレイ */
+function _drawMapTutorial(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  step: number
+): void {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, w, h);
+
+  const STEPS = [
+    {
+      title: 'マップの進め方',
+      lines: [
+        '光っているノードをタップして進みます。',
+        'ノードの種類で発生するイベントが変わります。',
+        '',
+        'タップして次へ →',
+      ],
+    },
+    {
+      title: 'ノードの種類',
+      lines: [
+        '⚔ 戦闘 — 敵と戦う（メイン）',
+        '☆ 精鋭 — 強い敵（報酬多め）',
+        '軍師 — 武将を強化できる',
+        '商人 — ゴールドでアイテム購入',
+        '休息 — HPを回復',
+        '？ — ランダムイベント',
+        '☠ ボス — 章の最終戦',
+        '',
+        'タップして冒険を始めよう！',
+      ],
+    },
+  ];
+
+  const stepIdx = step - 1;
+  if (stepIdx < 0 || stepIdx >= STEPS.length) return;
+  const s = STEPS[stepIdx];
+
+  const lineH = 22;
+  const bubbleW = Math.min(w - 30, 400);
+  const bubbleH = s.lines.length * lineH + 56;
+  const bubbleX = (w - bubbleW) / 2;
+  const bubbleY = (h - bubbleH) / 2;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 14;
+  drawPanel(ctx, { x: bubbleX, y: bubbleY, w: bubbleW, h: bubbleH }, '#1a1a2e', '#ccc', 14);
+  ctx.restore();
+
+  drawText(ctx, s.title, bubbleX + bubbleW / 2, bubbleY + 16, 'bold 18px serif', GOLD_COLOR, 'center', 'top');
+
+  s.lines.forEach((line, i) => {
+    drawText(ctx, line, bubbleX + bubbleW / 2, bubbleY + 44 + i * lineH, '14px serif', '#eee', 'center', 'top');
+  });
+
+  // ステップインジケーター
+  const dotY = bubbleY + bubbleH + 12;
+  for (let i = 0; i < STEPS.length; i++) {
+    const dotX = bubbleX + bubbleW / 2 + (i - 0.5) * 18;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, i === stepIdx ? 5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = i === stepIdx ? '#fff' : '#666';
+    ctx.fill();
+  }
+}
+
+/** バトルチュートリアルオーバーレイ */
 function _drawTutorialOverlay(
   ctx: CanvasRenderingContext2D,
   w: number,

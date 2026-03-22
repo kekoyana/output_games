@@ -98,6 +98,7 @@ export class Game {
       showHelp: false,
       battleCount: 0,
       tutorialStep: 0,
+      mapTutorialStep: 0,
     };
   }
 
@@ -375,8 +376,14 @@ export class Game {
         this._startGame(this.selectedHeroId);
       }
     } else if (phase === 'synopsis') {
-      this.state = { ...this.state, phase: 'map' };
+      const startMapTutorial = this.state.mapTutorialStep === 0;
+      this.state = { ...this.state, phase: 'map', mapTutorialStep: startMapTutorial ? 1 : this.state.mapTutorialStep };
     } else if (phase === 'map') {
+      if (this.state.mapTutorialStep >= 1) {
+        const next = this.state.mapTutorialStep + 1;
+        this.state = { ...this.state, mapTutorialStep: next > 2 ? -1 : next as 1 | 2 };
+        return;
+      }
       this._handleMapClick(p);
     } else if (phase === 'reward') {
       this._handleRewardClick();
@@ -623,7 +630,7 @@ export class Game {
 
     if (rewardInfo.isBoss) {
       const currentChapter = this.state.map?.chapter ?? 1;
-      if (currentChapter >= 3) {
+      if (currentChapter >= 5) {
         this.state = { ...this.state, hero: newHero, phase: 'ending', battle: null, rewardInfo: null };
       } else {
         const newMap = generateMap();
@@ -739,7 +746,7 @@ export class Game {
     } else if (phase === 'synopsis' && map) {
       drawSynopsis(ctx, w, h, map.chapter);
     } else if (phase === 'map' && map && hero) {
-      drawMap(ctx, w, h, map.nodes, map.currentNodeId, map.chapter, hero.currentHp, hero.stats.maxHp, hero.gold, this.mapScrollY);
+      drawMap(ctx, w, h, map.nodes, map.currentNodeId, map.chapter, hero.currentHp, hero.stats.maxHp, hero.gold, this.mapScrollY, this.state.mapTutorialStep);
     } else if (phase === 'reward' && hero && this.state.rewardInfo) {
       drawReward(ctx, w, h, this.state.rewardInfo, hero);
     } else if (phase === 'battle' && battle && hero) {

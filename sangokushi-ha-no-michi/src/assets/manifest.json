@@ -46,6 +46,11 @@
       "path": "portraits/dong_zhuo_portrait.png",
       "size": [512, 512],
       "description": "Dong Zhuo, fat round face, golden crown, red and gold armor, tyrannical warlord"
+    },
+    "yuan_shu_portrait": {
+      "path": "portraits/yuan_shu_portrait.png",
+      "size": [512, 512],
+      "description": "Yuan Shu, golden elaborate imperial robes, jade crown, arrogant proud expression, holding imperial jade seal"
     }
   },
   "backgrounds": {

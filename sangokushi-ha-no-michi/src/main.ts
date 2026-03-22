@@ -11,6 +11,7 @@ import luBuPortrait from './assets/portraits/lu_bu_portrait.png';
 import liuBeiPortrait from './assets/portraits/liu_bei_portrait.png';
 import zhangJiaoPortrait from './assets/portraits/zhang_jiao_portrait.png';
 import dongZhuoPortrait from './assets/portraits/dong_zhuo_portrait.png';
+import yuanShuPortrait from './assets/portraits/yuan_shu_portrait.png';
 import battleBackground from './assets/backgrounds/battle_background2.jpg';
 import mapBackground from './assets/backgrounds/map_background.jpg';
 import titleBackground from './assets/backgrounds/title_background.jpg';
@@ -25,6 +26,7 @@ const IMAGE_PATHS: Record<string, string> = {
   liu_bei_portrait: liuBeiPortrait,
   zhang_jiao_portrait: zhangJiaoPortrait,
   dong_zhuo_portrait: dongZhuoPortrait,
+  yuan_shu_portrait: yuanShuPortrait,
   battle_background: battleBackground,
   map_background: mapBackground,
   title_background: titleBackground,

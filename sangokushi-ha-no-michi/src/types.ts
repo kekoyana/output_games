@@ -169,6 +169,7 @@ export interface GameState {
   showHelp: boolean;
   battleCount: number;
   tutorialStep: TutorialStep;
+  mapTutorialStep: 0 | 1 | 2 | -1;
 }
 
 export interface Point {

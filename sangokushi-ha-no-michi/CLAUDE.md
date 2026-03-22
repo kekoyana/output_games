@@ -1,40 +1,6 @@
-# ゲーム生成プロジェクト規約
+# 三国志-覇への道
 
-## 概要
-このディレクトリはAIが生成するWebゲームのプロジェクトです。
-以下の規約に従ってゲームコードを生成してください。
-
-## 技術スタック
-- TypeScript (strict mode)
-- Vite (ビルドツール)
-- Canvas API または DOM ベースのレンダリング
-- 外部ライブラリは基本使わない（必要な場合はpackage.jsonに追加）
-
-## 対応端末
-- PC（マウス・キーボード操作）
-- スマートフォン（タッチ操作）
-- レスポンシブ対応必須（画面サイズに応じて自動調整）
-
-## ファイル構成ルール
-- エントリポイント: `src/main.ts`
-- ゲームロジック: `src/game.ts`
-- 型定義: `src/types.ts`（必要に応じて）
-- ユーティリティ: `src/utils.ts`（必要に応じて）
-- 追加ファイルは `src/` 配下に自由に作成してよい
-
-## コーディング規約
-- 全てのファイルはTypeScriptで記述
-- any型は禁止
-- ゲームループは `requestAnimationFrame` を使用
-- 入力はマウス/タッチ両方に対応すること（pointer eventsを推奨）
-- 画面サイズは `window.innerWidth / innerHeight` を使い、リサイズに対応
-- アセット（画像等）は使わず、Canvas描画やCSS、SVGインラインで表現する
-
-## 生成時の注意
-- index.html は変更しないこと（src/main.ts がエントリポイント）
-- vite.config.ts は変更しないこと
-- package.json は外部ライブラリが必要な場合のみ変更可
-- ゲームはブラウザを開いた瞬間から遊べる状態にすること
+ダイスベースの戦略バトルRPG。蜀の武将を選び、マップを進み、ダイスを振ってスロットに配置して戦う。
 
 ## コマンド
 
@@ -44,3 +10,23 @@
 | `npx vite --port 5173 --host` | 開発サーバー起動 |
 | `npx tsc --noEmit` | 型チェック |
 | `npx vite build` | プロダクションビルド |
+
+## 技術ルール
+- TypeScript strict mode、any禁止
+- index.html / vite.config.ts は変更禁止
+- PC + スマホ両対応（Pointer Events使用、`touch-action: none`）
+- 画像アセットは `src/assets/` 配下、`main.ts` でimportして `loadImages()` に渡す
+- ゲームオブジェクトは `window.__game` でアクセス可能（Playwrightテスト用）
+
+## アーキテクチャ概要
+- `main.ts` → アセット読み込み・Game初期化
+- `game.ts` → ゲームループ・入力処理・状態管理（`GameState`）・レイアウト計算
+- `renderer.ts` → 全画面のCanvas描画（drawTitle, drawMap, drawBattle等）
+- `battle.ts` → バトルロジック・ダメージ計算（`calcSlotValue`共通関数）
+- `data.ts` → 英雄・敵・アイテム等の定数データ
+- `types.ts` → 全型定義
+- `mapGen.ts` → マップ自動生成
+- `utils.ts` → 描画ユーティリティ（drawText, drawPanel, wrapText等）
+
+## 開発時の注意点
+- 詳細は `docs/development-guide.md` を参照
