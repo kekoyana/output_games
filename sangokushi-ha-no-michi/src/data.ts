@@ -2,6 +2,22 @@ import type { HeroDef, EnemyDef, AdvisorCard, MerchantItem, GameEvent, DiceFace,
 
 export const HERO_DEFS: HeroDef[] = [
   {
+    id: 'liu_bei',
+    name: '劉備',
+    faction: 'shu',
+    portraitKey: 'liu_bei_portrait',
+    diceSet: ['shield', 'shield', 'sword', 'strategy'],
+    skill: {
+      id: 'benevolence',
+      name: '仁徳の御旗',
+      description: '盾×1消費 → 防御を攻撃に転用（盾の数×攻撃力）',
+      cost: { face: 'shield', count: 1 },
+      effect: 'shield_to_attack',
+    },
+    stats: { maxHp: 85, attack: 7, defense: 8, diceCount: 4 },
+    description: '蜀の君主。仁徳で民を守り、盾を力に変える。',
+  },
+  {
     id: 'guan_yu',
     name: '関羽',
     faction: 'shu',
@@ -64,22 +80,6 @@ export const HERO_DEFS: HeroDef[] = [
     },
     stats: { maxHp: 75, attack: 8, defense: 4, diceCount: 4 },
     description: '蜀の軍師。策略で敵を翻弄する。',
-  },
-  {
-    id: 'liu_bei',
-    name: '劉備',
-    faction: 'shu',
-    portraitKey: 'liu_bei_portrait',
-    diceSet: ['shield', 'shield', 'sword', 'strategy'],
-    skill: {
-      id: 'benevolence',
-      name: '仁徳の御旗',
-      description: '盾×1消費 → 防御を攻撃に転用（盾の数×攻撃力）',
-      cost: { face: 'shield', count: 1 },
-      effect: 'shield_to_attack',
-    },
-    stats: { maxHp: 85, attack: 7, defense: 8, diceCount: 4 },
-    description: '蜀の君主。仁徳で民を守り、盾を力に変える。',
   },
 ];
 
