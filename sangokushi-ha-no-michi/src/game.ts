@@ -295,7 +295,7 @@ export class Game {
 
     // 商人アイテム
     const mItemW = Math.min(140, (w - 60) / 3);
-    const mItemH = 90;
+    const mItemH = 110;
     const mStartX = (w - 3 * mItemW - 24) / 2;
     this.merchantRects = Array.from({ length: 5 }, (_, i) => {
       const col = i % 3;
