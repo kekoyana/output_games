@@ -44,8 +44,8 @@ export function generateMap(): GameMap {
 
     for (let col = 0; col < COLS; col++) {
       if (colsUsed.includes(col)) {
-        const xSpacing = 600 / COLS;
-        const ySpacing = 480 / (ROWS - 1);
+        const xSpacing = 500 / COLS;
+        const ySpacing = 700 / (ROWS - 1);
         const node: MapNode = {
           id: idCounter++,
           type: pickNodeType(row, ROWS),

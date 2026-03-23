@@ -392,7 +392,7 @@ export class Game {
       if (phase === 'map') {
         e.preventDefault();
         const dy = lastTouchY - e.touches[0].clientY;
-        this.mapScrollY = clamp(this.mapScrollY + dy, 0, 400);
+        this.mapScrollY = clamp(this.mapScrollY + dy, 0, 600);
         lastTouchY = e.touches[0].clientY;
       } else if (phase === 'character_select') {
         e.preventDefault();
@@ -409,7 +409,7 @@ export class Game {
 
     this.canvas.addEventListener('wheel', (e) => {
       if (this.state.phase === 'map') {
-        this.mapScrollY = clamp(this.mapScrollY + e.deltaY * 0.5, 0, 400);
+        this.mapScrollY = clamp(this.mapScrollY + e.deltaY * 0.5, 0, 600);
       } else if (this.state.phase === 'character_select') {
         this.charScrollY = clamp(this.charScrollY + e.deltaY * 0.5, 0, this.charScrollMax);
       } else if (this.state.phase === 'legacy') {
@@ -700,8 +700,8 @@ export class Game {
     if (!map) return;
 
     const w = this.canvas.width;
-    const scale = Math.max(0.7, Math.min(w / 780, 1.2));
-    const mapContentW = 700 * scale;
+    const scale = Math.max(0.7, Math.min(w / 650, 1.2));
+    const mapContentW = 580 * scale;
     const offsetX = Math.max(8, (w - mapContentW) / 2);
     const mapHeaderH = w < 500 ? 62 : 50;
     const offsetY = mapHeaderH + 10 - this.mapScrollY;

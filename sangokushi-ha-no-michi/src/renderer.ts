@@ -362,9 +362,9 @@ export function drawMap(
   }
 
   // スマホではスケール下限を設けて可読性を確保（スクロールで対応）
-  const scale = Math.max(0.7, Math.min(w / 780, 1.2));
+  const scale = Math.max(0.7, Math.min(w / 650, 1.2));
   // スケールが大きい場合は中央寄せ、小さい場合は左寄せ気味に
-  const mapContentW = 700 * scale; // ノード座標空間の概算幅
+  const mapContentW = 580 * scale; // ノード座標空間の概算幅
   const offsetX = Math.max(8, (w - mapContentW) / 2);
 
   ctx.save();
