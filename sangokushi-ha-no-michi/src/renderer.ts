@@ -1548,9 +1548,16 @@ export function drawMerchant(
     if (!rect) return;
     const canBuy = gold >= item.cost;
     drawPanel(ctx, rect, canBuy ? '#1a2e1a' : '#2a1a1a', canBuy ? '#2ecc71' : '#555', 8);
-    drawText(ctx, tn(item.name), rect.x + rect.w / 2, rect.y + 12, 'bold 15px serif', canBuy ? '#fff' : '#888', 'center', 'top');
-    drawText(ctx, item.description, rect.x + rect.w / 2, rect.y + 34, '12px serif', '#aaa', 'center', 'top');
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.w, rect.h);
+    ctx.clip();
+    const nameFont = `bold ${Math.min(15, rect.w / 7)}px serif`;
+    const descFont = `${Math.min(12, rect.w / 9)}px serif`;
+    drawText(ctx, tn(item.name), rect.x + rect.w / 2, rect.y + 12, nameFont, canBuy ? '#fff' : '#888', 'center', 'top');
+    drawText(ctx, item.description, rect.x + rect.w / 2, rect.y + 34, descFont, '#aaa', 'center', 'top');
     drawText(ctx, `${item.cost}${t('reward.unit')}`, rect.x + rect.w / 2, rect.y + 54, 'bold 16px serif', canBuy ? GOLD_COLOR : '#666', 'center', 'top');
+    ctx.restore();
   });
 
   drawButton(ctx, leaveBtn, t('merchant.leave'), '#555', '#ddd', 16, 8);
