@@ -116,7 +116,9 @@ export function drawTitle(
   langBtnRects: Rect[] = [],
   lang: string = 'ja',
   legacyData: LegacyData | null = null,
-  legacyBtnRect: Rect | null = null
+  legacyBtnRect: Rect | null = null,
+  hasSave: boolean = false,
+  continueBtnRect: Rect | null = null
 ): void {
   _drawBackground(ctx, w, h, 'title_background');
 
@@ -137,6 +139,11 @@ export function drawTitle(
   // レガシーボタン（プレイ実績がある場合のみ）
   if (legacyData && legacyData.totalRuns > 0 && legacyBtnRect) {
     drawButton(ctx, legacyBtnRect, `⚜ ${t('legacy.btn')} (${legacyData.legacyPoints}pt)`, '#8e44ad', '#fff', Math.min(14, w / 40), 6);
+  }
+
+  // 続きからボタン
+  if (hasSave && continueBtnRect) {
+    drawButton(ctx, continueBtnRect, t('title.continue'), '#2ecc71', '#fff', Math.min(22, w / 30), 10);
   }
 
   // スタートボタン

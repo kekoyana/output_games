@@ -8,6 +8,7 @@ import type {
   GameEvent,
   BattleAnim,
   DiceFace,
+  SaveData,
 } from './types';
 import {
   HERO_DEFS,
@@ -93,10 +94,12 @@ export class Game {
   private legacyHeroUnlockRects: Rect[] = [];
   private legacyBackRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private legacyResetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private continueBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   // バトルアニメーション
   private battleAnims: BattleAnim[] = [];
   private animBlocked: boolean = false;
+  private lastSavedPhase: string = '';
 
   // ダイスロールアニメーション
   private diceRollAnim: {
@@ -152,7 +155,10 @@ export class Game {
 
     // スタートボタン
     const btnW = Math.min(220, w * 0.5);
-    this.startBtnRect = { x: (w - btnW) / 2, y: h * 0.68, w: btnW, h: 48 };
+    const hasSave = this._hasSaveData();
+    // セーブがある場合: 続きからが上、新規開始が下
+    this.continueBtnRect = { x: (w - btnW) / 2, y: h * 0.63, w: btnW, h: 48 };
+    this.startBtnRect = { x: (w - btnW) / 2, y: hasSave ? h * 0.73 : h * 0.68, w: btnW, h: 48 };
     this.retryBtnRect = { x: (w - 260) / 2, y: h * 0.65, w: 260, h: 50 };
 
     // 言語選択ボタン（タイトル画面右上）
@@ -168,7 +174,7 @@ export class Game {
     }));
 
     // レガシーボタン（タイトル画面）
-    this.legacyBtnRect = { x: w / 2 - 60, y: h * 0.78, w: 120, h: 36 };
+    this.legacyBtnRect = { x: w / 2 - 60, y: hasSave ? h * 0.83 : h * 0.78, w: 120, h: 36 };
 
     // レガシー画面レイアウト
     const legUpgradeW = Math.min(w - 40, 400);
@@ -486,6 +492,11 @@ export class Game {
           return;
         }
       }
+      // 続きからボタン
+      if (this._hasSaveData() && pointInRect(p, this.continueBtnRect)) {
+        this._continueGame();
+        return;
+      }
       // レガシーボタン
       if (this.state.legacyData.totalRuns > 0 && pointInRect(p, this.legacyBtnRect)) {
         this.legacyScrollY = 0;
@@ -648,6 +659,76 @@ export class Game {
     } catch { /* ignore */ }
   }
 
+  private _saveGame(): void {
+    const { hero, map } = this.state;
+    if (!hero || !map) return;
+    const save: SaveData = {
+      version: 1,
+      hero,
+      map,
+      battleCount: this.state.battleCount,
+      enemiesDefeated: this.state.enemiesDefeated,
+      bossesDefeated: this.state.bossesDefeated,
+      chaptersReached: this.state.chaptersReached,
+      tutorialStep: this.state.tutorialStep,
+      mapTutorialStep: this.state.mapTutorialStep,
+      lang: this.state.lang,
+    };
+    try {
+      localStorage.setItem('sangokushi_save', JSON.stringify(save));
+    } catch { /* ignore */ }
+  }
+
+  private _loadGame(): SaveData | null {
+    try {
+      const raw = localStorage.getItem('sangokushi_save');
+      if (raw) {
+        const data = JSON.parse(raw) as SaveData;
+        if (data && data.version === 1 && data.hero && data.map) return data;
+      }
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  private _hasSaveData(): boolean {
+    try {
+      const raw = localStorage.getItem('sangokushi_save');
+      if (raw) {
+        const data = JSON.parse(raw);
+        return data && data.version === 1 && data.hero && data.map;
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
+
+  private _deleteSave(): void {
+    try {
+      localStorage.removeItem('sangokushi_save');
+    } catch { /* ignore */ }
+  }
+
+  private _continueGame(): void {
+    const save = this._loadGame();
+    if (!save) return;
+    setLang(save.lang);
+    this.state = {
+      ...this.state,
+      phase: 'map',
+      hero: save.hero,
+      map: save.map,
+      battleCount: save.battleCount,
+      enemiesDefeated: save.enemiesDefeated,
+      bossesDefeated: save.bossesDefeated,
+      chaptersReached: save.chaptersReached,
+      tutorialStep: save.tutorialStep,
+      mapTutorialStep: save.mapTutorialStep,
+      lang: save.lang,
+    };
+    this.mapScrollY = 0;
+    this._recalcLayout();
+    playBgm('map');
+  }
+
   private _isHeroUnlocked(heroId: string): boolean {
     if (heroId === 'liu_bei') return true; // 劉備は初期解放
     const unlockUpg = HERO_UNLOCK_UPGRADES.find((u) => u.heroId === heroId);
@@ -701,6 +782,7 @@ export class Game {
   private _startGame(heroId: string): void {
     const heroDef = HERO_DEFS.find((h) => h.id === heroId);
     if (!heroDef) return;
+    this._deleteSave();
     const hero: Hero = {
       ...heroDef,
       currentHp: heroDef.stats.maxHp,
@@ -1149,8 +1231,18 @@ export class Game {
     const h = this.canvas.height;
     const { phase, hero, map, battle } = this.state;
 
+    // マップ画面に入ったらオートセーブ
+    if (phase === 'map' && this.lastSavedPhase !== 'map') {
+      this._saveGame();
+    }
+    // ゲーム終了時はセーブデータを削除
+    if ((phase === 'game_over' || phase === 'ending') && this.lastSavedPhase !== phase) {
+      this._deleteSave();
+    }
+    this.lastSavedPhase = phase;
+
     if (phase === 'title') {
-      drawTitle(ctx, w, h, this.startBtnRect, this.langBtnRects, this.state.lang, this.state.legacyData, this.legacyBtnRect);
+      drawTitle(ctx, w, h, this.startBtnRect, this.langBtnRects, this.state.lang, this.state.legacyData, this.legacyBtnRect, this._hasSaveData(), this.continueBtnRect);
     } else if (phase === 'character_select') {
       const unlockedHeroIds = new Set(HERO_DEFS.filter((h) => this._isHeroUnlocked(h.id)).map((h) => h.id));
       drawCharacterSelect(ctx, w, h, this.selectedHeroId, this.confirmSelectRect, this.heroRects, this.charScrollY, this.charScrollMax, unlockedHeroIds);

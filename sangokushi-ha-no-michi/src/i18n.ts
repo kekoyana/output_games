@@ -298,6 +298,10 @@ const UI: Translations = {
   'legacy.unlocked': { ja: '解放済', en: 'Unlocked', zh: '已解锁' },
   'legacy.unlock': { ja: '解放', en: 'Unlock', zh: '解锁' },
   'select.locked': { ja: '🔒 宝玉で解放', en: '🔒 Unlock with Jade', zh: '🔒 用宝玉解锁' },
+
+  // セーブ/ロード
+  'title.continue': { ja: '続きから', en: 'Continue', zh: '继续游戏' },
+  'save.chapter': { ja: '第{n}章', en: 'Ch.{n}', zh: '第{n}章' },
 };
 
 // 名前の翻訳テーブル（英雄・敵・アイテム等）

@@ -223,6 +223,20 @@ export interface Rect {
   h: number;
 }
 
+/** セーブデータ */
+export interface SaveData {
+  version: number;
+  hero: Hero;
+  map: GameMap;
+  battleCount: number;
+  enemiesDefeated: number;
+  bossesDefeated: number;
+  chaptersReached: number;
+  tutorialStep: TutorialStep;
+  mapTutorialStep: 0 | 1 | 2 | -1;
+  lang: 'ja' | 'en' | 'zh';
+}
+
 /** バトルアニメーション種別 */
 export type BattleAnimType = 'attack' | 'hit' | 'guard' | 'skill_flash';
 
