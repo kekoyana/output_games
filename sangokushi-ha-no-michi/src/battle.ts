@@ -1,4 +1,4 @@
-import type { BattleState, Die, DiceFace, ActionSlot, Hero, EnemyDef, Enemy, BossGimmick } from './types';
+import type { BattleState, Die, DiceFace, ActionSlot, Hero, EnemyDef, Enemy, EnemyIntent, BossGimmick } from './types';
 import { choose, clamp, randomInt } from './utils';
 import { rollDie } from './data';
 import { t, tn } from './i18n';
@@ -7,6 +7,37 @@ let dieIdCounter = 0;
 
 function makeDie(face: DiceFace): Die {
   return { id: dieIdCounter++, face, nativeFace: face, locked: false, assignedSlot: null };
+}
+
+/** 敵の状態を考慮してインテントを選択する */
+function chooseIntent(enemy: Enemy): EnemyIntent {
+  const intents = enemy.intents;
+
+  // バフ済み → 攻撃系を優先（バフを活かす）
+  if (enemy.buffed) {
+    const aggressive = intents.filter((i) => i === 'attack' || i === 'special');
+    if (aggressive.length > 0) return choose(aggressive);
+  }
+
+  // 前回防御 → 連続防御を避ける
+  if (enemy.currentIntent === 'defend') {
+    const nonDefend = intents.filter((i) => i !== 'defend');
+    if (nonDefend.length > 0) return choose(nonDefend);
+  }
+
+  // HP低い（30%以下）→ 防御を優先しやすくする
+  if (enemy.currentHp <= enemy.maxHp * 0.3) {
+    const hasDefend = intents.includes('defend');
+    if (hasDefend && Math.random() < 0.5) return 'defend';
+  }
+
+  // 既にバフ済み → 再バフを避ける
+  if (enemy.buffed) {
+    const nonBuff = intents.filter((i) => i !== 'buff');
+    if (nonBuff.length > 0) return choose(nonBuff);
+  }
+
+  return choose(intents);
 }
 
 export function createBattleState(hero: Hero, enemyDef: EnemyDef): BattleState {
@@ -46,7 +77,7 @@ export function rerollDice(state: BattleState): BattleState {
     locked: false,
   }));
   // ダイスロール時に敵の次の行動を決定する
-  const nextIntent = choose(state.enemy.intents);
+  const nextIntent = chooseIntent(state.enemy);
   return {
     ...state,
     dice: newDice,
