@@ -622,15 +622,6 @@ export const GAME_EVENTS: GameEvent[] = [
     ],
   },
   {
-    id: 'spy_report',
-    title: '密偵の報告',
-    description: '味方の密偵が情報を持ってきた。',
-    options: [
-      { text: '情報料を払う（金-20、次のボス弱体化）', effect: 'gold_down', value: 20 },
-      { text: '断る', effect: 'nothing', value: 0 },
-    ],
-  },
-  {
     id: 'ancient_scroll',
     title: '古の兵法書',
     description: '廃寺で貴重な兵法書を見つけた。',

@@ -368,7 +368,6 @@ const NAMES: Record<string, Record<Lang, string>> = {
   '商人の情報': { ja: '商人の情報', en: 'Merchant Intel', zh: '商人的情报' },
   '占い師の予言': { ja: '占い師の予言', en: 'Fortune Teller', zh: '占卜师的预言' },
   '埋蔵金発見': { ja: '埋蔵金発見', en: 'Treasure Found', zh: '发现埋藏金' },
-  '密偵の報告': { ja: '密偵の報告', en: 'Spy Report', zh: '密探的报告' },
   '古の兵法書': { ja: '古の兵法書', en: 'Ancient Scrolls', zh: '古兵法书' },
   '村人の嘆願': { ja: '村人の嘆願', en: 'Village Plea', zh: '村民的请愿' },
   '秘湯発見': { ja: '秘湯発見', en: 'Hot Spring Found', zh: '发现秘汤' },
