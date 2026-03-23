@@ -1,4 +1,4 @@
-"""張飛ポートレート再生成 - 演義準拠: 豹頭環眼、燕頷虎鬚"""
+"""張飛ポートレート再生成 - 三國無双風: どんぐり目玉、豪快な猛将"""
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -18,26 +18,24 @@ CHARACTER = {
     "prompt": (
         "anime game art, Three Kingdoms era, "
         "close-up head and shoulders portrait of Zhang Fei, "
-        "leopard-shaped round wide head, big round bulging eyes, "
-        "pointed swallow-like chin jaw, thick wild tiger-like whiskers beard, "
-        "fierce intimidating warrior expression, dark complexion, "
-        "black heavy armor with orange-brown accents, "
-        "1male, brave fearsome general, "
+        "black heavy armor pauldrons on shoulders with gold accents, "
+        "big round wide-open bulging eyes, wild thick bushy black beard and mustache, "
+        "fierce intimidating roaring expression showing teeth, dark tanned skin, muscular neck, "
+        "1male, warrior general, "
         "face centered and large in frame, dramatic lighting, "
-        "detailed face, vivid colors, dark orange background"
+        "detailed face, vivid colors, dark blue-black gradient background"
     ),
     "negative": (
         "full body, waist shot, far away, small face, low quality, blurry, "
         "text, watermark, deformed face, extra fingers, bad anatomy, "
         "multiple characters, western cartoon, realistic photo, landscape, "
-        "action pose, speed lines, manga style, comic style, "
-        "narrow eyes, slim face, long face, clean shaven, no beard, "
+        "narrow squinting eyes, slim face, clean shaven, no beard, "
         "handsome pretty boy, gentle expression, calm face"
     ),
-    "seed": 5050,
+    "seed": 5070,
 }
 
-RETRY_SEEDS = [5151, 5252, 5353]
+RETRY_SEEDS = [5161, 5262, 5363]
 
 def generate_portrait(client, name, prompt, negative, seed, model):
     raw_dir = OUTPUT_DIR / "raw"

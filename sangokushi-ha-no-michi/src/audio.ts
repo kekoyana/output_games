@@ -179,14 +179,14 @@ class AudioManager {
   private _playBgmTitle(nodes: BgmNodes): void {
     const ctx = this._ctx!;
 
-    // ドローン音（低音持続）— 穏やかな持続音
-    const droneFreqs = [110.0, 146.8]; // A2, D3（重低音D2は除外）
+    // ドローン音（持続和音）— 中音域で柔らかく
+    const droneFreqs = [146.8, 220.0]; // D3, A3
     for (const freq of droneFreqs) {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      g.gain.value = 0.02;
+      g.gain.value = 0.012;
       osc.connect(g);
       g.connect(nodes.gainNode);
       osc.start();
@@ -223,14 +223,14 @@ class AudioManager {
   private _playBgmMap(nodes: BgmNodes): void {
     const ctx = this._ctx!;
 
-    // 低音伴奏（ベース）
-    const bassFreqs = [98.0, 130.81]; // G2, C3
+    // 伴奏（中音域で柔らかく）
+    const bassFreqs = [196.0, 261.63]; // G3, C4
     for (const freq of bassFreqs) {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      g.gain.value = 0.035;
+      g.gain.value = 0.015;
       osc.connect(g);
       g.connect(nodes.gainNode);
       osc.start();
@@ -267,23 +267,23 @@ class AudioManager {
   private _playBgmBattle(nodes: BgmNodes): void {
     const ctx = this._ctx!;
 
-    // 低音ベース（重厚感）
+    // ベース音（中音域、控えめ）
     const osc0 = ctx.createOscillator();
     const g0 = ctx.createGain();
-    osc0.type = 'sawtooth';
-    osc0.frequency.value = 164.81; // E3
-    g0.gain.value = 0.05;
+    osc0.type = 'sine';
+    osc0.frequency.value = 329.63; // E4
+    g0.gain.value = 0.015;
     osc0.connect(g0);
     g0.connect(nodes.gainNode);
     osc0.start();
     nodes.oscillators.push(osc0);
 
-    // リズムパターン（打楽器的: 短いバースト）
+    // リズムパターン（1オクターブ上のE フリジアン）
     const rhythmFreqs = [
-      164.81, 174.61, 196.00, 220.00, 174.61,  // E3 F3 G3 A3 F3
-      164.81, 196.00, 220.00, 246.94, 220.00,  // E3 G3 A3 B3 A3
-      164.81, 174.61, 196.00, 164.81, 261.63,  // E3 F3 G3 E3 C4
-      246.94, 220.00, 196.00, 174.61, 164.81,  // B3 A3 G3 F3 E3
+      329.63, 349.23, 392.00, 440.00, 349.23,  // E4 F4 G4 A4 F4
+      329.63, 392.00, 440.00, 493.88, 440.00,  // E4 G4 A4 B4 A4
+      329.63, 349.23, 392.00, 329.63, 523.25,  // E4 F4 G4 E4 C5
+      493.88, 440.00, 392.00, 349.23, 329.63,  // B4 A4 G4 F4 E4
     ];
     const tempo = 0.22; // 早め
 
@@ -292,7 +292,7 @@ class AudioManager {
       if (!this._currentBgmNodes || this._currentBgmNodes !== nodes) return;
       const freq = rhythmFreqs[step % rhythmFreqs.length];
       if (freq !== undefined) {
-        this._playMelodyNote(ctx, nodes, freq, tempo * 0.6, 0.07, 'square');
+        this._playMelodyNote(ctx, nodes, freq, tempo * 0.6, 0.05, 'triangle');
       }
       step++;
     };
