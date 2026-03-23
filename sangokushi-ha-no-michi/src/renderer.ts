@@ -318,13 +318,30 @@ export function drawSynopsis(
   const synTitle = t(`synopsis.${chapter}.title`);
   drawText(ctx, synTitle !== `synopsis.${chapter}.title` ? synTitle : synopsis.title, w / 2, panelY + 40, `bold ${Math.min(28, w / 15)}px serif`, GOLD_COLOR, 'center', 'top');
 
-  // 内容
-  const startY = panelY + 100;
-  const lineH = 32;
+  // 内容（wrapTextで折り返し）
+  const fontSize = Math.min(16, w / 25);
+  const font = `${fontSize}px serif`;
+  const textMaxW = panelW - 40;
+  const lineH = fontSize + 8;
+  let currentY = panelY + 100;
   synopsis.content.forEach((_, i) => {
     const key = `synopsis.${chapter}.${i + 1}`;
     const line = t(key);
-    drawText(ctx, line !== key ? line : synopsis.content[i], w / 2, startY + i * lineH, `${Math.min(16, w / 25)}px serif`, TEXT_LIGHT, 'center', 'top');
+    const text = line !== key ? line : synopsis.content[i];
+    wrapText(ctx, text, panelX + 20, currentY, textMaxW, lineH, font, TEXT_LIGHT);
+    // 行数を計算して次の段落位置を決定
+    ctx.font = font;
+    let tempLine = '';
+    let lines = 1;
+    for (const ch of text) {
+      if (ctx.measureText(tempLine + ch).width > textMaxW && tempLine !== '') {
+        lines++;
+        tempLine = ch;
+      } else {
+        tempLine += ch;
+      }
+    }
+    currentY += lines * lineH + 4;
   });
 
   // 続行案内
@@ -548,31 +565,39 @@ export function drawBattle(
     ctx.translate(shakeX, shakeY);
   }
 
-  // 敵表示エリア（上半分）— 攻撃アニメ時にシェイク
+  // 上半分エリア（左右対称レイアウト）
   const enemyAreaH = panelY - 10;
+
+  // 共通ポートレートサイズと座標（味方:左上、敵:右下）
+  const heroPortraitSize = Math.min(90, w * 0.18);
+  const heroCx = w * 0.15;
+  const heroCy = heroPortraitSize / 2 + 15;
+  const enemyCx = w * 0.78;
+  const enemyCy = 50 + heroPortraitSize / 2;
+
+  // 敵描画 — 攻撃アニメ時にシェイク
   const attackAnim = battleAnims.find((a) => a.type === 'attack');
   const attackElapsed = attackAnim ? now - attackAnim.startTime : -1;
   if (attackAnim && attackElapsed >= 0 && attackElapsed < 500) {
     const shakeAmount = Math.sin(attackElapsed * 0.05) * 8 * (1 - attackElapsed / 500);
     ctx.save();
     ctx.translate(shakeAmount, 0);
-    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape, battle.phase);
+    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape, battle.phase, enemyCx, enemyCy, heroPortraitSize);
     ctx.restore();
   } else {
-    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape, battle.phase);
+    _drawEnemy(ctx, w, enemyAreaH, battle.enemy, isLandscape, battle.phase, enemyCx, enemyCy, heroPortraitSize);
   }
 
   // 英雄HP（スキル使用可能時にグロー）— 被ダメ時にフラッシュ
   const canSkill = canActivateSkill(battle, hero) && battle.phase === 'assign';
   const hitAnim = battleAnims.find((a) => a.type === 'hit');
   const hitElapsed = hitAnim ? now - hitAnim.startTime : -1;
-  _drawHeroStatus(ctx, w, hero, battle.heroBlock, canSkill);
+  _drawHeroStatus(ctx, w, hero, battle.heroBlock, canSkill, heroCx, heroCy, heroPortraitSize);
   if (hitAnim && hitElapsed >= 0 && hitElapsed < 400) {
     const flash = Math.sin(hitElapsed * 0.02) * 0.4;
     if (flash > 0) {
       ctx.fillStyle = `rgba(255,0,0,${flash})`;
-      const heroSize = Math.min(70, w * 0.12);
-      drawRoundRect(ctx, 20, 20, heroSize, heroSize, 6);
+      drawRoundRect(ctx, heroCx - heroPortraitSize / 2 - 2, heroCy - heroPortraitSize / 2 - 2, heroPortraitSize + 4, heroPortraitSize + 4, 8);
       ctx.fill();
     }
   }
@@ -689,26 +714,46 @@ export function drawBattle(
     drawText(ctx, t('battle.continue'), w / 2, h / 2 + 60, '20px serif', '#ccc', 'center', 'top');
   }
 
-  // バトルアニメーション: ダメージ数字 + 斬撃エフェクト
+  // バトルアニメーション: アイコン飛行 + ダメージ数字 + 斬撃エフェクト
   for (const anim of battleAnims) {
     const elapsed = now - anim.startTime;
-    if (elapsed < 0 || elapsed > 800) continue;
+    if (elapsed < 0 || elapsed > 900) continue;
 
     if (anim.type === 'attack') {
-      // 敵へのダメージ: 斬撃ライン + 浮き上がるダメージ数字
-      const enemyCx = isLandscape ? w * 0.7 : w / 2;
-      const enemyPortraitSize = Math.min(enemyAreaH * 0.5, isLandscape ? 180 : 140);
-      const enemyCy = enemyAreaH * 0.05 + enemyPortraitSize / 2;
+      // プレイヤー→敵への攻撃: ⚔アイコンが飛ぶ + 斬撃エフェクト + ダメージ数字
+      const totalDuration = 800;
+      if (elapsed > totalDuration) continue;
 
-      // 斬撃エフェクト（最初の300ms）
-      if (elapsed < 300) {
-        const progress = elapsed / 300;
+      // 0〜300ms: ⚔アイコンが味方から敵へ飛ぶ
+      const flyDuration = 300;
+      if (elapsed < flyDuration) {
+        const progress = elapsed / flyDuration;
+        // イージング（ease-in）
+        const eased = progress * progress;
+        const iconX = heroCx + (enemyCx - heroCx) * eased;
+        const iconY = heroCy + (enemyCy - heroCy) * eased - Math.sin(eased * Math.PI) * 30;
+        const iconAlpha = Math.min(1, progress * 3);
+        ctx.save();
+        ctx.globalAlpha = iconAlpha;
+        ctx.font = `bold ${Math.min(28, w / 16)}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#ff0';
+        ctx.shadowBlur = 10;
+        ctx.fillText('⚔', iconX, iconY);
+        ctx.restore();
+      }
+
+      // 300ms〜: 敵位置で斬撃エフェクト
+      if (elapsed >= flyDuration && elapsed < flyDuration + 300) {
+        const slashElapsed = elapsed - flyDuration;
+        const progress = slashElapsed / 300;
         ctx.save();
         ctx.strokeStyle = `rgba(255,220,100,${1 - progress})`;
         ctx.lineWidth = 4 * (1 - progress);
         ctx.shadowColor = '#ff6';
         ctx.shadowBlur = 20 * (1 - progress);
-        const slashLen = enemyPortraitSize * 0.8;
+        const slashLen = heroPortraitSize * 0.8;
         const sx = enemyCx - slashLen / 2 + slashLen * progress * 0.3;
         const sy = enemyCy - slashLen / 2;
         ctx.beginPath();
@@ -722,25 +767,47 @@ export function drawBattle(
         ctx.restore();
       }
 
-      // ダメージ数字（浮き上がる）
-      const floatY = enemyCy - 20 - elapsed * 0.06;
-      const alpha = Math.max(0, 1 - elapsed / 800);
-      const fontSize = Math.min(36, w / 14);
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.shadowColor = '#000';
-      ctx.shadowBlur = 4;
-      drawText(ctx, `-${anim.value}`, enemyCx, floatY, `bold ${fontSize}px serif`, '#ff3333', 'center', 'middle');
-      ctx.restore();
+      // ダメージ数字（飛行完了後から浮き上がる）
+      if (elapsed >= flyDuration) {
+        const dmgElapsed = elapsed - flyDuration;
+        const floatY = enemyCy - 20 - dmgElapsed * 0.08;
+        const alpha = Math.max(0, 1 - dmgElapsed / 500);
+        const fontSize = Math.min(36, w / 14);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        drawText(ctx, `-${anim.value}`, enemyCx, floatY, `bold ${fontSize}px serif`, '#ff3333', 'center', 'middle');
+        ctx.restore();
+      }
     } else if (anim.type === 'hit') {
-      // ヒーローへのダメージ: 画面端フラッシュ + 浮き上がるダメージ数字
-      const heroSize = Math.min(70, w * 0.12);
-      const heroCx = 20 + heroSize / 2;
-      const heroCy = 20 + heroSize / 2;
+      // 敵→プレイヤーへの攻撃: 💢アイコンが飛ぶ + 赤フラッシュ + ダメージ数字
+      const totalDuration = 800;
+      if (elapsed > totalDuration) continue;
 
-      // 画面端の赤フラッシュ（ビネット）
-      if (elapsed < 400) {
-        const flashAlpha = 0.25 * (1 - elapsed / 400);
+      // 0〜300ms: 💢アイコンが敵から味方へ飛ぶ
+      const flyDuration = 300;
+      if (elapsed < flyDuration) {
+        const progress = elapsed / flyDuration;
+        const eased = progress * progress;
+        const iconX = enemyCx + (heroCx - enemyCx) * eased;
+        const iconY = enemyCy + (heroCy - enemyCy) * eased - Math.sin(eased * Math.PI) * 30;
+        const iconAlpha = Math.min(1, progress * 3);
+        ctx.save();
+        ctx.globalAlpha = iconAlpha;
+        ctx.font = `bold ${Math.min(28, w / 16)}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#f00';
+        ctx.shadowBlur = 10;
+        ctx.fillText('💢', iconX, iconY);
+        ctx.restore();
+      }
+
+      // 300ms〜: 画面端の赤フラッシュ（ビネット）
+      if (elapsed >= flyDuration && elapsed < flyDuration + 400) {
+        const flashElapsed = elapsed - flyDuration;
+        const flashAlpha = 0.25 * (1 - flashElapsed / 400);
         const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
         grad.addColorStop(0, 'rgba(255,0,0,0)');
         grad.addColorStop(1, `rgba(255,0,0,${flashAlpha})`);
@@ -748,27 +815,26 @@ export function drawBattle(
         ctx.fillRect(0, 0, w, h);
       }
 
-      // ダメージ数字
-      const hitFloatY = heroCy - 10 - elapsed * 0.05;
-      const hitAlpha = Math.max(0, 1 - elapsed / 800);
-      const hitFontSize = Math.min(28, w / 18);
-      ctx.save();
-      ctx.globalAlpha = hitAlpha;
-      ctx.shadowColor = '#000';
-      ctx.shadowBlur = 4;
-      drawText(ctx, `-${anim.value}`, heroCx + heroSize, hitFloatY, `bold ${hitFontSize}px serif`, '#ff5555', 'center', 'middle');
-      ctx.restore();
+      // ダメージ数字（飛行完了後から浮き上がる）
+      if (elapsed >= flyDuration) {
+        const dmgElapsed = elapsed - flyDuration;
+        const hitFloatY = heroCy - 10 - dmgElapsed * 0.07;
+        const hitAlpha = Math.max(0, 1 - dmgElapsed / 500);
+        const hitFontSize = Math.min(28, w / 18);
+        ctx.save();
+        ctx.globalAlpha = hitAlpha;
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        drawText(ctx, `-${anim.value}`, heroCx, hitFloatY, `bold ${hitFontSize}px serif`, '#ff5555', 'center', 'middle');
+        ctx.restore();
+      }
     } else if (anim.type === 'guard') {
       // 完全防御: 敵側にGUARD!テキスト
       const guardDuration = 900;
       if (elapsed > guardDuration) continue;
-      const guardElapsed = elapsed;
-      const enemyCx = isLandscape ? w * 0.7 : w / 2;
-      const enemyPortraitSize = Math.min(enemyAreaH * 0.5, isLandscape ? 180 : 140);
-      const enemyCy = enemyAreaH * 0.05 + enemyPortraitSize / 2;
-      const guardFloatY = enemyCy - 20 - guardElapsed * 0.04;
-      const guardAlpha = Math.max(0, 1 - guardElapsed / guardDuration);
-      const guardScale = 1 + Math.max(0, 0.3 * (1 - guardElapsed / 200));
+      const guardFloatY = enemyCy - 20 - elapsed * 0.04;
+      const guardAlpha = Math.max(0, 1 - elapsed / guardDuration);
+      const guardScale = 1 + Math.max(0, 0.3 * (1 - elapsed / 200));
       const guardFontSize = Math.min(32, w / 15) * guardScale;
       ctx.save();
       ctx.globalAlpha = guardAlpha;
@@ -810,12 +876,13 @@ function _drawEnemy(
   areaH: number,
   enemy: import('./types').Enemy,
   isLandscape: boolean,
-  battlePhase: import('./types').BattlePhase = 'assign'
+  battlePhase: import('./types').BattlePhase = 'assign',
+  cx: number = w * 0.75,
+  cy: number = areaH * 0.35,
+  portraitSize: number = Math.min(90, w * 0.18)
 ): void {
-  const cx = isLandscape ? w * 0.7 : w / 2;
-  const portraitSize = Math.min(areaH * 0.5, isLandscape ? 180 : 140);
   const portraitX = cx - portraitSize / 2;
-  const portraitY = areaH * 0.05;
+  const portraitY = cy - portraitSize / 2;
 
   const img = getImage(enemy.portraitKey);
   if (img) {
@@ -829,45 +896,54 @@ function _drawEnemy(
     ctx.fillStyle = '#2c2c2c';
     drawRoundRect(ctx, portraitX, portraitY, portraitSize, portraitSize, 8);
     ctx.fill();
-    drawText(ctx, tn(enemy.name)[0], cx, portraitY + portraitSize / 2, `bold ${portraitSize * 0.4}px serif`, '#e74c3c', 'center', 'middle');
+    drawText(ctx, tn(enemy.name)[0], cx, cy, `bold ${portraitSize * 0.4}px serif`, '#e74c3c', 'center', 'middle');
   }
 
-  // 敵名
-  drawText(ctx, tn(enemy.name), cx, portraitY + portraitSize + 6, `bold ${Math.min(20, w / 25)}px serif`, '#fff', 'center', 'top');
+  // 名前・HPバーを顔の左側に配置
+  const textRightEdge = portraitX - 8;
+  const barW = Math.min(w * 0.28, textRightEdge - 10);
+  const barX = textRightEdge - barW;
 
-  // HP バー
-  const barW = Math.min(200, w * 0.35);
-  const barX = cx - barW / 2;
-  drawHpBar(ctx, barX, portraitY + portraitSize + 30, barW, 14, enemy.currentHp, enemy.maxHp, '#e74c3c');
-  drawText(ctx, `${enemy.currentHp}/${enemy.maxHp}`, cx, portraitY + portraitSize + 46, '13px serif', '#fff', 'center', 'top');
+  // 下寄せ: ポートレート下端から上に積み上げる
+  const portraitBottom = portraitY + portraitSize;
+  let enemyTextY = portraitBottom;
+  if (enemy.blockAmount > 0) {
+    enemyTextY -= 16;
+    drawText(ctx, `🛡 ${enemy.blockAmount}`, textRightEdge, enemyTextY, 'bold 12px serif', '#3498db', 'right', 'top');
+  }
+  enemyTextY -= 14;
+  drawText(ctx, `${enemy.currentHp}/${enemy.maxHp}`, textRightEdge, enemyTextY, '11px serif', '#ccc', 'right', 'top');
+  enemyTextY -= 14;
+  drawHpBar(ctx, barX, enemyTextY, barW, 12, enemy.currentHp, enemy.maxHp, '#e74c3c');
+  enemyTextY -= 18;
+  drawText(ctx, tn(enemy.name), textRightEdge, enemyTextY, `bold ${Math.min(16, w / 28)}px serif`, '#fff', 'right', 'top');
 
-  // インテント表示（具体的なダメージ数値付き）
-  // rollフェーズでは前回の行動を表示、それ以外では次の行動を表示
+  // 行動・能力は顔の下に配置
+  const belowY = portraitY + portraitSize + 6;
   const intentText = _intentLabelWithDmg(enemy);
   const intentColor = enemy.currentIntent === 'attack' || enemy.currentIntent === 'special' ? '#e74c3c' : '#3498db';
+  const intentFontSize = Math.min(12, w / 35);
   if (battlePhase === 'roll') {
-    drawText(ctx, `${t('battle.lastAction')}: ${intentText}`, cx, portraitY + portraitSize + 62, 'bold 14px serif', '#888', 'center', 'top');
+    drawText(ctx, `${t('battle.lastAction')}: ${intentText}`, cx, belowY, `bold ${intentFontSize}px serif`, '#888', 'center', 'top');
   } else {
-    drawText(ctx, `${t('battle.nextAction')}: ${intentText}`, cx, portraitY + portraitSize + 62, 'bold 14px serif', intentColor, 'center', 'top');
+    drawText(ctx, `${t('battle.nextAction')}: ${intentText}`, cx, belowY, `bold ${intentFontSize}px serif`, intentColor, 'center', 'top');
   }
 
-  // 攻撃力・防御力の常時表示
-  drawText(ctx, `${t('select.atk')}:${enemy.attack}  ${t('select.def')}:${enemy.defense}`, cx, portraitY + portraitSize + 80, '12px serif', '#aaa', 'center', 'top');
+  drawText(ctx, `${t('select.atk')}:${enemy.attack}  ${t('select.def')}:${enemy.defense}`, cx, belowY + 16, '11px serif', '#aaa', 'center', 'top');
 
-  // 状態異常
-  const statusY = portraitY + portraitSize + 96;
+  let statusOffsetY = 32;
   if (enemy.stunned) {
-    drawText(ctx, t('battle.stunned'), cx, statusY, 'bold 13px serif', '#9b59b6', 'center', 'top');
+    drawText(ctx, t('battle.stunned'), cx, belowY + statusOffsetY, 'bold 12px serif', '#9b59b6', 'center', 'top');
+    statusOffsetY += 16;
   }
   if (enemy.buffed) {
-    drawText(ctx, t('battle.buffed'), cx, statusY, 'bold 13px serif', '#e67e22', 'center', 'top');
+    drawText(ctx, t('battle.buffed'), cx, belowY + statusOffsetY, 'bold 12px serif', '#e67e22', 'center', 'top');
+    statusOffsetY += 16;
   }
 
-  // ボスギミック表示
   if (enemy.gimmick) {
-    const gimmickY = statusY + 16;
     const gName = _getGimmickLabel(enemy.gimmick);
-    drawText(ctx, `⚡ ${gName}`, cx, gimmickY, 'bold 12px serif', '#f39c12', 'center', 'top');
+    drawText(ctx, `⚡ ${gName}`, cx, belowY + statusOffsetY, 'bold 11px serif', '#f39c12', 'center', 'top');
   }
 }
 
@@ -897,14 +973,15 @@ function _drawHeroStatus(
   w: number,
   hero: import('./types').Hero,
   block: number,
-  canSkill: boolean = false
+  canSkill: boolean = false,
+  cx: number = w * 0.15,
+  cy: number = 65,
+  portraitSize: number = Math.min(90, w * 0.18)
 ): void {
-  const x = 20;
-  const y = 20;
+  const portraitX = cx - portraitSize / 2;
+  const portraitY = cy - portraitSize / 2;
   const factionColor = FACTION_COLORS[hero.faction];
-
   const img = getImage(hero.portraitKey);
-  const size = Math.min(70, w * 0.12);
 
   // スキル使用可能時にグローエフェクト
   if (canSkill) {
@@ -912,7 +989,7 @@ function _drawHeroStatus(
     ctx.shadowColor = '#d8a4f8';
     ctx.shadowBlur = 20;
     ctx.fillStyle = 'rgba(155,89,182,0.3)';
-    drawRoundRect(ctx, x - 4, y - 4, size + 8, size + 8, 10);
+    drawRoundRect(ctx, portraitX - 4, portraitY - 4, portraitSize + 8, portraitSize + 8, 10);
     ctx.fill();
     ctx.restore();
 
@@ -922,7 +999,7 @@ function _drawHeroStatus(
     ctx.lineWidth = 2.5;
     ctx.shadowColor = '#9b59b6';
     ctx.shadowBlur = 12;
-    drawRoundRect(ctx, x - 3, y - 3, size + 6, size + 6, 8);
+    drawRoundRect(ctx, portraitX - 3, portraitY - 3, portraitSize + 6, portraitSize + 6, 8);
     ctx.stroke();
     ctx.restore();
   }
@@ -930,32 +1007,38 @@ function _drawHeroStatus(
   if (img) {
     ctx.save();
     ctx.beginPath();
-    drawRoundRect(ctx, x, y, size, size, 6);
+    drawRoundRect(ctx, portraitX, portraitY, portraitSize, portraitSize, 6);
     ctx.clip();
-    ctx.drawImage(img, x, y, size, size);
+    ctx.drawImage(img, portraitX, portraitY, portraitSize, portraitSize);
     ctx.restore();
   } else {
     ctx.fillStyle = '#333';
-    drawRoundRect(ctx, x, y, size, size, 6);
+    drawRoundRect(ctx, portraitX, portraitY, portraitSize, portraitSize, 6);
     ctx.fill();
-    drawText(ctx, tn(hero.name)[0], x + size / 2, y + size / 2, `bold ${size * 0.4}px serif`, factionColor, 'center', 'middle');
+    drawText(ctx, tn(hero.name)[0], cx, cy, `bold ${portraitSize * 0.4}px serif`, factionColor, 'center', 'middle');
   }
 
-  // スキル使用可能ラベル
+  // スキル使用可能ラベル（ポートレート下端に帯で表示）
   if (canSkill) {
     ctx.save();
     ctx.fillStyle = 'rgba(155,89,182,0.9)';
-    drawRoundRect(ctx, x, y + size - 14, size, 16, 3);
+    drawRoundRect(ctx, portraitX, portraitY + portraitSize - 14, portraitSize, 16, 3);
     ctx.fill();
-    drawText(ctx, t('battle.skillReady'), x + size / 2, y + size - 6, 'bold 10px serif', '#fff', 'center', 'middle');
+    drawText(ctx, t('battle.skillReady'), cx, portraitY + portraitSize - 6, 'bold 10px serif', '#fff', 'center', 'middle');
     ctx.restore();
   }
 
-  drawText(ctx, tn(hero.name), x + size + 8, y + 4, 'bold 15px serif', factionColor, 'left', 'top');
-  drawHpBar(ctx, x + size + 8, y + 24, 120, 12, hero.currentHp, hero.stats.maxHp, '#2ecc71');
-  drawText(ctx, `${hero.currentHp}/${hero.stats.maxHp}`, x + size + 8, y + 38, '12px serif', '#aaa', 'left', 'top');
+  // 名前・HPバーを顔の右側に配置
+  const textX = portraitX + portraitSize + 8;
+  const textFontSize = Math.min(14, w / 30);
+  const barW = Math.min(w * 0.28, w - textX - 10);
+
+  drawText(ctx, tn(hero.name), textX, portraitY + 2, `bold ${textFontSize}px serif`, factionColor, 'left', 'top');
+  drawHpBar(ctx, textX, portraitY + 20, barW, 12, hero.currentHp, hero.stats.maxHp, '#2ecc71');
+  drawText(ctx, `${hero.currentHp}/${hero.stats.maxHp}`, textX, portraitY + 34, '11px serif', '#aaa', 'left', 'top');
+
   if (block > 0) {
-    drawText(ctx, `${t('battle.block')} ${block}`, x + size + 8, y + 54, 'bold 13px serif', '#3498db', 'left', 'top');
+    drawText(ctx, `🛡 ${t('battle.block')} ${block}`, textX, portraitY + 50, `bold ${Math.min(12, w / 35)}px serif`, '#3498db', 'left', 'top');
   }
 }
 
