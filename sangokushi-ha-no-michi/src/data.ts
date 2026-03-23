@@ -14,7 +14,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'shield', count: 1 },
       effect: 'heal',
     },
-    stats: { maxHp: 85, attack: 7, defense: 8, diceCount: 4 },
+    stats: { maxHp: 85, attack: 7, defense: 8, strategyPower: 8, diceCount: 4 },
     description: '蜀の君主。仁徳で民を癒す。',
   },
   {
@@ -30,7 +30,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'sword', count: 2 },
       effect: 'all_attack',
     },
-    stats: { maxHp: 90, attack: 10, defense: 4, diceCount: 4 },
+    stats: { maxHp: 90, attack: 10, defense: 4, strategyPower: 6, diceCount: 4 },
     description: '蜀の猛将。剣ダイスが多く攻撃力に優れる。',
   },
   {
@@ -46,7 +46,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'strategy', count: 1 },
       effect: 'buff_swords',
     },
-    stats: { maxHp: 95, attack: 9, defense: 5, diceCount: 4 },
+    stats: { maxHp: 95, attack: 9, defense: 5, strategyPower: 7, diceCount: 4 },
     description: '蜀の豪傑。咆哮で剣を強化する。',
   },
   {
@@ -59,10 +59,10 @@ export const HERO_DEFS: HeroDef[] = [
       id: 'lone_rescue',
       name: '単騎救主',
       description: '馬×2消費 → 無敵1ターン＋反撃',
-      cost: { face: 'horse', count: 2 },
+      cost: { face: 'horse', count: 3 },
       effect: 'invincible_counter',
     },
-    stats: { maxHp: 85, attack: 9, defense: 7, diceCount: 4 },
+    stats: { maxHp: 85, attack: 9, defense: 7, strategyPower: 7, diceCount: 4 },
     description: '蜀の白馬将軍。機動力と防御が光る。',
   },
   {
@@ -78,7 +78,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'strategy', count: 3 },
       effect: 'stun_enemy',
     },
-    stats: { maxHp: 75, attack: 8, defense: 4, diceCount: 4 },
+    stats: { maxHp: 75, attack: 6, defense: 4, strategyPower: 12, diceCount: 4 },
     description: '蜀の軍師。策略で敵を翻弄する。',
   },
   {
@@ -94,7 +94,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'shield', count: 1 },
       effect: 'shield_to_attack',
     },
-    stats: { maxHp: 80, attack: 8, defense: 7, diceCount: 4 },
+    stats: { maxHp: 80, attack: 7, defense: 7, strategyPower: 10, diceCount: 4 },
     description: '蜀の副軍師。守りを攻めに転じる鳳雛。',
   },
 ];
@@ -539,6 +539,12 @@ export const ADVISOR_CARDS: AdvisorCard[] = [
     effect: { type: 'upgrade_stat', stat: 'defense', amount: 3 },
   },
   {
+    id: 'upgrade_strategy',
+    name: '軍略指南',
+    description: '策略力+3',
+    effect: { type: 'upgrade_stat', stat: 'strategyPower', amount: 3 },
+  },
+  {
     id: 'upgrade_hp',
     name: '養生の術',
     description: '最大HP+20',
@@ -574,6 +580,13 @@ export const MERCHANT_ITEMS: MerchantItem[] = [
     description: '防御力+5',
     cost: 80,
     effect: { type: 'upgrade_stat', stat: 'defense', amount: 5 },
+  },
+  {
+    id: 'm_strategy_power',
+    name: '軍略書',
+    description: '策略力+5',
+    cost: 80,
+    effect: { type: 'upgrade_stat', stat: 'strategyPower', amount: 5 },
   },
   {
     id: 'm_star',

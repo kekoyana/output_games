@@ -30,7 +30,7 @@ interface SimHero {
   name: string;
   diceSet: DiceFace[];
   skill: HeroDef['skill'];
-  stats: { maxHp: number; attack: number; defense: number };
+  stats: { maxHp: number; attack: number; defense: number; strategyPower: number };
   currentHp: number;
   gold: number;
 }
@@ -159,7 +159,7 @@ function simulateBattle(hero: SimHero, enemyDef: EnemyDef, maxTurns = 30): { won
       } else if (effect === 'all_attack') {
         enemyDmg += Math.floor(hero.stats.attack * 1.5);
       } else if (effect === 'heal') {
-        const healAmt = hero.stats.defense;
+        const healAmt = 5;
         hero.currentHp = Math.min(hero.currentHp + healAmt, hero.stats.maxHp);
       } else if (effect === 'stun_enemy') {
         enemy.stunned = true;
@@ -187,7 +187,7 @@ function simulateBattle(hero: SimHero, enemyDef: EnemyDef, maxTurns = 30): { won
     }
     enemyDmg += calcSlotValue(dice.map(d => ({
       ...d, locked: false, assignedSlot: d.assignedSlot as import('../src/types').ActionSlot | null,
-    })), 'strategy', hero.stats.attack);
+    })), 'strategy', hero.stats.strategyPower);
     const block = calcSlotValue(dice.map(d => ({
       ...d, locked: false, assignedSlot: d.assignedSlot as import('../src/types').ActionSlot | null,
     })), 'defense', hero.stats.defense);
@@ -248,6 +248,8 @@ function applyEffect(hero: SimHero, effect: SimEffect): void {
       hero.stats.attack += effect.amount;
     } else if (effect.stat === 'defense' && effect.amount) {
       hero.stats.defense += effect.amount;
+    } else if (effect.stat === 'strategyPower' && effect.amount) {
+      hero.stats.strategyPower += effect.amount;
     }
   }
 }
@@ -266,7 +268,7 @@ function aiBuyItems(hero: SimHero, items: typeof MERCHANT_ITEMS): void {
 // ===== AI: 軍師カードの選択 =====
 function aiPickAdvisor(hero: SimHero, cards: typeof ADVISOR_CARDS): (typeof ADVISOR_CARDS)[number] {
   void hero;
-  const priority: Record<string, number> = { attack: 10, star: 9, sword: 8, defense: 5, maxHp: 3, shield: 4, strategy: 6, horse: 4, arrow: 7 };
+  const priority: Record<string, number> = { attack: 10, strategyPower: 9, star: 9, sword: 8, defense: 5, maxHp: 3, shield: 4, strategy: 6, horse: 4, arrow: 7 };
   let best = cards[0];
   let bestScore = -1;
   for (const card of cards) {

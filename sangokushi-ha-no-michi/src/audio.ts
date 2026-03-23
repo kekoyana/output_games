@@ -179,14 +179,14 @@ class AudioManager {
   private _playBgmTitle(nodes: BgmNodes): void {
     const ctx = this._ctx!;
 
-    // ドローン音（低音持続）
-    const droneFreqs = [73.4, 110.0, 146.8]; // D2, A2, D3
+    // ドローン音（低音持続）— 穏やかな持続音
+    const droneFreqs = [110.0, 146.8]; // A2, D3（重低音D2は除外）
     for (const freq of droneFreqs) {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
-      osc.type = 'sawtooth';
+      osc.type = 'sine';
       osc.frequency.value = freq;
-      g.gain.value = 0.04;
+      g.gain.value = 0.02;
       osc.connect(g);
       g.connect(nodes.gainNode);
       osc.start();

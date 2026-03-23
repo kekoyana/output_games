@@ -161,8 +161,8 @@ export function drawTitle(
     drawButton(ctx, rect, langLabels[lk], bg, fg, 14, 6);
   });
 
-  // 操作説明
-  drawText(ctx, t('title.controls'), w / 2, h * 0.88, '14px serif', '#666', 'center', 'middle');
+  // 操作説明（画面下端から固定マージン）
+  drawText(ctx, t('title.controls'), w / 2, h - 20, '14px serif', '#666', 'center', 'bottom');
 }
 
 export function drawCharacterSelect(
@@ -255,7 +255,7 @@ export function drawCharacterSelect(
 
     const statY = textY + 22;
     const statFont = `${Math.min(11, cardW / 14)}px serif`;
-    drawText(ctx, `${t('select.hp')}:${hero.stats.maxHp} ${t('select.atk')}:${hero.stats.attack} ${t('select.def')}:${hero.stats.defense}`, rect.x + rect.w / 2, statY, statFont, '#ccc', 'center', 'top');
+    drawText(ctx, `${t('select.hp')}:${hero.stats.maxHp} ${t('select.atk')}:${hero.stats.attack} ${t('select.def')}:${hero.stats.defense} ${t('select.str')}:${hero.stats.strategyPower}`, rect.x + rect.w / 2, statY, statFont, '#ccc', 'center', 'top');
 
     const skillY = statY + 16;
     drawText(ctx, `◆${tn(hero.skill.name)}`, rect.x + rect.w / 2, skillY, `bold ${Math.min(11, cardW / 14)}px serif`, GOLD_COLOR, 'center', 'top');
@@ -1182,7 +1182,7 @@ function _drawSlots(
       drawText(ctx, String(slotDice.length), rect.x + rect.w - 12, rect.y + 14, 'bold 12px serif', '#fff', 'center', 'middle');
 
       // 共通関数で予測値を計算
-      const baseStat = slotKey === 'defense' ? hero.stats.defense : hero.stats.attack;
+      const baseStat = slotKey === 'defense' ? hero.stats.defense : slotKey === 'strategy' ? hero.stats.strategyPower : hero.stats.attack;
       const value = calcSlotValue(dice, slotKey, baseStat);
       const unitColor = SLOT_UNIT_COLORS[slotKey] ?? '#fff';
       const unitLabelKey = slotKey === 'attack' ? 'slot.damage' : slotKey === 'defense' ? 'slot.defense.label' : 'slot.bonus';
@@ -2029,7 +2029,7 @@ export function drawLegacy(
       drawText(ctx, tn(heroDef.name), textX, rect.y + 10, 'bold 14px serif', '#fff', 'left', 'top');
 
       // ステータス
-      drawText(ctx, `HP:${heroDef.stats.maxHp} ${t('select.atk')}:${heroDef.stats.attack} ${t('select.def')}:${heroDef.stats.defense}`, textX, rect.y + 30, '11px serif', '#aaa', 'left', 'top');
+      drawText(ctx, `HP:${heroDef.stats.maxHp} ${t('select.atk')}:${heroDef.stats.attack} ${t('select.def')}:${heroDef.stats.defense} ${t('select.str')}:${heroDef.stats.strategyPower}`, textX, rect.y + 30, '11px serif', '#aaa', 'left', 'top');
 
       // 解放ボタン or 解放済
       if (isUnlocked) {

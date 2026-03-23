@@ -134,7 +134,7 @@ export function executeBattle(
       enemyDmg += bonus;
       log.push(`${tn(hero.skill.name)} ${t('log.skillAllAtk')} +${bonus}!`);
     } else if (effect === 'heal') {
-      const healAmount = hero.stats.defense;
+      const healAmount = 5;
       hero.currentHp = Math.min(hero.currentHp + healAmount, hero.stats.maxHp);
       log.push(`${tn(hero.skill.name)} ${t('log.skillHeal', { n: healAmount })}`);
     } else if (effect === 'stun_enemy') {
@@ -161,7 +161,7 @@ export function executeBattle(
   } else {
     enemyDmg += calcSlotValue(newState.dice, 'attack', hero.stats.attack);
   }
-  enemyDmg += calcSlotValue(newState.dice, 'strategy', hero.stats.attack);
+  enemyDmg += calcSlotValue(newState.dice, 'strategy', hero.stats.strategyPower);
   let block = calcSlotValue(newState.dice, 'defense', hero.stats.defense);
   // 袁術ギミック: 防御効果半減
   if (newState.enemy.gimmick === 'yuan_shu_seal') {
@@ -254,7 +254,7 @@ export function executeBattle(
 export const SLOT_MULTIPLIERS: Record<string, Partial<Record<DiceFace, number>>> = {
   attack:   { sword: 1.0, star: 1.0, arrow: 1.2, horse: 0.5, strategy: 0.3, shield: 0.2 },
   defense:  { shield: 1.0, star: 1.0, horse: 0.7, sword: 0.3, arrow: 0.3, strategy: 0.2 },
-  strategy: { strategy: 0.6, star: 0.6, sword: 0.2, arrow: 0.2 },
+  strategy: { strategy: 0.8, star: 0.8, sword: 0.2, arrow: 0.2 },
 };
 
 /** スロットに配置されたダイスの合計値を計算する */

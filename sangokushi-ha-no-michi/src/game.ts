@@ -1133,6 +1133,9 @@ export class Game {
       } else if (effect.stat === 'defense') {
         const newHero = { ...hero, stats: { ...hero.stats, defense: hero.stats.defense + effect.amount } };
         this.state = { ...this.state, hero: newHero };
+      } else if (effect.stat === 'strategyPower') {
+        const newHero = { ...hero, stats: { ...hero.stats, strategyPower: hero.stats.strategyPower + effect.amount } };
+        this.state = { ...this.state, hero: newHero };
       }
     } else if (effect.type === 'gold') {
       this.state = { ...this.state, hero: { ...hero, gold: hero.gold + effect.amount } };

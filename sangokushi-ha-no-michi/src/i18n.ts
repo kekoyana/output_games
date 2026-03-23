@@ -27,6 +27,7 @@ const UI: Translations = {
   'select.hp': { ja: 'HP', en: 'HP', zh: 'HP' },
   'select.atk': { ja: '攻', en: 'ATK', zh: '攻' },
   'select.def': { ja: '防', en: 'DEF', zh: '防' },
+  'select.str': { ja: '策', en: 'STR', zh: '策' },
 
   // マップ
   'map.chapter': { ja: '第{n}章', en: 'Chapter {n}', zh: '第{n}章' },

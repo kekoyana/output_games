@@ -42,6 +42,7 @@ export interface HeroStats {
   maxHp: number;
   attack: number;
   defense: number;
+  strategyPower: number;
   diceCount: number;
 }
 
@@ -136,7 +137,7 @@ export interface AdvisorCard {
 
 export type AdvisorEffect =
   | { type: 'add_dice'; face: DiceFace }
-  | { type: 'upgrade_stat'; stat: 'attack' | 'defense' | 'maxHp'; amount: number }
+  | { type: 'upgrade_stat'; stat: 'attack' | 'defense' | 'maxHp' | 'strategyPower'; amount: number }
   | { type: 'add_skill_slot' }
   | { type: 'gold'; amount: number };
 
