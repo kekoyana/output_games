@@ -1392,4 +1392,17 @@ export class Game {
     this.state = { ...this.state, legacyData: legacy };
     console.log(`[CHEAT] 宝玉 ${amount >= 0 ? '+' : ''}${amount} → ${legacy.legacyPoints}`);
   }
+
+  /** 全武将を解放する。使い方: __game.cheatUnlockAll() */
+  cheatUnlockAll(): void {
+    if (!import.meta.env.DEV) { console.warn('Cheats disabled in production'); return; }
+    const legacy = { ...this.state.legacyData, upgrades: { ...this.state.legacyData.upgrades } };
+    for (const upg of HERO_UNLOCK_UPGRADES) {
+      legacy.upgrades[upg.id] = 1;
+    }
+    this._saveLegacy(legacy);
+    this.state = { ...this.state, legacyData: legacy };
+    const names = HERO_UNLOCK_UPGRADES.map((u) => u.heroId);
+    console.log(`[CHEAT] 全武将解放: ${names.join(', ')}`);
+  }
 }
