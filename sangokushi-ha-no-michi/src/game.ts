@@ -257,20 +257,20 @@ export class Game {
       strategy: { x: slotStartX + (slotW + slotGap) * 2, y: slotY, w: slotW, h: slotH },
     };
 
-    // スキルボタンは味方ポートレートの下に配置
-    const heroPortraitSize = Math.min(90, w * 0.18);
-    const heroSkillX = w * 0.15 - heroPortraitSize / 2;
-    const heroSkillY = 15 + heroPortraitSize + 6; // ポートレート真下
-    const skillW = Math.min(heroPortraitSize + 60, w * 0.35);
-    this.skillBtnRect = { x: heroSkillX, y: heroSkillY, w: skillW, h: 64 };
+    // スキルボタン（スロットの下）
+    const skillW = Math.min(slotTotalW, w * 0.7);
+    const skillY = slotY + slotH + 8;
+    this.skillBtnRect = { x: panelCx - skillW / 2, y: skillY, w: skillW, h: 54 };
 
     // ヘルプボタン（右上）
     this.helpBtnRect = { x: w - 44, y: 8, w: 36, h: 36 };
 
     const btnW2 = Math.min(slotTotalW, w * 0.6);
-    const btnY = slotY + slotH + 10;
+    const btnY = skillY + 54 + 8;
     this.confirmBtnRect = { x: panelCx - btnW2 / 2, y: btnY, w: btnW2, h: 42 };
-    this.rollBtnRect = { x: panelCx - btnW2 / 2, y: btnY, w: btnW2, h: 42 };
+    // ロールボタンはダイス領域に重ねて表示
+    const rollW = Math.min(slotTotalW, w * 0.5);
+    this.rollBtnRect = { x: panelCx - rollW / 2, y: diceY, w: rollW, h: diceSize };
 
     // 軍師カード
     const aCardW = Math.min(180, (w - 60) / 3);

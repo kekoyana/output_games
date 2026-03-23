@@ -623,53 +623,53 @@ export function drawBattle(
   // アクションスロット（ドラッグ中/選択中はハイライト）
   _drawSlots(ctx, slotRects, battle.dice, hero, dragInfo, selectedDieIdx);
 
-  // ダイス描画（ドラッグ中のダイスは元位置を半透明に、選択中は光らせる）
-  // ロールアニメーション中はfakeFacesを使用して揺らす
-  const rollAnimProgress = diceRollAnim
-    ? Math.min(1, (now - diceRollAnim.startTime) / diceRollAnim.duration)
-    : 1;
-  const allFacesForAnim: DiceFace[] = ['sword', 'shield', 'strategy', 'horse', 'arrow', 'star'];
-  battle.dice.forEach((die, i) => {
-    const rect = diceRects[i];
-    if (!rect) return;
-    // ロールアニメーション中: fakeFacesをランダム切り替えで表示
-    let displayDie = die;
-    if (diceRollAnim && rollAnimProgress < 1) {
-      const flickerIdx = Math.floor(now / 60) % allFacesForAnim.length;
-      const fakeFace = i < diceRollAnim.fakeFaces.length
-        ? diceRollAnim.fakeFaces[i]
-        : allFacesForAnim[flickerIdx];
-      // 0.7秒以内はランダムフリッカー、徐々に最終値に落ち着く
-      const useFake = rollAnimProgress < 0.7 || (Math.floor(now / 80 + i * 37) % 3 !== 0);
-      displayDie = useFake ? { ...die, face: fakeFace, assignedSlot: null } : die;
-      ctx.save();
-      ctx.globalAlpha = 0.85 + Math.sin(now * 0.03 + i) * 0.1;
-    }
-    if (dragInfo && dragInfo.dieIdx === i) {
-      ctx.save();
-      ctx.globalAlpha = 0.25;
-      _drawDie(ctx, rect, displayDie);
-      ctx.restore();
-    } else if (i === selectedDieIdx && die.assignedSlot === null) {
-      ctx.save();
-      ctx.shadowColor = '#f1c40f';
-      ctx.shadowBlur = 14;
-      _drawDie(ctx, rect, displayDie);
-      drawRoundRect(ctx, rect.x - 2, rect.y - 2, rect.w + 4, rect.h + 4, 8);
-      ctx.strokeStyle = '#f1c40f';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-      ctx.restore();
-    } else {
-      _drawDie(ctx, rect, displayDie);
-    }
-    if (diceRollAnim && rollAnimProgress < 1) {
-      ctx.restore();
-    }
-  });
+  // ダイス描画（rollフェーズではダイスの代わりにロールボタンを表示）
+  if (battle.phase !== 'roll') {
+    // ロールアニメーション中はfakeFacesを使用して揺らす
+    const rollAnimProgress = diceRollAnim
+      ? Math.min(1, (now - diceRollAnim.startTime) / diceRollAnim.duration)
+      : 1;
+    const allFacesForAnim: DiceFace[] = ['sword', 'shield', 'strategy', 'horse', 'arrow', 'star'];
+    battle.dice.forEach((die, i) => {
+      const rect = diceRects[i];
+      if (!rect) return;
+      let displayDie = die;
+      if (diceRollAnim && rollAnimProgress < 1) {
+        const flickerIdx = Math.floor(now / 60) % allFacesForAnim.length;
+        const fakeFace = i < diceRollAnim.fakeFaces.length
+          ? diceRollAnim.fakeFaces[i]
+          : allFacesForAnim[flickerIdx];
+        const useFake = rollAnimProgress < 0.7 || (Math.floor(now / 80 + i * 37) % 3 !== 0);
+        displayDie = useFake ? { ...die, face: fakeFace, assignedSlot: null } : die;
+        ctx.save();
+        ctx.globalAlpha = 0.85 + Math.sin(now * 0.03 + i) * 0.1;
+      }
+      if (dragInfo && dragInfo.dieIdx === i) {
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        _drawDie(ctx, rect, displayDie);
+        ctx.restore();
+      } else if (i === selectedDieIdx && die.assignedSlot === null) {
+        ctx.save();
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 14;
+        _drawDie(ctx, rect, displayDie);
+        drawRoundRect(ctx, rect.x - 2, rect.y - 2, rect.w + 4, rect.h + 4, 8);
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        _drawDie(ctx, rect, displayDie);
+      }
+      if (diceRollAnim && rollAnimProgress < 1) {
+        ctx.restore();
+      }
+    });
+  }
 
-  // ドラッグ中のダイスをカーソル位置に描画
-  if (dragInfo && battle.dice[dragInfo.dieIdx]) {
+  // ドラッグ中のダイスをカーソル位置に描画（rollフェーズ以外）
+  if (battle.phase !== 'roll' && dragInfo && battle.dice[dragInfo.dieIdx]) {
     const die = battle.dice[dragInfo.dieIdx];
     const dieSize = diceRects[0]?.w ?? 56;
     const dragRect: Rect = {
@@ -983,27 +983,6 @@ function _drawHeroStatus(
   const factionColor = FACTION_COLORS[hero.faction];
   const img = getImage(hero.portraitKey);
 
-  // スキル使用可能時にグローエフェクト
-  if (canSkill) {
-    ctx.save();
-    ctx.shadowColor = '#d8a4f8';
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = 'rgba(155,89,182,0.3)';
-    drawRoundRect(ctx, portraitX - 4, portraitY - 4, portraitSize + 8, portraitSize + 8, 10);
-    ctx.fill();
-    ctx.restore();
-
-    // パルスアニメーション枠
-    ctx.save();
-    ctx.strokeStyle = '#d8a4f8';
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = '#9b59b6';
-    ctx.shadowBlur = 12;
-    drawRoundRect(ctx, portraitX - 3, portraitY - 3, portraitSize + 6, portraitSize + 6, 8);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   if (img) {
     ctx.save();
     ctx.beginPath();
@@ -1018,15 +997,6 @@ function _drawHeroStatus(
     drawText(ctx, tn(hero.name)[0], cx, cy, `bold ${portraitSize * 0.4}px serif`, factionColor, 'center', 'middle');
   }
 
-  // スキル使用可能ラベル（ポートレート下端に帯で表示）
-  if (canSkill) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(155,89,182,0.9)';
-    drawRoundRect(ctx, portraitX, portraitY + portraitSize - 14, portraitSize, 16, 3);
-    ctx.fill();
-    drawText(ctx, t('battle.skillReady'), cx, portraitY + portraitSize - 6, 'bold 10px serif', '#fff', 'center', 'middle');
-    ctx.restore();
-  }
 
   // 名前・HPバーを顔の右側に配置
   const textX = portraitX + portraitSize + 8;
