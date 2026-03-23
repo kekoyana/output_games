@@ -1,0 +1,17 @@
+[
+  {
+    "name": "dice_strategy",
+    "raw": "/Users/hiromichi.hirakawa/keko/create_game/output_games/sangokushi-ha-no-michi/src/assets/dice/raw/dice_strategy.png",
+    "sprite": "/Users/hiromichi.hirakawa/keko/create_game/output_games/sangokushi-ha-no-michi/src/assets/dice/dice_strategy.png"
+  },
+  {
+    "name": "dice_arrow",
+    "raw": "/Users/hiromichi.hirakawa/keko/create_game/output_games/sangokushi-ha-no-michi/src/assets/dice/raw/dice_arrow.png",
+    "sprite": "/Users/hiromichi.hirakawa/keko/create_game/output_games/sangokushi-ha-no-michi/src/assets/dice/dice_arrow.png"
+  },
+  {
+    "name": "dice_star",
+    "raw": "/Users/hiromichi.hirakawa/keko/create_game/output_games/sangokushi-ha-no-michi/src/assets/dice/raw/dice_star.png",
+    "sprite": "/Users/hiromichi.hirakawa/keko/create_game/output_games/sangokushi-ha-no-michi/src/assets/dice/dice_star.png"
+  }
+]

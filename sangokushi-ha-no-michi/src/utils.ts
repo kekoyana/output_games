@@ -111,16 +111,79 @@ export function drawHpBar(
   max: number,
   color: string
 ): void {
-  ctx.fillStyle = '#333';
-  ctx.fillRect(x, y, w, h);
-
   const ratio = clamp(current / max, 0, 1);
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w * ratio, h);
+  const r = Math.min(h / 2, 4);
 
-  ctx.strokeStyle = '#555';
+  // ベースカラーに基づいてHP割合で色を変化させる
+  // 敵（赤系 #e74c3c）と味方（緑系 #2ecc71）で異なるパレット
+  const isEnemy = color === '#e74c3c';
+  let barColorTop: string;
+  let barColorBot: string;
+  if (ratio <= 0.25) {
+    // 瀕死: 共通で暗い赤
+    barColorTop = '#ff4444';
+    barColorBot = '#881111';
+  } else if (ratio <= 0.5) {
+    // 半分以下: 敵はオレンジ系、味方は黄色系
+    barColorTop = isEnemy ? '#e67e22' : '#f1c40f';
+    barColorBot = isEnemy ? '#a05510' : '#b8860b';
+  } else {
+    // 通常: 敵は赤系、味方は緑系
+    barColorTop = isEnemy ? '#e74c3c' : '#2ecc71';
+    barColorBot = isEnemy ? '#992222' : '#1a7a44';
+  }
+
+  // 外枠: ベベル風二重線（暗い下枠 + 明るい上枠）
+  ctx.save();
+  drawRoundRect(ctx, x - 1, y - 1, w + 2, h + 2, r + 1);
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  drawRoundRect(ctx, x, y, w, h, r);
+  ctx.strokeStyle = '#666';
   ctx.lineWidth = 1;
-  ctx.strokeRect(x, y, w, h);
+  ctx.stroke();
+
+  // 背景（暗い溝）
+  drawRoundRect(ctx, x, y, w, h, r);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+
+  // HPバー本体グラデーション
+  if (ratio > 0) {
+    const barW = w * ratio;
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, barColorTop);
+    grad.addColorStop(1, barColorBot);
+    drawRoundRect(ctx, x, y, barW, h, r);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // 斜めストライプ（高級感）
+    ctx.save();
+    drawRoundRect(ctx, x, y, barW, h, r);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 3;
+    const stripeSpacing = 8;
+    for (let sx = x - h; sx < x + barW + h; sx += stripeSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(sx, y + h);
+      ctx.lineTo(sx + h, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 光沢ハイライト（上部）
+    const hlGrad = ctx.createLinearGradient(x, y, x, y + h * 0.55);
+    hlGrad.addColorStop(0, 'rgba(255,255,255,0.35)');
+    hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    drawRoundRect(ctx, x, y, barW, h * 0.55, r);
+    ctx.fillStyle = hlGrad;
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 export function wrapText(

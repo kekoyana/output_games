@@ -96,9 +96,20 @@ export function generateMap(): GameMap {
     }
   }
 
+  // 出発ノードを自動的に訪問済みにする
+  const startNode = nodes.find((n) => n.type === 'start');
+  if (startNode) {
+    startNode.visited = true;
+    startNode.available = false;
+    for (const connId of startNode.connections) {
+      const conn = nodes.find((n) => n.id === connId);
+      if (conn) conn.available = true;
+    }
+  }
+
   return {
     nodes,
-    currentNodeId: null,
+    currentNodeId: startNode?.id ?? null,
     chapter: 1,
   };
 }

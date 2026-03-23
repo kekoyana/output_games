@@ -666,9 +666,9 @@ export function drawBattle(
   // 行動確定 / ダイスロールボタン
   if (battle.phase === 'assign') {
     const hasAssigned = battle.dice.some((d) => d.assignedSlot !== null);
-    drawButton(ctx, confirmBtnRect, t('battle.confirm'), hasAssigned ? '#c0392b' : '#555', '#fff', 17, 10);
+    _drawBattleButton(ctx, confirmBtnRect, t('battle.confirm'), hasAssigned ? 'red' : 'disabled', 17);
   } else if (battle.phase === 'roll') {
-    drawButton(ctx, rollBtnRect, t('battle.roll'), '#2980b9', '#fff', 17, 10);
+    _drawBattleButton(ctx, rollBtnRect, t('battle.roll'), 'blue', 17);
   }
 
   // ヘルプボタン
@@ -959,168 +959,6 @@ function _drawHeroStatus(
   }
 }
 
-/** Canvas Path2DでDiceFaceのアイコンを描画 */
-function _drawDieIcon(ctx: CanvasRenderingContext2D, face: DiceFace, cx: number, cy: number, size: number): void {
-  const s = size * 0.38;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.fillStyle = '#fff';
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = size * 0.055;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  switch (face) {
-    case 'sword': {
-      // 交差した2本の剣
-      const bl = s * 0.85;
-      ctx.save();
-      for (let i = 0; i < 2; i++) {
-        ctx.save();
-        ctx.rotate(i === 0 ? -Math.PI / 4 : Math.PI / 4);
-        // 刀身
-        ctx.beginPath();
-        ctx.moveTo(0, -bl);
-        ctx.lineTo(0, bl * 0.55);
-        ctx.stroke();
-        // 鍔
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.35, bl * 0.3);
-        ctx.lineTo(s * 0.35, bl * 0.3);
-        ctx.stroke();
-        // 柄頭
-        ctx.beginPath();
-        ctx.arc(0, bl * 0.7, s * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-      ctx.restore();
-      break;
-    }
-    case 'shield': {
-      // 盾の形
-      ctx.beginPath();
-      ctx.moveTo(0, -s);
-      ctx.bezierCurveTo(s, -s, s * 1.1, -s * 0.2, s * 0.9, s * 0.3);
-      ctx.bezierCurveTo(s * 0.6, s * 0.85, 0, s * 1.1, 0, s * 1.1);
-      ctx.bezierCurveTo(0, s * 1.1, -s * 0.6, s * 0.85, -s * 0.9, s * 0.3);
-      ctx.bezierCurveTo(-s * 1.1, -s * 0.2, -s, -s, 0, -s);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = size * 0.06;
-      ctx.stroke();
-      // 中央の縦線
-      ctx.beginPath();
-      ctx.moveTo(0, -s * 0.7);
-      ctx.lineTo(0, s * 0.8);
-      ctx.stroke();
-      break;
-    }
-    case 'strategy': {
-      // 巻物マーク
-      const rW = s * 0.75;
-      const rH = s * 0.9;
-      ctx.beginPath();
-      ctx.rect(-rW, -rH * 0.5, rW * 2, rH);
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = size * 0.055;
-      ctx.stroke();
-      // 巻きの丸
-      for (const sy of [-rH * 0.5, rH * 0.5]) {
-        ctx.beginPath();
-        ctx.ellipse(0, sy, rW * 0.55, rH * 0.18, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      // 横線3本
-      for (let li = -1; li <= 1; li++) {
-        ctx.beginPath();
-        ctx.moveTo(-rW * 0.6, li * rH * 0.28);
-        ctx.lineTo(rW * 0.6, li * rH * 0.28);
-        ctx.lineWidth = size * 0.04;
-        ctx.stroke();
-      }
-      break;
-    }
-    case 'horse': {
-      // 馬のシンプルシルエット（胴体＋首＋頭）
-      ctx.lineWidth = size * 0.06;
-      // 胴体
-      ctx.beginPath();
-      ctx.ellipse(0, s * 0.2, s * 0.75, s * 0.38, -0.15, 0, Math.PI * 2);
-      ctx.stroke();
-      // 首
-      ctx.beginPath();
-      ctx.moveTo(s * 0.45, -s * 0.05);
-      ctx.quadraticCurveTo(s * 0.7, -s * 0.45, s * 0.55, -s * 0.85);
-      ctx.stroke();
-      // 頭
-      ctx.beginPath();
-      ctx.ellipse(s * 0.45, -s * 0.95, s * 0.22, s * 0.14, 0.4, 0, Math.PI * 2);
-      ctx.stroke();
-      // 脚4本
-      const legs: [number, number][] = [[-s * 0.55, s * 0.55], [-s * 0.2, s * 0.6], [s * 0.15, s * 0.58], [s * 0.5, s * 0.5]];
-      for (const [lx, ly] of legs) {
-        ctx.beginPath();
-        ctx.moveTo(lx, s * 0.5);
-        ctx.lineTo(lx, ly);
-        ctx.stroke();
-      }
-      break;
-    }
-    case 'arrow': {
-      // 弓と矢
-      ctx.lineWidth = size * 0.055;
-      // 弓の弦
-      ctx.beginPath();
-      ctx.arc(s * 0.8, 0, s * 1.05, Math.PI * 0.6, Math.PI * 1.4);
-      ctx.stroke();
-      // 弓弦
-      ctx.beginPath();
-      ctx.moveTo(s * 0.8 - s * 1.05 * Math.cos(Math.PI * 0.6), -s * 1.05 * Math.sin(Math.PI * 0.6));
-      ctx.lineTo(s * 0.8 - s * 1.05 * Math.cos(Math.PI * 1.4), -s * 1.05 * Math.sin(Math.PI * 1.4));
-      ctx.stroke();
-      // 矢
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.9, 0);
-      ctx.lineTo(s * 0.6, 0);
-      ctx.stroke();
-      // 矢じり
-      ctx.beginPath();
-      ctx.moveTo(s * 0.6, 0);
-      ctx.lineTo(s * 0.35, -s * 0.22);
-      ctx.lineTo(s * 0.35, s * 0.22);
-      ctx.closePath();
-      ctx.fill();
-      break;
-    }
-    case 'star': {
-      // 六芒星（ダビデの星）
-      ctx.lineWidth = size * 0.045;
-      const r1 = s * 0.95;
-      const r2 = s * 0.45;
-      for (let tri = 0; tri < 2; tri++) {
-        ctx.beginPath();
-        for (let j = 0; j < 3; j++) {
-          const angle = (Math.PI * 2 * j) / 3 + (tri === 0 ? -Math.PI / 2 : Math.PI / 2);
-          const px = Math.cos(angle) * r1;
-          const py = Math.sin(angle) * r1;
-          if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fillStyle = tri === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)';
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.stroke();
-        void r2;
-      }
-      break;
-    }
-  }
-  ctx.restore();
-}
-
 function _drawDie(ctx: CanvasRenderingContext2D, rect: Rect, die: Die): void {
   const isAssigned = die.assignedSlot !== null;
   const color = DICE_COLORS[die.face];
@@ -1170,8 +1008,8 @@ function _drawDie(ctx: CanvasRenderingContext2D, rect: Rect, die: Die): void {
     ctx.fill();
   }
 
-  // Canvas Path2D アイコン描画
-  _drawDieIcon(ctx, die.face, cx, cy - rect.h * 0.04, Math.min(rect.w, rect.h));
+  // 絵文字アイコン描画
+  drawText(ctx, DICE_LABELS[die.face], cx, cy - rect.h * 0.04, `${Math.floor(rect.h * 0.45)}px serif`, '#fff', 'center', 'middle');
 
   ctx.restore();
 
@@ -1213,22 +1051,67 @@ function _drawSlots(
     const isSelecting = selectedDieIdx >= 0 && dice[selectedDieIdx]?.assignedSlot === null;
     const highlight = isHovered || isSelecting;
 
-    if (highlight) {
-      ctx.save();
-      ctx.shadowColor = SLOT_COLORS[slotKey] ?? '#fff';
-      ctx.shadowBlur = 16;
+    const slotColor = SLOT_COLORS[slotKey] ?? '#666';
+
+    ctx.save();
+
+    // グラデーション背景
+    const bgGrad = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
+    if (highlight && isHovered) {
+      bgGrad.addColorStop(0, _shadeColor(slotColor, 30) + 'ee');
+      bgGrad.addColorStop(1, slotColor + 'aa');
+    } else if (highlight) {
+      bgGrad.addColorStop(0, 'rgba(60,40,20,0.95)');
+      bgGrad.addColorStop(1, 'rgba(40,25,10,0.95)');
+    } else {
+      bgGrad.addColorStop(0, 'rgba(40,25,12,0.88)');
+      bgGrad.addColorStop(1, 'rgba(20,12,5,0.88)');
     }
-    drawPanel(ctx, rect, highlight ? 'rgba(60,40,20,0.95)' : 'rgba(30,20,10,0.8)', SLOT_COLORS[slotKey] ?? '#666', 6);
-    if (highlight) {
+    drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
+    ctx.fillStyle = bgGrad;
+    ctx.fill();
+
+    // 枠線
+    if (isHovered) {
+      ctx.shadowColor = slotColor;
+      ctx.shadowBlur = 20;
       drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
       ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      // 内側光枠
+      ctx.shadowBlur = 0;
+      drawRoundRect(ctx, rect.x + 2.5, rect.y + 2.5, rect.w - 5, rect.h - 5, 4);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else if (highlight) {
+      ctx.shadowColor = slotColor;
+      ctx.shadowBlur = 12;
+      drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
+      ctx.strokeStyle = slotColor;
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.restore();
+    } else {
+      drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
+      ctx.strokeStyle = slotColor;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     }
 
+    // 光沢ハイライト
+    const slotHlGrad = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h * 0.45);
+    slotHlGrad.addColorStop(0, 'rgba(255,255,255,0.12)');
+    slotHlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    drawRoundRect(ctx, rect.x + 1, rect.y + 1, rect.w - 2, rect.h * 0.45, 5);
+    ctx.fillStyle = slotHlGrad;
+    ctx.fill();
+
+    ctx.restore();
+
     const slotLabelKey = slotKey === 'attack' ? 'slot.attack' : slotKey === 'defense' ? 'slot.defense' : 'slot.strategy';
-    drawText(ctx, t(slotLabelKey), rect.x + rect.w / 2, rect.y + 8, 'bold 13px serif', '#fff', 'center', 'top');
+    const labelColor = isHovered ? '#fff' : (slotColor);
+    drawText(ctx, t(slotLabelKey), rect.x + rect.w / 2, rect.y + 8, `bold 13px serif`, labelColor, 'center', 'top');
 
     if (slotDice.length > 0) {
       // カウントバッジ
@@ -1275,6 +1158,77 @@ function _getSkillEffectLabel(hero: import('./types').Hero): string {
     return t('skill.heal');
   }
   return '';
+}
+
+/** 戦闘画面専用の豪華なボタン描画（confirm / roll / skill共用） */
+function _drawBattleButton(
+  ctx: CanvasRenderingContext2D,
+  rect: Rect,
+  label: string,
+  theme: 'red' | 'blue' | 'purple' | 'disabled',
+  fontSize: number = 17
+): void {
+  const r = 10;
+
+  // テーマ別カラー定義
+  type ThemeColors = { top: string; bot: string; borderOuter: string; borderInner: string };
+  const themes: Record<'red' | 'blue' | 'purple' | 'disabled', ThemeColors> = {
+    red: { top: '#e05050', bot: '#7a1010', borderOuter: '#d4a017', borderInner: 'rgba(255,200,80,0.55)' },
+    blue: { top: '#4a9de0', bot: '#1a3d7a', borderOuter: '#d4a017', borderInner: 'rgba(255,200,80,0.55)' },
+    purple: { top: '#9b5fbf', bot: '#4a1a6a', borderOuter: '#d4a017', borderInner: 'rgba(255,200,80,0.55)' },
+    disabled: { top: '#555', bot: '#333', borderOuter: '#444', borderInner: 'rgba(80,80,80,0.4)' },
+  };
+  const c = themes[theme];
+
+  ctx.save();
+
+  // 外側金枠（ベベル下影）
+  drawRoundRect(ctx, rect.x + 1, rect.y + 2, rect.w - 2, rect.h - 2, r);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fill();
+
+  // グラデーション背景
+  const grad = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h);
+  grad.addColorStop(0, c.top);
+  grad.addColorStop(1, c.bot);
+  drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, r);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // 外枠（金色）
+  drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, r);
+  ctx.strokeStyle = c.borderOuter;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // 内側細枠（明るいベベル感）
+  drawRoundRect(ctx, rect.x + 3, rect.y + 3, rect.w - 6, rect.h - 6, r - 2);
+  ctx.strokeStyle = c.borderInner;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 光沢ハイライト（上半分）
+  const hlGrad = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.h * 0.5);
+  hlGrad.addColorStop(0, 'rgba(255,255,255,0.30)');
+  hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  drawRoundRect(ctx, rect.x + 2, rect.y + 2, rect.w - 4, rect.h * 0.5, r - 1);
+  ctx.fillStyle = hlGrad;
+  ctx.fill();
+
+  // テキスト（ドロップシャドウ）
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = theme === 'disabled' ? '#999' : '#fff';
+  ctx.font = `bold ${fontSize}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, cx, cy);
+
+  ctx.restore();
 }
 
 function _drawSkillButton(
