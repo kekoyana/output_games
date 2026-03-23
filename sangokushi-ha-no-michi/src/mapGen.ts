@@ -4,7 +4,7 @@ import { randomInt, shuffle } from './utils';
 const COLS = 7;
 const ROWS = 6;
 
-function pickNodeType(row: number, totalRows: number): NodeType {
+export function pickNodeType(row: number, totalRows: number): NodeType {
   if (row === totalRows - 1) return 'boss';
   if (row === 0) return 'start';
 

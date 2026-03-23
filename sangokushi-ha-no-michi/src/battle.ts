@@ -251,7 +251,7 @@ export function executeBattle(
 }
 
 /** ダイスの出目×スロットに対する効果倍率テーブル */
-const SLOT_MULTIPLIERS: Record<string, Partial<Record<DiceFace, number>>> = {
+export const SLOT_MULTIPLIERS: Record<string, Partial<Record<DiceFace, number>>> = {
   attack:   { sword: 1.0, star: 1.0, arrow: 1.2, horse: 0.5, strategy: 0.3, shield: 0.2 },
   defense:  { shield: 1.0, star: 1.0, horse: 0.7, sword: 0.3, arrow: 0.3, strategy: 0.2 },
   strategy: { strategy: 0.6, star: 0.6, sword: 0.2, arrow: 0.2 },
