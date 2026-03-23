@@ -222,3 +222,12 @@ export interface Rect {
   w: number;
   h: number;
 }
+
+/** バトルアニメーション種別 */
+export type BattleAnimType = 'attack' | 'hit' | 'guard' | 'skill_flash';
+
+export interface BattleAnim {
+  type: BattleAnimType;
+  value: number;
+  startTime: number;
+}

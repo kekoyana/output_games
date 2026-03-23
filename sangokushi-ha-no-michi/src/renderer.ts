@@ -1,4 +1,4 @@
-import type { GameState, MapNode, Die, Rect, LegacyData } from './types';
+import type { GameState, MapNode, Die, Rect, LegacyData, BattleAnim, DiceFace } from './types';
 import {
   drawRoundRect,
   drawButton,
@@ -523,7 +523,8 @@ export function drawBattle(
   helpBtnRect: Rect,
   dragInfo: { dieIdx: number; pos: { x: number; y: number } } | null = null,
   selectedDieIdx: number = -1,
-  battleAnims: { type: 'attack' | 'hit'; value: number; startTime: number }[] = []
+  battleAnims: BattleAnim[] = [],
+  diceRollAnim: { active: boolean; startTime: number; duration: number; fakeFaces: DiceFace[] } | null = null
 ): void {
   const battle = state.battle!;
   const hero = state.hero!;
@@ -535,6 +536,17 @@ export function drawBattle(
   const panelH = isLandscape ? h * 0.48 : h * 0.42;
   const panelY = h - panelH - 6;
   const panelW = w - 16;
+
+  // ヒット時の画面シェイク（hit animがアクティブな間）
+  const hitAnimForShake = battleAnims.find((a) => a.type === 'hit');
+  const hitElapsedForShake = hitAnimForShake ? now - hitAnimForShake.startTime : -1;
+  if (hitAnimForShake && hitElapsedForShake >= 0 && hitElapsedForShake < 300) {
+    const shakeDecay = 1 - hitElapsedForShake / 300;
+    const shakeX = (Math.random() * 2 - 1) * 5 * shakeDecay;
+    const shakeY = (Math.random() * 2 - 1) * 3 * shakeDecay;
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+  }
 
   // 敵表示エリア（上半分）— 攻撃アニメ時にシェイク
   const enemyAreaH = panelY - 10;
@@ -587,26 +599,47 @@ export function drawBattle(
   _drawSlots(ctx, slotRects, battle.dice, hero, dragInfo, selectedDieIdx);
 
   // ダイス描画（ドラッグ中のダイスは元位置を半透明に、選択中は光らせる）
+  // ロールアニメーション中はfakeFacesを使用して揺らす
+  const rollAnimProgress = diceRollAnim
+    ? Math.min(1, (now - diceRollAnim.startTime) / diceRollAnim.duration)
+    : 1;
+  const allFacesForAnim: DiceFace[] = ['sword', 'shield', 'strategy', 'horse', 'arrow', 'star'];
   battle.dice.forEach((die, i) => {
     const rect = diceRects[i];
     if (!rect) return;
+    // ロールアニメーション中: fakeFacesをランダム切り替えで表示
+    let displayDie = die;
+    if (diceRollAnim && rollAnimProgress < 1) {
+      const flickerIdx = Math.floor(now / 60) % allFacesForAnim.length;
+      const fakeFace = i < diceRollAnim.fakeFaces.length
+        ? diceRollAnim.fakeFaces[i]
+        : allFacesForAnim[flickerIdx];
+      // 0.7秒以内はランダムフリッカー、徐々に最終値に落ち着く
+      const useFake = rollAnimProgress < 0.7 || (Math.floor(now / 80 + i * 37) % 3 !== 0);
+      displayDie = useFake ? { ...die, face: fakeFace, assignedSlot: null } : die;
+      ctx.save();
+      ctx.globalAlpha = 0.85 + Math.sin(now * 0.03 + i) * 0.1;
+    }
     if (dragInfo && dragInfo.dieIdx === i) {
       ctx.save();
       ctx.globalAlpha = 0.25;
-      _drawDie(ctx, rect, die);
+      _drawDie(ctx, rect, displayDie);
       ctx.restore();
     } else if (i === selectedDieIdx && die.assignedSlot === null) {
       ctx.save();
       ctx.shadowColor = '#f1c40f';
       ctx.shadowBlur = 14;
-      _drawDie(ctx, rect, die);
+      _drawDie(ctx, rect, displayDie);
       drawRoundRect(ctx, rect.x - 2, rect.y - 2, rect.w + 4, rect.h + 4, 8);
       ctx.strokeStyle = '#f1c40f';
       ctx.lineWidth = 2.5;
       ctx.stroke();
       ctx.restore();
     } else {
-      _drawDie(ctx, rect, die);
+      _drawDie(ctx, rect, displayDie);
+    }
+    if (diceRollAnim && rollAnimProgress < 1) {
+      ctx.restore();
     }
   });
 
@@ -716,16 +749,48 @@ export function drawBattle(
       }
 
       // ダメージ数字
-      const floatY = heroCy - 10 - elapsed * 0.05;
-      const alpha = Math.max(0, 1 - elapsed / 800);
-      const fontSize = Math.min(28, w / 18);
+      const hitFloatY = heroCy - 10 - elapsed * 0.05;
+      const hitAlpha = Math.max(0, 1 - elapsed / 800);
+      const hitFontSize = Math.min(28, w / 18);
       ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = hitAlpha;
       ctx.shadowColor = '#000';
       ctx.shadowBlur = 4;
-      drawText(ctx, `-${anim.value}`, heroCx + heroSize, floatY, `bold ${fontSize}px serif`, '#ff5555', 'center', 'middle');
+      drawText(ctx, `-${anim.value}`, heroCx + heroSize, hitFloatY, `bold ${hitFontSize}px serif`, '#ff5555', 'center', 'middle');
+      ctx.restore();
+    } else if (anim.type === 'guard') {
+      // 完全防御: 敵側にGUARD!テキスト
+      const guardDuration = 900;
+      if (elapsed > guardDuration) continue;
+      const guardElapsed = elapsed;
+      const enemyCx = isLandscape ? w * 0.7 : w / 2;
+      const enemyPortraitSize = Math.min(enemyAreaH * 0.5, isLandscape ? 180 : 140);
+      const enemyCy = enemyAreaH * 0.05 + enemyPortraitSize / 2;
+      const guardFloatY = enemyCy - 20 - guardElapsed * 0.04;
+      const guardAlpha = Math.max(0, 1 - guardElapsed / guardDuration);
+      const guardScale = 1 + Math.max(0, 0.3 * (1 - guardElapsed / 200));
+      const guardFontSize = Math.min(32, w / 15) * guardScale;
+      ctx.save();
+      ctx.globalAlpha = guardAlpha;
+      ctx.shadowColor = '#3af';
+      ctx.shadowBlur = 12;
+      drawText(ctx, 'GUARD!', enemyCx, guardFloatY, `bold ${guardFontSize}px serif`, '#7df', 'center', 'middle');
+      ctx.restore();
+    } else if (anim.type === 'skill_flash') {
+      // スキル発動フラッシュ: 画面全体に白いオーバーレイ
+      const flashDuration = 500;
+      if (elapsed > flashDuration) continue;
+      const flashAlpha = 0.35 * Math.max(0, 1 - elapsed / flashDuration);
+      ctx.save();
+      ctx.fillStyle = `rgba(255,255,200,${flashAlpha})`;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
+  }
+
+  // ヒット時の画面シェイク終了
+  if (hitAnimForShake && hitElapsedForShake >= 0 && hitElapsedForShake < 300) {
+    ctx.restore();
   }
 
   // ヘルプオーバーレイ
@@ -894,43 +959,243 @@ function _drawHeroStatus(
   }
 }
 
+/** Canvas Path2DでDiceFaceのアイコンを描画 */
+function _drawDieIcon(ctx: CanvasRenderingContext2D, face: DiceFace, cx: number, cy: number, size: number): void {
+  const s = size * 0.38;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = size * 0.055;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  switch (face) {
+    case 'sword': {
+      // 交差した2本の剣
+      const bl = s * 0.85;
+      ctx.save();
+      for (let i = 0; i < 2; i++) {
+        ctx.save();
+        ctx.rotate(i === 0 ? -Math.PI / 4 : Math.PI / 4);
+        // 刀身
+        ctx.beginPath();
+        ctx.moveTo(0, -bl);
+        ctx.lineTo(0, bl * 0.55);
+        ctx.stroke();
+        // 鍔
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.35, bl * 0.3);
+        ctx.lineTo(s * 0.35, bl * 0.3);
+        ctx.stroke();
+        // 柄頭
+        ctx.beginPath();
+        ctx.arc(0, bl * 0.7, s * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      break;
+    }
+    case 'shield': {
+      // 盾の形
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.bezierCurveTo(s, -s, s * 1.1, -s * 0.2, s * 0.9, s * 0.3);
+      ctx.bezierCurveTo(s * 0.6, s * 0.85, 0, s * 1.1, 0, s * 1.1);
+      ctx.bezierCurveTo(0, s * 1.1, -s * 0.6, s * 0.85, -s * 0.9, s * 0.3);
+      ctx.bezierCurveTo(-s * 1.1, -s * 0.2, -s, -s, 0, -s);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = size * 0.06;
+      ctx.stroke();
+      // 中央の縦線
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.7);
+      ctx.lineTo(0, s * 0.8);
+      ctx.stroke();
+      break;
+    }
+    case 'strategy': {
+      // 巻物マーク
+      const rW = s * 0.75;
+      const rH = s * 0.9;
+      ctx.beginPath();
+      ctx.rect(-rW, -rH * 0.5, rW * 2, rH);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = size * 0.055;
+      ctx.stroke();
+      // 巻きの丸
+      for (const sy of [-rH * 0.5, rH * 0.5]) {
+        ctx.beginPath();
+        ctx.ellipse(0, sy, rW * 0.55, rH * 0.18, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // 横線3本
+      for (let li = -1; li <= 1; li++) {
+        ctx.beginPath();
+        ctx.moveTo(-rW * 0.6, li * rH * 0.28);
+        ctx.lineTo(rW * 0.6, li * rH * 0.28);
+        ctx.lineWidth = size * 0.04;
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'horse': {
+      // 馬のシンプルシルエット（胴体＋首＋頭）
+      ctx.lineWidth = size * 0.06;
+      // 胴体
+      ctx.beginPath();
+      ctx.ellipse(0, s * 0.2, s * 0.75, s * 0.38, -0.15, 0, Math.PI * 2);
+      ctx.stroke();
+      // 首
+      ctx.beginPath();
+      ctx.moveTo(s * 0.45, -s * 0.05);
+      ctx.quadraticCurveTo(s * 0.7, -s * 0.45, s * 0.55, -s * 0.85);
+      ctx.stroke();
+      // 頭
+      ctx.beginPath();
+      ctx.ellipse(s * 0.45, -s * 0.95, s * 0.22, s * 0.14, 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+      // 脚4本
+      const legs: [number, number][] = [[-s * 0.55, s * 0.55], [-s * 0.2, s * 0.6], [s * 0.15, s * 0.58], [s * 0.5, s * 0.5]];
+      for (const [lx, ly] of legs) {
+        ctx.beginPath();
+        ctx.moveTo(lx, s * 0.5);
+        ctx.lineTo(lx, ly);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'arrow': {
+      // 弓と矢
+      ctx.lineWidth = size * 0.055;
+      // 弓の弦
+      ctx.beginPath();
+      ctx.arc(s * 0.8, 0, s * 1.05, Math.PI * 0.6, Math.PI * 1.4);
+      ctx.stroke();
+      // 弓弦
+      ctx.beginPath();
+      ctx.moveTo(s * 0.8 - s * 1.05 * Math.cos(Math.PI * 0.6), -s * 1.05 * Math.sin(Math.PI * 0.6));
+      ctx.lineTo(s * 0.8 - s * 1.05 * Math.cos(Math.PI * 1.4), -s * 1.05 * Math.sin(Math.PI * 1.4));
+      ctx.stroke();
+      // 矢
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.9, 0);
+      ctx.lineTo(s * 0.6, 0);
+      ctx.stroke();
+      // 矢じり
+      ctx.beginPath();
+      ctx.moveTo(s * 0.6, 0);
+      ctx.lineTo(s * 0.35, -s * 0.22);
+      ctx.lineTo(s * 0.35, s * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'star': {
+      // 六芒星（ダビデの星）
+      ctx.lineWidth = size * 0.045;
+      const r1 = s * 0.95;
+      const r2 = s * 0.45;
+      for (let tri = 0; tri < 2; tri++) {
+        ctx.beginPath();
+        for (let j = 0; j < 3; j++) {
+          const angle = (Math.PI * 2 * j) / 3 + (tri === 0 ? -Math.PI / 2 : Math.PI / 2);
+          const px = Math.cos(angle) * r1;
+          const py = Math.sin(angle) * r1;
+          if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = tri === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+        void r2;
+      }
+      break;
+    }
+  }
+  ctx.restore();
+}
+
 function _drawDie(ctx: CanvasRenderingContext2D, rect: Rect, die: Die): void {
   const isAssigned = die.assignedSlot !== null;
   const color = DICE_COLORS[die.face];
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const r = Math.min(rect.w, rect.h) * 0.12;
 
   ctx.save();
+
   if (isAssigned) {
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.55;
   }
 
-  // 木製ダイス風
+  // 豪華なグラデーション背景（面タイプカラーベース: 暗→明→暗）
   const grad = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
-  grad.addColorStop(0, '#8B4513');
-  grad.addColorStop(0.5, '#A0522D');
-  grad.addColorStop(1, '#6B3410');
-  drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, 6);
+  // color をHEXから暗め/明るめに変換
+  grad.addColorStop(0, _shadeColor(color, -60));
+  grad.addColorStop(0.4, _shadeColor(color, 20));
+  grad.addColorStop(1, _shadeColor(color, -50));
+  drawRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, r);
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // 色付き外枠
-  ctx.strokeStyle = isAssigned ? '#444' : color;
-  ctx.lineWidth = 2;
+  // 金色ベベル風二重外枠
+  drawRoundRect(ctx, rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2, r);
+  ctx.strokeStyle = isAssigned ? '#555' : '#d4a017';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  drawRoundRect(ctx, rect.x + 3.5, rect.y + 3.5, rect.w - 7, rect.h - 7, r * 0.7);
+  ctx.strokeStyle = isAssigned ? '#333' : 'rgba(255,210,80,0.45)';
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  // アイコン
-  drawText(ctx, DICE_LABELS[die.face], rect.x + rect.w / 2, rect.y + rect.h / 2 - 2, `${rect.h * 0.45}px serif`, '#fff', 'center', 'middle');
+  // ハイライト（左上に半透明の白）
+  const hlGrad = ctx.createLinearGradient(rect.x, rect.y, cx, cy);
+  hlGrad.addColorStop(0, 'rgba(255,255,255,0.28)');
+  hlGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  drawRoundRect(ctx, rect.x + 2, rect.y + 2, rect.w - 4, rect.h - 4, r * 0.8);
+  ctx.fillStyle = hlGrad;
+  ctx.fill();
+
+  // 割り当て済みの場合スロットカラーで内側をうっすら光らせる
+  if (isAssigned && die.assignedSlot && die.assignedSlot !== 'skill') {
+    const slotGlow = SLOT_COLORS[die.assignedSlot] ?? color;
+    ctx.fillStyle = `${slotGlow}33`;
+    drawRoundRect(ctx, rect.x + 4, rect.y + 4, rect.w - 8, rect.h - 8, r * 0.6);
+    ctx.fill();
+  }
+
+  // Canvas Path2D アイコン描画
+  _drawDieIcon(ctx, die.face, cx, cy - rect.h * 0.04, Math.min(rect.w, rect.h));
 
   ctx.restore();
 
-  // 割り当て済みスロット名
+  // 割り当て済みスロット名ラベル
   if (isAssigned && die.assignedSlot !== 'skill') {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    const slotKey = die.assignedSlot ?? 'attack';
+    const slotColor = SLOT_COLORS[slotKey] ?? '#666';
+    ctx.save();
+    ctx.fillStyle = `${slotColor}cc`;
     drawRoundRect(ctx, rect.x, rect.y + rect.h - 16, rect.w, 16, 3);
     ctx.fill();
-    const slotKey = die.assignedSlot ?? 'attack';
     const slotAbbrKey = slotKey === 'attack' ? 'slot.abbr.atk' : slotKey === 'defense' ? 'slot.abbr.def' : slotKey === 'strategy' ? 'slot.abbr.str' : 'slot.abbr.skill';
     drawText(ctx, t(slotAbbrKey), rect.x + rect.w / 2, rect.y + rect.h - 8, 'bold 11px serif', '#fff', 'center', 'middle');
+    ctx.restore();
   }
+}
+
+/** HEX色をdeltaぶん明暗調整してHEX文字列で返す */
+function _shadeColor(hex: string, delta: number): string {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + delta));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + delta));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + delta));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
 function _drawSlots(

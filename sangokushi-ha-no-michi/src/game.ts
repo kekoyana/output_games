@@ -6,6 +6,8 @@ import type {
   AdvisorCard,
   MerchantItem,
   GameEvent,
+  BattleAnim,
+  DiceFace,
 } from './types';
 import {
   HERO_DEFS,
@@ -45,6 +47,7 @@ import {
 } from './renderer';
 import { choose, shuffle, clamp } from './utils';
 import { setLang, t, type Lang } from './i18n';
+import { initAudio, playBgm, playSfx, toggleMute } from './audio';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -92,12 +95,17 @@ export class Game {
   private legacyResetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   // バトルアニメーション
-  private battleAnims: {
-    type: 'attack' | 'hit';
-    value: number;
-    startTime: number;
-  }[] = [];
+  private battleAnims: BattleAnim[] = [];
   private animBlocked: boolean = false;
+
+  // ダイスロールアニメーション
+  private diceRollAnim: {
+    active: boolean;
+    startTime: number;
+    duration: number;
+    fakeFaces: DiceFace[];
+    finalBattle: import('./types').BattleState | null;
+  } = { active: false, startTime: 0, duration: 500, fakeFaces: [], finalBattle: null };
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -311,6 +319,24 @@ export class Game {
   }
 
   private _setupInput(): void {
+    // 最初のユーザー操作で AudioContext を初期化（ブラウザ制約）
+    let audioInited = false;
+    const onFirstInteraction = (): void => {
+      if (audioInited) return;
+      audioInited = true;
+      initAudio();
+      playBgm('title');
+    };
+    this.canvas.addEventListener('pointerdown', onFirstInteraction);
+    this.canvas.addEventListener('touchstart', onFirstInteraction);
+
+    // Mキーでミュートトグル
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'm' || e.key === 'M') {
+        toggleMute();
+      }
+    });
+
     this.canvas.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       const p = this._toCanvasPos(e);
@@ -495,6 +521,7 @@ export class Game {
     } else if (phase === 'synopsis') {
       const startMapTutorial = this.state.mapTutorialStep === 0;
       this.state = { ...this.state, phase: 'map', mapTutorialStep: startMapTutorial ? 1 : this.state.mapTutorialStep };
+      playBgm('map');
     } else if (phase === 'map') {
       if (this.state.mapTutorialStep >= 1) {
         const next = this.state.mapTutorialStep + 1;
@@ -522,6 +549,7 @@ export class Game {
       if (pointInRect(p, this.retryBtnRect)) {
         this._finishRun();
         this.state = { ...this.state, phase: 'legacy' };
+        playBgm('title');
       }
     }
   }
@@ -650,8 +678,8 @@ export class Game {
   private _earnLegacyPoints(): number {
     const { chaptersReached, enemiesDefeated, bossesDefeated } = this.state;
     const cleared = this.state.phase === 'ending';
-    let pts = chaptersReached * 15 + enemiesDefeated * 5 + bossesDefeated * 25;
-    if (cleared) pts += 60;
+    let pts = chaptersReached * 20 + enemiesDefeated * 8 + bossesDefeated * 40;
+    if (cleared) pts += 100;
     return pts;
   }
 
@@ -736,17 +764,22 @@ export class Game {
         tutorialStep: startTutorial ? 1 : state.tutorialStep,
       };
       this._recalcLayout();
+      playBgm('battle');
     } else if (node.type === 'advisor') {
       const cards = shuffle([...ADVISOR_CARDS]).slice(0, 3) as AdvisorCard[];
       this.state = { ...state, phase: 'advisor', advisorCards: cards };
+      playBgm('map');
     } else if (node.type === 'merchant') {
       const items = shuffle([...MERCHANT_ITEMS]).slice(0, 3) as MerchantItem[];
       this.state = { ...state, phase: 'merchant', merchantItems: items };
+      playBgm('map');
     } else if (node.type === 'rest') {
       this.state = { ...state, phase: 'rest' };
+      playBgm('map');
     } else if (node.type === 'event') {
       const event = choose(GAME_EVENTS);
       this.state = { ...state, phase: 'event', currentEvent: event };
+      playBgm('map');
     } else if (node.type === 'start') {
       // 開始マス: 何も起きずマップに戻る
       this.state = { ...state, phase: 'map' };
@@ -831,10 +864,25 @@ export class Game {
     }
 
     if (battle.phase === 'roll') {
-      if (pointInRect(p, this.rollBtnRect)) {
+      if (pointInRect(p, this.rollBtnRect) && !this.diceRollAnim.active) {
+        playSfx('dice_roll');
         const newBattle = rerollDice(battle);
-        this.state = { ...this.state, battle: newBattle };
-        this.selectedDieIdx = -1;
+        const allFaces: DiceFace[] = ['sword', 'shield', 'strategy', 'horse', 'arrow', 'star'];
+        // ロールアニメーション: 0.5秒間ランダム表示後に実際の結果へ
+        this.diceRollAnim = {
+          active: true,
+          startTime: performance.now(),
+          duration: 500,
+          fakeFaces: newBattle.dice.map(() => allFaces[Math.floor(Math.random() * allFaces.length)]),
+          finalBattle: newBattle,
+        };
+        this.animBlocked = true;
+        setTimeout(() => {
+          this.diceRollAnim = { active: false, startTime: 0, duration: 500, fakeFaces: [], finalBattle: null };
+          this.state = { ...this.state, battle: newBattle };
+          this.animBlocked = false;
+          this.selectedDieIdx = -1;
+        }, 500);
       }
       return;
     }
@@ -867,6 +915,13 @@ export class Game {
         if (canActivateSkill(battle, hero)) {
           const newBattle = activateSkill(battle, hero);
           this.state = { ...this.state, battle: newBattle };
+          playSfx('skill');
+          // スキル発動フラッシュエフェクト
+          const nowSkill = performance.now();
+          this.battleAnims = [{ type: 'skill_flash', value: 0, startTime: nowSkill }];
+          setTimeout(() => {
+            this.battleAnims = this.battleAnims.filter((a) => a.type !== 'skill_flash');
+          }, 500);
         }
         return;
       }
@@ -889,9 +944,15 @@ export class Game {
         this.battleAnims = [];
         if (enemyDmg > 0) {
           this.battleAnims.push({ type: 'attack', value: enemyDmg, startTime: now });
+          playSfx('hit');
+        } else {
+          // 0ダメージ = 完全防御: GUARD!表示
+          this.battleAnims.push({ type: 'guard', value: 0, startTime: now });
         }
         if (heroDmg > 0) {
           this.battleAnims.push({ type: 'hit', value: heroDmg, startTime: now + 600 });
+          // 防御成功（ブロックあり）か被ダメージかで音を出し分け
+          setTimeout(() => { playSfx('defend'); }, 600);
         }
 
         // アニメーション中は操作ブロック、終了後に状態反映
@@ -905,8 +966,11 @@ export class Game {
           this.animBlocked = false;
           this.battleAnims = [];
           if (newHp <= 0) {
+            playSfx('defeat');
             this.state = { ...this.state, phase: 'game_over' };
           } else if (newBattle.enemy.currentHp <= 0) {
+            playSfx('victory');
+            playBgm('map');
             const nodeType = this.state.map?.nodes.find((n) => n.id === this.state.map?.currentNodeId)?.type ?? 'battle';
             const gold = getGoldReward(nodeType, this.state.map?.chapter ?? 1);
             const wasBoss = newBattle.enemy.isBoss;
@@ -934,19 +998,23 @@ export class Game {
 
     const newHero = { ...hero, gold: hero.gold + rewardInfo.goldEarned };
 
+    playSfx('coin');
     if (rewardInfo.isBoss) {
       const currentChapter = this.state.map?.chapter ?? 1;
       if (currentChapter >= 5) {
         this.state = { ...this.state, hero: newHero, phase: 'ending', battle: null, rewardInfo: null, chaptersReached: currentChapter };
+        playBgm('title');
       } else {
         const newMap = generateMap();
         newMap.chapter = currentChapter + 1;
         this.state = { ...this.state, hero: newHero, battle: null, map: newMap, phase: 'synopsis', rewardInfo: null, chaptersReached: currentChapter };
         this.mapScrollY = 0;
         this._recalcLayout();
+        playBgm('title');
       }
     } else {
       this.state = { ...this.state, hero: newHero, battle: null, phase: 'map', rewardInfo: null };
+      playBgm('map');
     }
   }
 
@@ -955,6 +1023,7 @@ export class Game {
       if (pointInRect(p, rect)) {
         const card = this.state.advisorCards[i];
         if (card) {
+          playSfx('buff');
           this._applyAdvisorCard(card);
           this.state = { ...this.state, phase: 'map', advisorCards: [] };
         }
@@ -988,6 +1057,7 @@ export class Game {
 
   private _handleMerchantClick(p: { x: number; y: number }): void {
     if (pointInRect(p, this.merchantLeaveRect)) {
+      playSfx('click');
       this.state = { ...this.state, phase: 'map', merchantItems: [] };
       return;
     }
@@ -996,6 +1066,7 @@ export class Game {
         const item = this.state.merchantItems[i];
         const hero = this.state.hero;
         if (item && hero && hero.gold >= item.cost) {
+          playSfx('coin');
           const newHero = { ...hero, gold: hero.gold - item.cost };
           const newItems = this.state.merchantItems.filter((_, idx) => idx !== i);
           this.state = { ...this.state, hero: newHero, merchantItems: newItems };
@@ -1012,8 +1083,10 @@ export class Game {
       const healPercent = (30 + this._calcLegacyBonuses(this.state.legacyData).healPercent) / 100;
       const heal = Math.floor(hero.stats.maxHp * healPercent);
       const newHp = clamp(hero.currentHp + heal, 0, hero.stats.maxHp);
+      playSfx('heal');
       this.state = { ...this.state, hero: { ...hero, currentHp: newHp }, phase: 'map' };
     } else if (pointInRect(p, this.restLeaveRect)) {
+      playSfx('click');
       this.state = { ...this.state, phase: 'map' };
     }
   }
@@ -1088,7 +1161,7 @@ export class Game {
       const dragInfo = this.isDragging && this.draggingDieIdx >= 0
         ? { dieIdx: this.draggingDieIdx, pos: this.dragPos }
         : null;
-      drawBattle(ctx, w, h, this.state, this.diceRects, this.slotRects, this.skillBtnRect, this.confirmBtnRect, this.rollBtnRect, this.helpBtnRect, dragInfo, this.selectedDieIdx, this.battleAnims);
+      drawBattle(ctx, w, h, this.state, this.diceRects, this.slotRects, this.skillBtnRect, this.confirmBtnRect, this.rollBtnRect, this.helpBtnRect, dragInfo, this.selectedDieIdx, this.battleAnims, this.diceRollAnim.active ? this.diceRollAnim : null);
     } else if (phase === 'advisor') {
       drawAdvisor(ctx, w, h, this.state.advisorCards, this.advisorRects);
     } else if (phase === 'merchant' && hero) {
