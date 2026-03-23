@@ -41,8 +41,9 @@ async function main() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
-  // スマホでタッチ操作がブラウザスクロールに奪われるのを防止
+  // スマホでタッチ操作がブラウザスクロールやスワイプバックに奪われるのを防止
   canvas.style.touchAction = 'none';
+  document.body.style.overscrollBehavior = 'none';
 
   // 画像を先に読み込む
   await loadImages(IMAGE_PATHS);

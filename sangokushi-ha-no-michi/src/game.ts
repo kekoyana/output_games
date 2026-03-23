@@ -334,8 +334,8 @@ export class Game {
     });
 
     this.canvas.addEventListener('pointermove', (e) => {
+      e.preventDefault();
       if (this.draggingDieIdx >= 0) {
-        e.preventDefault();
         const p = this._toCanvasPos(e);
         this.dragPos = p;
         this.isDragging = true;
