@@ -197,6 +197,7 @@ const UI: Translations = {
   'node.rest': { ja: '休息', en: 'Rest', zh: '休息' },
   'node.event': { ja: '？', en: '?', zh: '？' },
   'node.boss': { ja: '☠ ボス', en: '☠ Boss', zh: '☠ Boss' },
+  'node.start': { ja: '出発', en: 'Start', zh: '出发' },
 
   // 陣営
   'faction.shu': { ja: '蜀', en: 'Shu', zh: '蜀' },

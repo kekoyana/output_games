@@ -747,6 +747,9 @@ export class Game {
     } else if (node.type === 'event') {
       const event = choose(GAME_EVENTS);
       this.state = { ...state, phase: 'event', currentEvent: event };
+    } else if (node.type === 'start') {
+      // 開始マス: 何も起きずマップに戻る
+      this.state = { ...state, phase: 'map' };
     }
   }
 

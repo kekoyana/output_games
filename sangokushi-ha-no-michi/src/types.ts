@@ -62,7 +62,7 @@ export interface Hero extends HeroDef {
   upgrades: string[];
 }
 
-export type NodeType = 'battle' | 'elite' | 'advisor' | 'merchant' | 'rest' | 'event' | 'boss';
+export type NodeType = 'battle' | 'elite' | 'advisor' | 'merchant' | 'rest' | 'event' | 'boss' | 'start';
 
 export interface MapNode {
   id: number;

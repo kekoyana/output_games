@@ -6,7 +6,7 @@ const ROWS = 6;
 
 function pickNodeType(row: number, totalRows: number): NodeType {
   if (row === totalRows - 1) return 'boss';
-  if (row === 0) return 'battle';
+  if (row === 0) return 'start';
 
   const roll = randomInt(1, 100);
   if (row === Math.floor(totalRows / 2)) {

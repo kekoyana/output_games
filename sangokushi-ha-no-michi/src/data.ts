@@ -733,6 +733,7 @@ export const NODE_COLORS: Record<string, string> = {
   rest: '#2980b9',
   event: '#7f8c8d',
   boss: '#2c3e50',
+  start: '#95a5a6',
 };
 
 export const NODE_LABELS: Record<string, string> = {
@@ -743,6 +744,7 @@ export const NODE_LABELS: Record<string, string> = {
   rest: '休息',
   event: '？',
   boss: '☠ ボス',
+  start: '出発',
 };
 
 export const FACTION_COLORS: Record<string, string> = {
