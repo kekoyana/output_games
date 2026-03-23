@@ -48,7 +48,7 @@ import {
 } from './renderer';
 import { choose, shuffle, clamp } from './utils';
 import { setLang, t, type Lang } from './i18n';
-import { initAudio, playBgm, playSfx, toggleMute } from './audio';
+import { initAudio, playBgm, playSfx, toggleMute, isMuted } from './audio';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -95,6 +95,7 @@ export class Game {
   private legacyBackRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private legacyResetRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private continueBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private muteBtnRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
 
   // バトルアニメーション
   private battleAnims: BattleAnim[] = [];
@@ -152,6 +153,9 @@ export class Game {
   private _recalcLayout(): void {
     const w = this.canvas.width;
     const h = this.canvas.height;
+
+    // ミュートボタン（左上に常時表示）
+    this.muteBtnRect = { x: 10, y: 10, w: 36, h: 36 };
 
     // スタートボタン
     const btnW = Math.min(220, w * 0.5);
@@ -481,6 +485,12 @@ export class Game {
 
   private _handleClick(p: { x: number; y: number }): void {
     const { phase } = this.state;
+
+    // ミュートボタン（全画面共通）
+    if (pointInRect(p, this.muteBtnRect)) {
+      toggleMute();
+      return;
+    }
 
     if (phase === 'title') {
       // 言語選択
@@ -1275,6 +1285,22 @@ export class Game {
     } else if (phase === 'ending' && hero) {
       drawEnding(ctx, w, h, hero.name, this.retryBtnRect);
     }
+
+    // ミュートボタン（全画面共通、最前面に描画）
+    const mb = this.muteBtnRect;
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(mb.x + mb.w / 2, mb.y + mb.h / 2, mb.w / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isMuted() ? '\u{1F507}' : '\u{1F50A}', mb.x + mb.w / 2, mb.y + mb.h / 2);
+    ctx.restore();
   }
 
   start(): void {

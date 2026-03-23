@@ -14,7 +14,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'shield', count: 1 },
       effect: 'heal',
     },
-    stats: { maxHp: 85, attack: 7, defense: 8, strategyPower: 8, diceCount: 4 },
+    stats: { maxHp: 85, attack: 6, defense: 8, strategyPower: 8, diceCount: 4 },
     description: '蜀の君主。仁徳で民を癒す。',
   },
   {
@@ -26,12 +26,12 @@ export const HERO_DEFS: HeroDef[] = [
     skill: {
       id: 'blue_dragon',
       name: '青龍偃月刀',
-      description: '剣×2消費 → 渾身の一撃（攻撃力×1.5の追加ダメージ）',
-      cost: { face: 'sword', count: 2 },
+      description: '剣×1消費 → 渾身の一撃（攻撃力×1.5の追加ダメージ）',
+      cost: { face: 'sword', count: 1 },
       effect: 'all_attack',
     },
-    stats: { maxHp: 90, attack: 10, defense: 4, strategyPower: 6, diceCount: 4 },
-    description: '蜀の猛将。剣ダイスが多く攻撃力に優れる。',
+    stats: { maxHp: 95, attack: 9, defense: 6, strategyPower: 8, diceCount: 4 },
+    description: '蜀の猛将。武勇と策略を兼ね備える。',
   },
   {
     id: 'zhang_fei',
@@ -46,7 +46,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'strategy', count: 1 },
       effect: 'buff_swords',
     },
-    stats: { maxHp: 95, attack: 9, defense: 5, strategyPower: 7, diceCount: 4 },
+    stats: { maxHp: 95, attack: 10, defense: 5, strategyPower: 6, diceCount: 4 },
     description: '蜀の豪傑。咆哮で剣を強化する。',
   },
   {
@@ -62,7 +62,7 @@ export const HERO_DEFS: HeroDef[] = [
       cost: { face: 'horse', count: 3 },
       effect: 'invincible_counter',
     },
-    stats: { maxHp: 85, attack: 9, defense: 7, strategyPower: 7, diceCount: 4 },
+    stats: { maxHp: 80, attack: 8, defense: 7, strategyPower: 7, diceCount: 4 },
     description: '蜀の白馬将軍。機動力と防御が光る。',
   },
   {
@@ -89,7 +89,7 @@ export const HERO_DEFS: HeroDef[] = [
     diceSet: ['shield', 'shield', 'sword', 'strategy'],
     skill: {
       id: 'benevolence',
-      name: '仁徳の御旗',
+      name: '鳳凰の雛',
       description: '盾×1消費 → 防御を攻撃に転用（盾の数×攻撃力）',
       cost: { face: 'shield', count: 1 },
       effect: 'shield_to_attack',

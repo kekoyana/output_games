@@ -600,3 +600,7 @@ export function setMasterVolume(v: number): void {
 export function toggleMute(): boolean {
   return audioManager.toggleMute();
 }
+
+export function isMuted(): boolean {
+  return audioManager.isMuted;
+}

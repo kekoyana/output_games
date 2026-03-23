@@ -319,7 +319,7 @@ const NAMES: Record<string, Record<Lang, string>> = {
   '蛇矛の突き': { ja: '蛇矛の突き', en: 'Serpent Spear', zh: '蛇矛突刺' },
   '単騎救主': { ja: '単騎救主', en: 'Lone Rider Rescue', zh: '单骑救主' },
   '空城の計': { ja: '空城の計', en: 'Empty Fort Strategy', zh: '空城计' },
-  '仁徳の御旗': { ja: '仁徳の御旗', en: 'Banner of Virtue', zh: '仁德之旗' },
+  '鳳凰の雛': { ja: '鳳凰の雛', en: 'Phoenix Fledgling', zh: '凤凰之雏' },
   '仁徳の施し': { ja: '仁徳の施し', en: 'Benevolent Aid', zh: '仁德之施' },
   // 第1章の敵
   '波才': { ja: '波才', en: 'Bo Cai', zh: '波才' },
