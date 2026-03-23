@@ -6,7 +6,7 @@ import { t, tn } from './i18n';
 let dieIdCounter = 0;
 
 function makeDie(face: DiceFace): Die {
-  return { id: dieIdCounter++, face, locked: false, assignedSlot: null };
+  return { id: dieIdCounter++, face, nativeFace: face, locked: false, assignedSlot: null };
 }
 
 export function createBattleState(hero: Hero, enemyDef: EnemyDef): BattleState {
@@ -21,8 +21,8 @@ export function createBattleState(hero: Hero, enemyDef: EnemyDef): BattleState {
     gimmickActivated: false,
   };
 
-  // 初回ロール
-  const rolledDice = dice.map((d) => ({ ...d, face: rollDie() as DiceFace }));
+  // 初回ロール（各ダイスのネイティブ面に偏りあり）
+  const rolledDice = dice.map((d) => ({ ...d, face: rollDie(d.nativeFace) }));
 
   return {
     enemy,
@@ -41,7 +41,7 @@ export function createBattleState(hero: Hero, enemyDef: EnemyDef): BattleState {
 export function rerollDice(state: BattleState): BattleState {
   const newDice = state.dice.map((d) => ({
     ...d,
-    face: rollDie() as DiceFace,
+    face: rollDie(d.nativeFace),
     assignedSlot: null,
     locked: false,
   }));
@@ -81,6 +81,12 @@ export function executeBattle(
   // スター（ワイルド）は割り当てスロットに応じてそのまま機能する
   const countFace = (face: DiceFace): number =>
     newState.dice.filter((d) => d.face === face || d.face === 'star').length;
+
+  // 敵が防御インテントの場合、ダメージ計算前にblockAmountを設定する
+  // （UIで「防御」と表示されているターンに防御が効くようにする）
+  if (!newState.enemy.stunned && newState.enemy.currentIntent === 'defend') {
+    newState.enemy = { ...newState.enemy, blockAmount: newState.enemy.defense };
+  }
 
   let swordMultiplier = 1;
   if (newState.skillActivated) {
@@ -175,7 +181,7 @@ export function executeBattle(
         else log.push(t('log.blocked'));
       }
     } else if (intent === 'defend') {
-      newState.enemy = { ...newState.enemy, blockAmount: newState.enemy.defense };
+      // blockAmountはダメージ計算前に設定済み。ログのみ出力
       log.push(t('log.enemyDef', { n: newState.enemy.defense }));
     } else if (intent === 'buff') {
       newState.enemy = { ...newState.enemy, buffed: true };

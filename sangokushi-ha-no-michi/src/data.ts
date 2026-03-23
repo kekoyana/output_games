@@ -229,7 +229,7 @@ export const ENEMY_DEFS: EnemyDef[] = [
   },
   {
     id: 'lu_bu_young',
-    name: '呂布（若き飛将）',
+    name: '呂布',
     maxHp: 65,
     attack: 11,
     defense: 5,
@@ -312,7 +312,7 @@ export const ENEMY_DEFS: EnemyDef[] = [
   // 第3章 精鋭
   {
     id: 'elite_chen_gong',
-    name: '陳宮（軍師）',
+    name: '陳宮',
     maxHp: 90,
     attack: 14,
     defense: 8,
@@ -383,7 +383,7 @@ export const ENEMY_DEFS: EnemyDef[] = [
   // 第4章 精鋭
   {
     id: 'elite_ji_ling',
-    name: '紀霊（大将）',
+    name: '紀霊',
     maxHp: 110,
     attack: 16,
     defense: 9,
@@ -796,7 +796,11 @@ export function getDefaultLegacyData(): LegacyData {
   };
 }
 
-export function rollDie(): DiceFace {
+/** ダイスを振る。nativeFace指定時は50%の確率でその面が出る */
+export function rollDie(nativeFace?: DiceFace): DiceFace {
   const faces: DiceFace[] = ['sword', 'shield', 'strategy', 'horse', 'arrow', 'star'];
+  if (nativeFace && Math.random() < 0.5) {
+    return nativeFace;
+  }
   return faces[Math.floor(Math.random() * faces.length)];
 }

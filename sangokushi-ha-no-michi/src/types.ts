@@ -24,6 +24,8 @@ export type ActionSlot = 'attack' | 'defense' | 'strategy' | 'skill';
 export interface Die {
   id: number;
   face: DiceFace;
+  /** ダイスの素の面（この面が出やすい） */
+  nativeFace: DiceFace;
   locked: boolean;
   assignedSlot: ActionSlot | null;
 }
@@ -197,6 +199,7 @@ export interface GameState {
   advisorCards: AdvisorCard[];
   merchantItems: MerchantItem[];
   currentEvent: GameEvent | null;
+  eventResult: string | null;
   showHelp: boolean;
   battleCount: number;
   tutorialStep: TutorialStep;

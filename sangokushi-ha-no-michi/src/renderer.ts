@@ -1300,7 +1300,8 @@ export function drawEvent(
   w: number,
   h: number,
   event: import('./types').GameEvent,
-  optionRects: Rect[]
+  optionRects: Rect[],
+  eventResult: string | null = null
 ): void {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, w, h);
@@ -1308,11 +1309,20 @@ export function drawEvent(
   drawText(ctx, `【${tn(event.title)}】`, w / 2, h * 0.2, `bold ${Math.min(22, w / 22)}px serif`, GOLD_COLOR, 'center', 'top');
   wrapText(ctx, event.description, w * 0.13, h * 0.28, w * 0.74, 22, '15px serif', TEXT_LIGHT);
 
-  event.options.forEach((opt, i) => {
-    const rect = optionRects[i];
-    if (!rect) return;
-    drawButton(ctx, rect, opt.text, '#2c3e50', TEXT_LIGHT, Math.min(14, w / 35), 8);
-  });
+  if (eventResult !== null) {
+    // 占い結果を表示
+    const isGood = eventResult.startsWith('吉');
+    const resultColor = isGood ? '#2ecc71' : '#e74c3c';
+    drawPanel(ctx, { x: w * 0.2, y: h * 0.52, w: w * 0.6, h: h * 0.14 }, '#0d0010', resultColor, 10);
+    drawText(ctx, eventResult, w / 2, h * 0.59, `bold ${Math.min(26, w / 18)}px serif`, resultColor, 'center', 'middle');
+    drawText(ctx, 'タップして続ける', w / 2, h * 0.72, '15px serif', '#888', 'center', 'middle');
+  } else {
+    event.options.forEach((opt, i) => {
+      const rect = optionRects[i];
+      if (!rect) return;
+      drawButton(ctx, rect, opt.text, '#2c3e50', TEXT_LIGHT, Math.min(14, w / 35), 8);
+    });
+  }
 }
 
 export function drawGameOver(

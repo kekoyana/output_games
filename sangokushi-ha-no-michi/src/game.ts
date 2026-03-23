@@ -119,6 +119,7 @@ export class Game {
       advisorCards: [],
       merchantItems: [],
       currentEvent: null,
+      eventResult: null,
       showHelp: false,
       battleCount: 0,
       tutorialStep: tutorialDone ? -1 : 0,
@@ -1015,8 +1016,14 @@ export class Game {
   }
 
   private _handleEventClick(p: { x: number; y: number }): void {
-    const { currentEvent, hero } = this.state;
+    const { currentEvent, hero, eventResult } = this.state;
     if (!currentEvent || !hero) return;
+
+    // 結果表示中はタップで次の画面へ
+    if (eventResult !== null) {
+      this.state = { ...this.state, phase: 'map', currentEvent: null, eventResult: null };
+      return;
+    }
 
     this.eventOptionRects.forEach((rect, i) => {
       const opt = currentEvent.options[i];
@@ -1024,12 +1031,16 @@ export class Game {
         let newHero = { ...hero };
         let effect = opt.effect;
         let value = opt.value;
+        let resultMessage: string | null = null;
 
         // 占い師: 50%で凶（HP-15）に変わる
         if (currentEvent.id === 'fortune_teller' && effect === 'hp_up') {
           if (Math.random() < 0.5) {
             effect = 'hp_down';
             value = 15;
+            resultMessage = `凶！HP-${value}`;
+          } else {
+            resultMessage = `吉！HP+${value}`;
           }
         }
 
@@ -1042,7 +1053,13 @@ export class Game {
         } else if (effect === 'gold_down') {
           newHero.gold = Math.max(0, hero.gold - value);
         }
-        this.state = { ...this.state, hero: newHero, phase: 'map', currentEvent: null };
+
+        if (resultMessage !== null) {
+          // 占い結果を表示してから次の画面へ（タップ待ち）
+          this.state = { ...this.state, hero: newHero, eventResult: resultMessage };
+        } else {
+          this.state = { ...this.state, hero: newHero, phase: 'map', currentEvent: null, eventResult: null };
+        }
       }
     });
   }
@@ -1076,7 +1093,7 @@ export class Game {
     } else if (phase === 'rest' && hero) {
       drawRest(ctx, w, h, hero.currentHp, hero.stats.maxHp, this.restHealRect, this.restLeaveRect);
     } else if (phase === 'event' && this.state.currentEvent) {
-      drawEvent(ctx, w, h, this.state.currentEvent, this.eventOptionRects);
+      drawEvent(ctx, w, h, this.state.currentEvent, this.eventOptionRects, this.state.eventResult);
     } else if (phase === 'legacy') {
       drawLegacy(ctx, w, h, this.state.legacyData, this.legacyUpgradeRects, this.legacyBackRect, this.legacyResetRect, this.legacyHeroUnlockRects, this.legacyScrollY, this.legacyTab, this.legacyTabRects);
     } else if (phase === 'game_over') {

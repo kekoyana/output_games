@@ -328,21 +328,18 @@ const NAMES: Record<string, Record<Lang, string>> = {
   '李傕': { ja: '李傕', en: 'Li Jue', zh: '李傕' },
   '郭汜': { ja: '郭汜', en: 'Guo Si', zh: '郭汜' },
   '華雄': { ja: '華雄', en: 'Hua Xiong', zh: '华雄' },
-  '呂布（若き飛将）': { ja: '呂布（若き飛将）', en: 'Lu Bu (Young)', zh: '吕布（年轻飞将）' },
+  '呂布': { ja: '呂布', en: 'Lu Bu', zh: '吕布' },
   '董卓': { ja: '董卓', en: 'Dong Zhuo', zh: '董卓' },
   // 第3章の敵
   '侯成': { ja: '侯成', en: 'Hou Cheng', zh: '侯成' },
   '陳宮': { ja: '陳宮', en: 'Chen Gong', zh: '陈宫' },
   '高順': { ja: '高順', en: 'Gao Shun', zh: '高顺' },
   '張遼': { ja: '張遼', en: 'Zhang Liao', zh: '张辽' },
-  '陳宮（軍師）': { ja: '陳宮（軍師）', en: 'Chen Gong (Advisor)', zh: '陈宫（军师）' },
-  '呂布': { ja: '呂布', en: 'Lu Bu', zh: '吕布' },
   // 第4章の敵
   '張勲': { ja: '張勲', en: 'Zhang Xun', zh: '张勋' },
   '紀霊': { ja: '紀霊', en: 'Ji Ling', zh: '纪灵' },
   '楊奉': { ja: '楊奉', en: 'Yang Feng', zh: '杨奉' },
   '雷薄': { ja: '雷薄', en: 'Lei Bo', zh: '雷薄' },
-  '紀霊（大将）': { ja: '紀霊（大将）', en: 'Ji Ling (General)', zh: '纪灵（大将）' },
   '袁術': { ja: '袁術', en: 'Yuan Shu', zh: '袁术' },
   // 第5章の敵
   '曹仁': { ja: '曹仁', en: 'Cao Ren', zh: '曹仁' },
