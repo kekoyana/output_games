@@ -15,7 +15,7 @@ mkdir -p dist
 touch dist/.nojekyll
 
 # Games excluded from the index page (e.g. published on itch.io)
-EXCLUDE="neon-sweep slime-grow"
+EXCLUDE="neon-sweep slime-grow sangokushi-ha-no-michi"
 
 # Collect game directories
 games=()

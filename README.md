@@ -13,7 +13,6 @@ AIエージェントが自動生成したWebゲームのコレクションです
 | Merge Drop | マージ落下パズル | [プレイする](https://kekoyana.github.io/output_games/merge-drop/) |
 | HYPER DASH!! | サイバーパンク風3レーン無限ランナー | [プレイする](https://kekoyana.github.io/output_games/hyper-dash/) |
 | Neon Sweep | オセロ式サンドイッチパズル | [プレイする](https://kekoyana.github.io/output_games/neon-sweep/) |
-| 三国志ー覇への道 | 三国志ダイスローグライト（3章構成） | [プレイする](https://kekoyana.github.io/output_games/sangokushi-ha-no-michi/) |
 
 ## 技術スタック
 
