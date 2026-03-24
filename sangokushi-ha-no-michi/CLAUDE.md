@@ -14,7 +14,7 @@
 
 ## 技術ルール
 - TypeScript strict mode、any禁止
-- index.html / vite.config.ts は変更禁止
+- vite.config.ts は変更禁止
 - PC + スマホ両対応（Pointer Events使用、`touch-action: none`）
 - 画像アセットは `src/assets/` 配下、`main.ts` でimportして `loadImages()` に渡す
 - ゲームオブジェクトは `window.__game` でアクセス可能（Playwrightテスト用）

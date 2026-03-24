@@ -49,6 +49,16 @@ import {
 import { choose, shuffle, clamp } from './utils';
 import { setLang, t, type Lang } from './i18n';
 import { initAudio, playBgm, playSfx, toggleMute, isMuted } from './audio';
+import {
+  trackGameStart,
+  trackChapterStart,
+  trackBattleStart,
+  trackBattleWin,
+  trackGameOver,
+  trackGameClear,
+  trackItemPurchase,
+  trackLegacyUpgrade,
+} from './analytics';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -621,6 +631,7 @@ export class Game {
           if (level >= upg.maxLevel) return;
           const cost = upg.costs[level];
           if (legacy.legacyPoints < cost) return;
+          trackLegacyUpgrade(upg.id, level + 1, cost);
           const newLegacy = {
             ...legacy,
             legacyPoints: legacy.legacyPoints - cost,
@@ -640,6 +651,7 @@ export class Game {
           if (level >= upg.maxLevel) return;
           const cost = upg.costs[level];
           if (legacy.legacyPoints < cost) return;
+          trackLegacyUpgrade(upg.id, level + 1, cost);
           const newLegacy = {
             ...legacy,
             legacyPoints: legacy.legacyPoints - cost,
@@ -815,6 +827,8 @@ export class Game {
       hero,
       map,
     };
+    trackGameStart(heroId);
+    trackChapterStart(1, heroId);
     this._recalcLayout();
   }
 
@@ -858,6 +872,7 @@ export class Game {
         battleCount: newBattleCount,
         tutorialStep: startTutorial ? 1 : state.tutorialStep,
       };
+      trackBattleStart(enemy.id, state.map.chapter, enemy.isBoss);
       this._recalcLayout();
       playBgm('battle');
     } else if (node.type === 'advisor') {
@@ -945,6 +960,7 @@ export class Game {
           enemyName: battle.enemy.name,
           isBoss,
         };
+        trackBattleWin(battle.enemy.id, this.state.map?.chapter ?? 1, isBoss);
         this.state = {
           ...this.state,
           phase: 'reward',
@@ -953,6 +969,7 @@ export class Game {
           bossesDefeated: this.state.bossesDefeated + (isBoss ? 1 : 0),
         };
       } else {
+        trackGameOver(hero.id, this.state.map?.chapter ?? 1, this.state.enemiesDefeated);
         this.state = { ...this.state, phase: 'game_over' };
       }
       return;
@@ -1062,6 +1079,7 @@ export class Game {
           this.battleAnims = [];
           if (newHp <= 0) {
             playSfx('defeat');
+            trackGameOver(newHero.id, this.state.map?.chapter ?? 1, this.state.enemiesDefeated);
             this.state = { ...this.state, phase: 'game_over' };
           } else if (newBattle.enemy.currentHp <= 0) {
             playSfx('victory');
@@ -1069,6 +1087,7 @@ export class Game {
             const nodeType = this.state.map?.nodes.find((n) => n.id === this.state.map?.currentNodeId)?.type ?? 'battle';
             const gold = getGoldReward(nodeType, this.state.map?.chapter ?? 1);
             const wasBoss = newBattle.enemy.isBoss;
+            trackBattleWin(newBattle.enemy.id, this.state.map?.chapter ?? 1, wasBoss);
             const rewardInfo = {
               goldEarned: gold,
               enemyName: newBattle.enemy.name,
@@ -1097,11 +1116,13 @@ export class Game {
     if (rewardInfo.isBoss) {
       const currentChapter = this.state.map?.chapter ?? 1;
       if (currentChapter >= 5) {
+        trackGameClear(newHero.id);
         this.state = { ...this.state, hero: newHero, phase: 'ending', battle: null, rewardInfo: null, chaptersReached: currentChapter };
         playBgm('title');
       } else {
         const newMap = generateMap();
         newMap.chapter = currentChapter + 1;
+        trackChapterStart(currentChapter + 1, newHero.id);
         this.state = { ...this.state, hero: newHero, battle: null, map: newMap, phase: 'synopsis', rewardInfo: null, chaptersReached: currentChapter };
         this.mapScrollY = 0;
         this._recalcLayout();
@@ -1165,6 +1186,7 @@ export class Game {
         const hero = this.state.hero;
         if (item && hero && hero.gold >= item.cost) {
           playSfx('coin');
+          trackItemPurchase(item.id, item.cost);
           const newHero = { ...hero, gold: hero.gold - item.cost };
           const newItems = this.state.merchantItems.filter((_, idx) => idx !== i);
           this.state = { ...this.state, hero: newHero, merchantItems: newItems };
