@@ -1,5 +1,6 @@
 import { GameState, FieldConfig, Ball } from "./types";
 import { getBallColor, getBallGlow, getRadius } from "./utils";
+import { t, getLangButtonRect } from "./i18n";
 
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -19,6 +20,7 @@ export function drawFrame(
   drawComboIndicator(ctx, state, canvasW, canvasH);
   drawGuide(ctx, state, field);
   drawHUD(ctx, state, field, canvasW);
+  drawLangButton(ctx, canvasW);
 }
 
 function drawField(
@@ -67,7 +69,7 @@ function drawDangerLine(
   ctx.fillStyle = `rgba(255,80,80,${alpha})`;
   ctx.font = "bold 11px sans-serif";
   ctx.textAlign = "right";
-  ctx.fillText("危険ライン", field.x + field.width - 4, field.dangerY - 4);
+  ctx.fillText(t.dangerLine, field.x + field.width - 4, field.dangerY - 4);
   ctx.restore();
 }
 
@@ -274,33 +276,24 @@ function drawHUD(
 
   ctx.fillStyle = "rgba(255,255,100,0.7)";
   ctx.font = "11px sans-serif";
-  ctx.fillText("スコア", sx, sy + 16);
+  ctx.fillText(t.score, sx, sy + 16);
   ctx.fillStyle = "#fff";
   ctx.font = "bold 20px sans-serif";
   ctx.fillText(state.score.toLocaleString(), sx, sy + 36);
 
   ctx.fillStyle = "rgba(255,255,100,0.7)";
   ctx.font = "11px sans-serif";
-  ctx.fillText("ベスト", sx, sy + 58);
+  ctx.fillText(t.best, sx, sy + 58);
   ctx.fillStyle = "#aaf";
   ctx.font = "bold 16px sans-serif";
   ctx.fillText(state.highScore.toLocaleString(), sx, sy + 76);
 
   ctx.fillStyle = "rgba(255,255,100,0.7)";
   ctx.font = "11px sans-serif";
-  ctx.fillText("最大値", sx, sy + 100);
+  ctx.fillText(t.maxValue, sx, sy + 100);
   ctx.fillStyle = "#ffd700";
   ctx.font = "bold 16px sans-serif";
   ctx.fillText(state.maxValue.toLocaleString(), sx, sy + 118);
-
-  ctx.fillStyle = "rgba(255,255,100,0.7)";
-  ctx.font = "11px sans-serif";
-  ctx.fillText("NEXT", sx, sy + 144);
-
-  const previewCx = sx + sw / 2;
-  const previewCy = sy + 180;
-  const previewR = Math.min(sw / 2 - 8, 30);
-  drawBallAt(ctx, previewCx, previewCy, previewR, state.nextValue, 1.0);
 
   ctx.restore();
 }
@@ -329,12 +322,12 @@ export function drawTitle(
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#88aaff";
   ctx.font = "bold 18px sans-serif";
-  ctx.fillText("数字合体パズル", cx, cy - 40);
+  ctx.fillText(t.subtitle, cx, cy - 40);
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = "14px sans-serif";
-  ctx.fillText("同じ数字のボールをぶつけて合体！", cx, cy + 10);
-  ctx.fillText("積み上がって天井を超えるとゲームオーバー", cx, cy + 36);
+  ctx.fillText(t.howToPlay1, cx, cy + 10);
+  ctx.fillText(t.howToPlay2, cx, cy + 36);
 
   const blink = Math.floor(Date.now() / 500) % 2 === 0;
   if (blink) {
@@ -342,10 +335,11 @@ export function drawTitle(
     ctx.font = "bold 22px sans-serif";
     ctx.shadowColor = "#ffffff";
     ctx.shadowBlur = 10;
-    ctx.fillText("タップ / クリックでスタート", cx, cy + 90);
+    ctx.fillText(t.tapToStart, cx, cy + 90);
   }
 
   ctx.restore();
+  drawLangButton(ctx, canvasW);
 }
 
 export function drawGameOver(
@@ -374,19 +368,19 @@ export function drawGameOver(
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#ffd700";
   ctx.font = "16px sans-serif";
-  ctx.fillText("スコア", cx, cy - 54);
+  ctx.fillText(t.scoreLabel, cx, cy - 54);
   ctx.font = "bold 32px sans-serif";
   ctx.fillText(state.score.toLocaleString(), cx, cy - 28);
 
   ctx.fillStyle = "#aaaaff";
   ctx.font = "14px sans-serif";
-  ctx.fillText("ハイスコア", cx, cy + 10);
+  ctx.fillText(t.highScoreLabel, cx, cy + 10);
   ctx.font = "bold 24px sans-serif";
   ctx.fillText(state.highScore.toLocaleString(), cx, cy + 34);
 
   ctx.fillStyle = "#ffdd44";
   ctx.font = "14px sans-serif";
-  ctx.fillText("最大値", cx, cy + 66);
+  ctx.fillText(t.maxValueLabel, cx, cy + 66);
   ctx.font = "bold 20px sans-serif";
   ctx.fillText(state.maxValue.toLocaleString(), cx, cy + 88);
 
@@ -395,7 +389,7 @@ export function drawGameOver(
     ctx.font = "bold 18px sans-serif";
     ctx.shadowColor = "#ffaa00";
     ctx.shadowBlur = 15;
-    ctx.fillText("MEGA MERGE 達成！", cx, cy + 116);
+    ctx.fillText(t.megaMerge, cx, cy + 116);
     ctx.shadowBlur = 0;
   }
 
@@ -414,7 +408,26 @@ export function drawGameOver(
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 20px sans-serif";
   ctx.shadowBlur = 0;
-  ctx.fillText("もう一回！", cx, btnY + btnH / 2);
+  ctx.fillText(t.retry, cx, btnY + btnH / 2);
 
+  ctx.restore();
+}
+
+function drawLangButton(ctx: CanvasRenderingContext2D, canvasW: number): void {
+  const { x, y, w, h } = getLangButtonRect(canvasW);
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.strokeStyle = "rgba(255,255,255,0.4)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.font = "bold 13px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(t.langLabel, x + w / 2, y + h / 2);
   ctx.restore();
 }

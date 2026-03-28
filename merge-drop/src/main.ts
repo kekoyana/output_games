@@ -8,8 +8,8 @@ import {
   handleGameOverClick,
 } from "./game";
 import { drawFrame, drawTitle, drawGameOver } from "./renderer";
-import { FieldConfig } from "./types";
-import { GameState } from "./types";
+import { FieldConfig, GameState } from "./types";
+import { toggleLang, getLangButtonRect } from "./i18n";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d")!;
@@ -69,6 +69,13 @@ canvas.addEventListener("pointerdown", (e: PointerEvent) => {
 canvas.addEventListener("pointerup", (e: PointerEvent) => {
   e.preventDefault();
   const pos = getCanvasPos(e);
+
+  // Language toggle button
+  const lb = getLangButtonRect(canvasW);
+  if (pos.x >= lb.x && pos.x <= lb.x + lb.w && pos.y >= lb.y && pos.y <= lb.y + lb.h) {
+    toggleLang();
+    return;
+  }
 
   if (state.phase === "title") {
     startGame(state, field);
