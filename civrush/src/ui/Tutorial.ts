@@ -34,23 +34,27 @@ export class Tutorial {
 
   /** 日本語テキストを実際のレンダリング幅で改行 */
   private wrapJa(text: string, fontSize: number, maxWidth: number): string {
-    // 一時テキストオブジェクトで実測
+    // 既存の改行で分割してから各行を折り返し
+    const inputLines = text.split('\n');
     const measure = this.scene.add.text(0, 0, '', { fontSize: `${fontSize}px` }).setVisible(false);
-    const lines: string[] = [];
-    let current = '';
-    for (const ch of text) {
-      const test = current + ch;
-      measure.setText(test);
-      if (measure.width > maxWidth && current.length > 0) {
-        lines.push(current);
-        current = ch;
-      } else {
-        current = test;
+    const result: string[] = [];
+    for (const line of inputLines) {
+      let current = '';
+      for (const ch of line) {
+        const test = current + ch;
+        measure.setText(test);
+        if (measure.width > maxWidth && current.length > 0) {
+          result.push(current);
+          current = ch;
+        } else {
+          current = test;
+        }
       }
+      if (current) result.push(current);
+      else result.push('');
     }
-    if (current) lines.push(current);
     measure.destroy();
-    return lines.join('\n');
+    return result.join('\n');
   }
 
   private showPopup(): void {
@@ -214,17 +218,28 @@ export class Tutorial {
     const { width } = this.scene.scale;
     const isSmall = width < 500;
 
+    const capsuleW = isSmall ? 80 : 120;
+    const capsuleH = isSmall ? 24 : 32;
+    const capsuleY = isSmall ? 14 : 24;
+    const capsuleGap = isSmall ? 8 : 20;
+
     if (this.stepIndex === 1) {
-      // 2/7: 生産力・科学力カプセル（HUD中央上部）
-      const capsuleW = isSmall ? 80 : 120;
-      const capsuleH = isSmall ? 24 : 32;
-      const capsuleY = isSmall ? 14 : 24;
-      const capsuleGap = isSmall ? 8 : 20;
+      // 2/7: 生産力・科学力カプセル（両方）
       const totalW = capsuleW * 2 + capsuleGap;
       return {
         x: width / 2 - capsuleW - capsuleGap / 2,
         y: capsuleY,
         w: totalW,
+        h: capsuleH,
+      };
+    }
+
+    if (this.stepIndex === 3) {
+      // 4/7: 科学力カプセルのみ
+      return {
+        x: width / 2 + capsuleGap / 2,
+        y: capsuleY,
+        w: capsuleW,
         h: capsuleH,
       };
     }

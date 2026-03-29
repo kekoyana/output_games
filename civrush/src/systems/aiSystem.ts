@@ -173,12 +173,14 @@ function moveAIUnits(state: GameState, aiId: PlayerId, mode: AIMode): void {
     if (city?.isCapital) aiCapital = city.coord;
   });
 
-  // 首都守備: 首都ヘックスにユニットがいなければ最寄りのユニットを帰還させる
+  // 首都守備: 首都にユニットがいなければ最寄りのユニットを帰還させる
+  // 首都にいるユニットは1体を守備隊として固定する
   const garrisonUnitId = ensureCapitalGarrison(state, aiId, aiCapital);
+  const capitalGarrisonId = getCapitalGarrisonUnit(state, aiId, aiCapital);
 
   player.units.forEach(unitId => {
-    // 守備隊に指定されたユニットは既に移動済み
-    if (unitId === garrisonUnitId) return;
+    // 守備隊ユニットは動かさない
+    if (unitId === garrisonUnitId || unitId === capitalGarrisonId) return;
     const unit = state.units.get(unitId);
     if (!unit || unit.movesLeft === 0) return;
 
@@ -259,6 +261,21 @@ function moveAIUnits(state: GameState, aiId: PlayerId, mode: AIMode): void {
       }
     }
   });
+}
+
+/** 首都に既にいる味方ユニットのIDを返す（守備隊として固定） */
+function getCapitalGarrisonUnit(
+  state: GameState,
+  aiId: PlayerId,
+  aiCapital: { q: number; r: number } | null
+): string | null {
+  if (!aiCapital) return null;
+  const capitalKey = hexKey(aiCapital);
+  const capitalTile = state.tiles.get(capitalKey);
+  if (!capitalTile?.unitId) return null;
+  const unit = state.units.get(capitalTile.unitId);
+  if (unit?.owner === aiId) return capitalTile.unitId;
+  return null;
 }
 
 /** 首都にユニットがいなければ最寄りユニットを首都に向かわせる。移動したunitIdを返す */
