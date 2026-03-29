@@ -1,5 +1,5 @@
 import type { GameState, PlayerId, TechId, UnitType } from '../models/types';
-import { hexDistance } from './hexUtils';
+import { hexDistance, hexKey } from './hexUtils';
 import { researchTech, produceUnit, collectResources } from './citySystem';
 import { moveUnit, getReachableTiles } from './movementSystem';
 import { resolveCombat, findAttackTargets } from './combatSystem';
@@ -173,7 +173,12 @@ function moveAIUnits(state: GameState, aiId: PlayerId, mode: AIMode): void {
     if (city?.isCapital) aiCapital = city.coord;
   });
 
+  // 首都守備: 首都ヘックスにユニットがいなければ最寄りのユニットを帰還させる
+  const garrisonUnitId = ensureCapitalGarrison(state, aiId, aiCapital);
+
   player.units.forEach(unitId => {
+    // 守備隊に指定されたユニットは既に移動済み
+    if (unitId === garrisonUnitId) return;
     const unit = state.units.get(unitId);
     if (!unit || unit.movesLeft === 0) return;
 
@@ -254,6 +259,61 @@ function moveAIUnits(state: GameState, aiId: PlayerId, mode: AIMode): void {
       }
     }
   });
+}
+
+/** 首都にユニットがいなければ最寄りユニットを首都に向かわせる。移動したunitIdを返す */
+function ensureCapitalGarrison(
+  state: GameState,
+  aiId: PlayerId,
+  aiCapital: { q: number; r: number } | null
+): string | null {
+  if (!aiCapital) return null;
+  const player = state.players.get(aiId);
+  if (!player) return null;
+
+  const capitalKey = hexKey(aiCapital);
+  const capitalTile = state.tiles.get(capitalKey);
+
+  // 首都に味方ユニットがいればOK
+  if (capitalTile?.unitId) {
+    const unit = state.units.get(capitalTile.unitId);
+    if (unit?.owner === aiId) return null;
+  }
+
+  // 最寄りのユニットを探して首都方向へ移動
+  let closestId: string | null = null;
+  let closestDist = Infinity;
+  player.units.forEach(unitId => {
+    const unit = state.units.get(unitId);
+    if (!unit || unit.movesLeft === 0) return;
+    const dist = hexDistance(unit.coord, aiCapital);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestId = unitId;
+    }
+  });
+
+  if (!closestId) return null;
+
+  const reachable = getReachableTiles(state, closestId);
+  let bestCoord = state.units.get(closestId)!.coord;
+  let bestDist = hexDistance(bestCoord, aiCapital);
+
+  reachable.forEach(key => {
+    const tile = state.tiles.get(key);
+    if (!tile || tile.unitId) return;
+    const [q, r] = key.split(',').map(Number);
+    const dist = hexDistance({ q, r }, aiCapital);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestCoord = { q, r };
+    }
+  });
+
+  if (bestCoord !== state.units.get(closestId)!.coord) {
+    moveUnit(state, closestId, bestCoord);
+  }
+  return closestId;
 }
 
 function findPlayerCapital(state: GameState): { q: number; r: number } | null {

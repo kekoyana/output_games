@@ -65,13 +65,15 @@ export class TitleScene extends Phaser.Scene {
     logo.setScale(logoScale);
 
     const logoBottom = cy - 150 + logo.displayHeight / 2;
+    const isSmall = width < 500;
 
-    this.add.text(cx, logoBottom + 8, t('selectDifficulty'), {
-      fontSize: '18px',
+    const selectText = this.add.text(cx, logoBottom + 8, t('selectDifficulty'), {
+      fontSize: isSmall ? '15px' : '18px',
       color: '#eeeeee',
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(0.5);
+    const selectBottom = selectText.y + selectText.displayHeight / 2;
 
     // 難易度ボタン（凝ったデザイン）
     const difficulties: Array<{
@@ -87,14 +89,12 @@ export class TitleScene extends Phaser.Scene {
       { label: t('hard'), desc: t('hardDesc'), value: 'hard', color: 0x662222, icon: '🔥', accentColor: 0xff4444 },
     ];
 
-    const isSmall = width < 500;
-
     if (isSmall) {
       // スマホ: 縦並びの横長ボタン
       const sBtnW = width - 40;
       const sBtnH = 52;
       const sBtnGap = 8;
-      const sBtnStartY = logoBottom + 36;
+      const sBtnStartY = selectBottom + 10 + sBtnH / 2;
 
       difficulties.forEach((diff, i) => {
         const btnX = cx;
@@ -141,7 +141,7 @@ export class TitleScene extends Phaser.Scene {
 
       difficulties.forEach((diff, i) => {
         const btnX = btnStartX + i * (btnW + btnGap) + btnW / 2;
-        const btnY = logoBottom + 68;
+        const btnY = selectBottom + 14 + btnH / 2;
 
         const btnGfx = this.add.graphics();
         const drawBtn = (fillColor: number, alpha: number, borderColor: number, borderWidth: number) => {
@@ -211,8 +211,8 @@ export class TitleScene extends Phaser.Scene {
     // 背景パネル
     const pad = isSmall ? 10 : 18;
     const btnBottom = isSmall
-      ? logoBottom + 36 + (difficulties.length - 1) * 60 + 26
-      : logoBottom + 68 + 80 / 2;
+      ? selectBottom + 10 + 52 / 2 + (difficulties.length - 1) * 60 + 52 / 2
+      : selectBottom + 14 + 80;
     const descY = btnBottom + (isSmall ? 12 : 24);
     const descBg = this.add.graphics();
     descBg.fillStyle(0x111122, 0.92);
