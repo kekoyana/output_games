@@ -91,8 +91,9 @@ export class MapRenderer {
 
           this.drawCitySymbol(pos, playerColor, city.isCapital);
 
+          const mapFontSize = this.hexSize < 30 ? '11px' : '12px';
           const nameText = this.scene.add.text(pos.x, pos.y + this.hexSize * 0.65, city.name, {
-            fontSize: '9px', color: '#ffffff',
+            fontSize: mapFontSize, color: '#ffffff',
             stroke: '#000000', strokeThickness: 2,
           }).setOrigin(0.5);
           this.labelContainer.add(nameText);

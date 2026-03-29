@@ -88,9 +88,9 @@ export class TitleScene extends Phaser.Scene {
     ];
 
     const isSmall = width < 500;
-    const btnW = isSmall ? Math.floor((width - 32) / 3 - 8) : 150;
-    const btnH = isSmall ? 64 : 80;
-    const btnGap = isSmall ? 8 : 16;
+    const btnW = isSmall ? Math.floor((width - 24) / 3 - 6) : 150;
+    const btnH = isSmall ? 72 : 80;
+    const btnGap = isSmall ? 6 : 16;
     const totalW = difficulties.length * btnW + (difficulties.length - 1) * btnGap;
     const btnStartX = cx - totalW / 2;
 
@@ -115,13 +115,13 @@ export class TitleScene extends Phaser.Scene {
         .setInteractive({ cursor: 'pointer' });
 
       // アイコン
-      this.add.text(btnX, btnY - (isSmall ? 16 : 22), diff.icon, {
-        fontSize: isSmall ? '18px' : '24px',
+      this.add.text(btnX, btnY - (isSmall ? 18 : 22), diff.icon, {
+        fontSize: isSmall ? '22px' : '24px',
       }).setOrigin(0.5);
 
       // ラベル
-      const labelText = this.add.text(btnX, btnY + (isSmall ? 2 : 4), diff.label, {
-        fontSize: isSmall ? '14px' : '18px',
+      const labelText = this.add.text(btnX, btnY + (isSmall ? 4 : 4), diff.label, {
+        fontSize: isSmall ? '16px' : '18px',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -129,8 +129,8 @@ export class TitleScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       // 説明テキスト
-      const descText = this.add.text(btnX, btnY + (isSmall ? 18 : 24), diff.desc, {
-        fontSize: isSmall ? '8px' : '10px',
+      const descText = this.add.text(btnX, btnY + (isSmall ? 22 : 24), diff.desc, {
+        fontSize: isSmall ? '10px' : '10px',
         color: '#bbbbbb',
         stroke: '#000000',
         strokeThickness: 1,
@@ -166,8 +166,8 @@ export class TitleScene extends Phaser.Scene {
       t('controlEnd'),
     ].join('\n');
 
-    const descFontSize = isSmall ? '12px' : '15px';
-    const descLineSpacing = isSmall ? 3 : 6;
+    const descFontSize = isSmall ? '14px' : '15px';
+    const descLineSpacing = isSmall ? 4 : 6;
     const descMaxW = Math.min(480, width - 32);
 
     // サイズ計測用の一時テキスト

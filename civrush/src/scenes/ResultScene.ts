@@ -18,6 +18,7 @@ export class ResultScene extends Phaser.Scene {
     const cx = width / 2;
     const cy = height / 2;
     const state = data.state;
+    const isSmall = width < 500;
 
     // 背景画像
     const bg = this.add.image(cx, cy, 'title_bg');
@@ -33,11 +34,11 @@ export class ResultScene extends Phaser.Scene {
     const titleText = isPlayerWinner ? t('victory') : t('defeat');
 
     this.add.text(cx, cy - 200, titleText, {
-      fontSize: '72px',
+      fontSize: isSmall ? '48px' : '72px',
       color: titleColor,
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 6,
+      strokeThickness: isSmall ? 4 : 6,
     }).setOrigin(0.5);
 
     // 勝利種別
@@ -51,14 +52,14 @@ export class ResultScene extends Phaser.Scene {
     const winnerName = winnerPlayer?.name ?? t('unknown');
 
     this.add.text(cx, cy - 130, `【${victoryLabel}】 ${winnerName}`, {
-      fontSize: '24px',
+      fontSize: isSmall ? '18px' : '24px',
       color: '#ffffff',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5);
 
     this.add.text(cx, cy - 95, `${t('achievedTurn')}: ${state.turn}`, {
-      fontSize: '18px',
+      fontSize: isSmall ? '16px' : '18px',
       color: '#aaaaaa',
     }).setOrigin(0.5);
 
@@ -66,10 +67,10 @@ export class ResultScene extends Phaser.Scene {
     this.drawStatsPanel(state, cx, cy);
 
     // もう一度ボタン
-    const retryBtn = this.add.rectangle(cx, cy + 230, 200, 55, 0x4488ff)
+    const retryBtn = this.add.rectangle(cx, cy + 230, isSmall ? 160 : 200, isSmall ? 48 : 55, 0x4488ff)
       .setInteractive({ cursor: 'pointer' });
     const retryText = this.add.text(cx, cy + 230, t('playAgain'), {
-      fontSize: '22px',
+      fontSize: isSmall ? '18px' : '22px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
@@ -82,26 +83,32 @@ export class ResultScene extends Phaser.Scene {
   }
 
   private drawStatsPanel(state: GameState, cx: number, cy: number): void {
+    const { width } = this.scale;
+    const isSmall = width < 500;
+    const panelW = Math.min(480, width - 20);
+
     // パネル背景
-    this.add.rectangle(cx, cy + 60, 480, 220, 0x222222, 0.9);
-    this.add.rectangle(cx, cy + 60, 480, 220, 0x444444, 1).setFillStyle(0x222222).setStrokeStyle(1, 0x666666);
+    this.add.rectangle(cx, cy + 60, panelW, 220, 0x222222, 0.9);
+    this.add.rectangle(cx, cy + 60, panelW, 220, 0x444444, 1).setFillStyle(0x222222).setStrokeStyle(1, 0x666666);
 
     this.add.text(cx, cy - 50, t('gameStats'), {
-      fontSize: '20px',
+      fontSize: isSmall ? '18px' : '20px',
       color: '#ffd700',
     }).setOrigin(0.5);
 
     const playerIds: PlayerId[] = ['player', ...state.aiPlayerIds];
-    const colWidth = 120;
+    const colWidth = isSmall ? Math.floor((panelW - 80) / playerIds.length) : 120;
     const startX = cx - (playerIds.length - 1) * colWidth / 2;
+    const labelX = cx - panelW / 2 + 10;
 
     // ヘッダー
     playerIds.forEach((id, i) => {
       const player = state.players.get(id);
       if (!player) return;
       const color = player.colorHex;
-      this.add.text(startX + i * colWidth, cy - 20, player.name.length > 6 ? player.name.slice(0, 6) + '..' : player.name, {
-        fontSize: '13px',
+      const maxLen = isSmall ? 4 : 6;
+      this.add.text(startX + i * colWidth, cy - 20, player.name.length > maxLen ? player.name.slice(0, maxLen) + '..' : player.name, {
+        fontSize: isSmall ? '12px' : '13px',
         color,
         fontStyle: 'bold',
       }).setOrigin(0.5);
@@ -117,15 +124,15 @@ export class ResultScene extends Phaser.Scene {
     rows.forEach((row, rowIdx) => {
       const rowY = cy + 10 + rowIdx * 35;
 
-      this.add.text(cx - 200, rowY, row.label, {
-        fontSize: '14px',
+      this.add.text(labelX, rowY, row.label, {
+        fontSize: isSmall ? '13px' : '14px',
         color: '#cccccc',
       }).setOrigin(0, 0.5);
 
       playerIds.forEach((id, i) => {
         const val = state.stats[row.key].get(id) ?? 0;
         this.add.text(startX + i * colWidth, rowY, String(val), {
-          fontSize: '16px',
+          fontSize: isSmall ? '15px' : '16px',
           color: '#ffffff',
           fontStyle: 'bold',
         }).setOrigin(0.5);
@@ -138,12 +145,12 @@ export class ResultScene extends Phaser.Scene {
       if (!player) return;
       const eraName = getEraName(player.currentEra);
       this.add.text(startX + i * colWidth, cy + 155, eraName, {
-        fontSize: '13px',
+        fontSize: isSmall ? '12px' : '13px',
         color: '#88ccff',
       }).setOrigin(0.5);
     });
-    this.add.text(cx - 200, cy + 155, t('statEra'), {
-      fontSize: '14px',
+    this.add.text(labelX, cy + 155, t('statEra'), {
+      fontSize: isSmall ? '13px' : '14px',
       color: '#cccccc',
     }).setOrigin(0, 0.5);
   }

@@ -22,7 +22,7 @@ export class HUD {
     this.scene = scene;
     const { width, height } = scene.scale;
     const isSmall = width < 500;
-    const fs = isSmall ? 0.8 : 1.0; // font scale
+    const fs = isSmall ? 1.0 : 1.0; // font scale
 
     this.container = scene.add.container(0, 0).setDepth(100).setScrollFactor(0);
 
