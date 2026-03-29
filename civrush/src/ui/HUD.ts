@@ -21,73 +21,80 @@ export class HUD {
   constructor(scene: Phaser.Scene, onEndTurn: () => void) {
     this.scene = scene;
     const { width, height } = scene.scale;
+    const isSmall = width < 500;
+    const fs = isSmall ? 0.8 : 1.0; // font scale
 
     this.container = scene.add.container(0, 0).setDepth(100).setScrollFactor(0);
 
-    // 上部バー背景（グラデーション風: ダークブルー不透明→下側透明）
+    // 上部バー背景
+    const topBarH = isSmall ? 48 : 62;
     const topBar = scene.add.graphics();
     topBar.fillGradientStyle(0x0d1b3e, 0x0d1b3e, 0x1a2a5e, 0x1a2a5e, 1, 1, 0.85, 0.85);
-    topBar.fillRect(0, 0, width, 62);
-    // 下線
+    topBar.fillRect(0, 0, width, topBarH);
     topBar.lineStyle(1.5, 0x3a5faa, 0.8);
-    topBar.lineBetween(0, 62, width, 62);
+    topBar.lineBetween(0, topBarH, width, topBarH);
     this.container.add(topBar);
 
     // ===== 左側: ターン + 時代 =====
-    this.turnText = scene.add.text(14, 9, `${t('turnLabel')}: 1/40`, {
-      fontSize: '15px', color: '#ddeeff', fontStyle: 'bold',
+    this.turnText = scene.add.text(8, isSmall ? 5 : 9, `${t('turnLabel')}: 1/40`, {
+      fontSize: `${Math.floor(15 * fs)}px`, color: '#ddeeff', fontStyle: 'bold',
     });
     this.container.add(this.turnText);
 
-    this.eraText = scene.add.text(14, 34, t('eraAncient'), {
-      fontSize: '13px', color: '#ffd700',
+    this.eraText = scene.add.text(8, isSmall ? 22 : 34, t('eraAncient'), {
+      fontSize: `${Math.floor(13 * fs)}px`, color: '#ffd700',
     });
     this.container.add(this.eraText);
 
-    // ===== 中央: リソース横並び（装飾的に） =====
-    // 生産力背景カプセル
+    // ===== 中央: リソース横並び =====
+    const capsuleW = isSmall ? 80 : 120;
+    const capsuleH = isSmall ? 24 : 32;
+    const capsuleY = isSmall ? 14 : 24;
+    const capsuleGap = isSmall ? 8 : 20;
+    const resFontSize = `${Math.floor(15 * fs)}px`;
+
     const prodBg = scene.add.graphics();
     prodBg.fillStyle(0x2a1800, 0.7);
-    prodBg.fillRoundedRect(width / 2 - 140, 24, 120, 32, 8);
+    prodBg.fillRoundedRect(width / 2 - capsuleW - capsuleGap / 2, capsuleY, capsuleW, capsuleH, 8);
     prodBg.lineStyle(1, 0xffaa44, 0.6);
-    prodBg.strokeRoundedRect(width / 2 - 140, 24, 120, 32, 8);
+    prodBg.strokeRoundedRect(width / 2 - capsuleW - capsuleGap / 2, capsuleY, capsuleW, capsuleH, 8);
     this.container.add(prodBg);
 
-    this.productionText = scene.add.text(width / 2 - 80, 40, '🏭 0', {
-      fontSize: '15px', color: '#ffbb55', fontStyle: 'bold',
+    this.productionText = scene.add.text(width / 2 - capsuleGap / 2 - capsuleW / 2, capsuleY + capsuleH / 2, '🏭 0', {
+      fontSize: resFontSize, color: '#ffbb55', fontStyle: 'bold',
     }).setOrigin(0.5, 0.5);
     this.container.add(this.productionText);
 
-    // 科学力背景カプセル
     const sciBg = scene.add.graphics();
     sciBg.fillStyle(0x001828, 0.7);
-    sciBg.fillRoundedRect(width / 2 + 20, 24, 120, 32, 8);
+    sciBg.fillRoundedRect(width / 2 + capsuleGap / 2, capsuleY, capsuleW, capsuleH, 8);
     sciBg.lineStyle(1, 0x88aaff, 0.6);
-    sciBg.strokeRoundedRect(width / 2 + 20, 24, 120, 32, 8);
+    sciBg.strokeRoundedRect(width / 2 + capsuleGap / 2, capsuleY, capsuleW, capsuleH, 8);
     this.container.add(sciBg);
 
-    this.scienceText = scene.add.text(width / 2 + 80, 40, '💡 0', {
-      fontSize: '15px', color: '#99bbff', fontStyle: 'bold',
+    this.scienceText = scene.add.text(width / 2 + capsuleGap / 2 + capsuleW / 2, capsuleY + capsuleH / 2, '💡 0', {
+      fontSize: resFontSize, color: '#99bbff', fontStyle: 'bold',
     }).setOrigin(0.5, 0.5);
     this.container.add(this.scienceText);
 
-    // ===== フェーズ表示（リソースカプセルの上） =====
-    this.phaseText = scene.add.text(width / 2, 8, '', {
-      fontSize: '11px', color: '#88ffcc',
+    // ===== フェーズ表示 =====
+    this.phaseText = scene.add.text(width / 2, isSmall ? 2 : 8, '', {
+      fontSize: `${Math.floor(11 * fs)}px`, color: '#88ffcc',
     }).setOrigin(0.5, 0);
     this.container.add(this.phaseText);
 
-    // ===== 右側: 情報テキスト =====
+    // ===== 右側: 情報テキスト（スマホでは非表示） =====
+    const infoW = isSmall ? 0 : 200;
     this.infoText = scene.add.text(width - 10, 8, '', {
-      fontSize: '12px', color: '#cccccc', wordWrap: { width: 200 }, align: 'right',
-    }).setOrigin(1, 0);
+      fontSize: `${Math.floor(12 * fs)}px`, color: '#cccccc', wordWrap: { width: infoW }, align: 'right',
+    }).setOrigin(1, 0).setVisible(!isSmall);
     this.container.add(this.infoText);
 
-    // ターン終了ボタン（グラデーション風）
-    const btnW = 140;
-    const btnH = 48;
-    const btnX = width - 75;
-    const btnY = height - 32;
+    // ターン終了ボタン
+    const btnW = isSmall ? 100 : 140;
+    const btnH = isSmall ? 38 : 48;
+    const btnX = width - btnW / 2 - 10;
+    const btnY = height - (isSmall ? 24 : 32);
 
     const btnBg = scene.add.graphics();
     btnBg.fillGradientStyle(0x2255cc, 0x2255cc, 0x1133aa, 0x1133aa, 1, 1, 1, 1);
@@ -101,11 +108,10 @@ export class HUD {
     this.container.add(this.endTurnBtn);
 
     this.endTurnText = scene.add.text(btnX, btnY, t('endTurn'), {
-      fontSize: '16px', color: '#ffffff', fontStyle: 'bold',
+      fontSize: `${Math.floor(16 * fs)}px`, color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5);
     this.container.add(this.endTurnText);
 
-    // ホバーエフェクト（ボタン上のオーバーレイ）
     const btnHover = scene.add.graphics().setAlpha(0);
     btnHover.fillStyle(0xffffff, 0.12);
     btnHover.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 10);
@@ -121,16 +127,18 @@ export class HUD {
     });
     this.endTurnBtn.on('pointerdown', onEndTurn);
 
-    // 戦闘ログ（左下）
+    // 戦闘ログ（左下、スマホでは小さく）
+    const logW = isSmall ? 160 : 220;
+    const logH = isSmall ? 70 : 108;
     const logBg = scene.add.graphics();
     logBg.fillStyle(0x000000, 0.55);
-    logBg.fillRoundedRect(4, height - 112, 220, 108, 6);
+    logBg.fillRoundedRect(4, height - logH - 4, logW, logH, 6);
     logBg.lineStyle(1, 0x334466, 0.7);
-    logBg.strokeRoundedRect(4, height - 112, 220, 108, 6);
+    logBg.strokeRoundedRect(4, height - logH - 4, logW, logH, 6);
     this.container.add(logBg);
 
-    this.combatLogText = scene.add.text(10, height - 107, '', {
-      fontSize: '11px', color: '#ffccaa', wordWrap: { width: 210 }, lineSpacing: 2,
+    this.combatLogText = scene.add.text(10, height - logH, '', {
+      fontSize: `${Math.floor(11 * fs)}px`, color: '#ffccaa', wordWrap: { width: logW - 16 }, lineSpacing: 2,
     });
     this.container.add(this.combatLogText);
   }

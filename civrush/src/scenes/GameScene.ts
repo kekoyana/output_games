@@ -16,23 +16,16 @@ import { t } from '../i18n';
 
 // HEX_SIZEとオフセットは画面サイズに応じて動的計算
 const MAP_GRID_SIZE = 10;
-const HUD_HEIGHT = 65;    // 上部HUD高さ
-const BTN_HEIGHT = 60;    // 下部ターン終了ボタン高さ
+function getHudHeight(screenW: number): number { return screenW < 500 ? 50 : 65; }
+function getBtnHeight(screenW: number): number { return screenW < 500 ? 48 : 60; }
 
-function calcHexLayout(screenW: number, screenH: number): { hexSize: number; offsetX: number; offsetY: number } {
-  // pointy-top hex (axial座標) の 10x10 offset grid
-  // - x方向: sqrt(3)*size per column、奇数rowは0.5列ずれる
-  // - y方向: 1.5*size per row
-  // 実座標の範囲:
-  //   xMin = hexToPixel(offsetToAxial(0,0)).x = 0
-  //   xMax ≈ sqrt(3)*size*(cols-1+0.5) (奇数行のずれ込み)
-  //   yMin = hexToPixel(offsetToAxial(0,0)).y = 0
-  //   yMax = hexToPixel(offsetToAxial(0,rows-1)).y + size = 1.5*size*(rows-1) + size
-
+function calcHexLayout(screenW: number, screenH: number): { hexSize: number; offsetX: number; offsetY: number; hudHeight: number; btnHeight: number } {
   const cols = MAP_GRID_SIZE;
   const rows = MAP_GRID_SIZE;
+  const hudHeight = getHudHeight(screenW);
+  const btnHeight = getBtnHeight(screenW);
   const availW = screenW - 20;
-  const availH = screenH - HUD_HEIGHT - BTN_HEIGHT - 10;
+  const availH = screenH - hudHeight - btnHeight - 10;
 
   // hexSizeByW: xMax - xMin = sqrt(3)*size*(cols - 1 + 0.5) + size = size*(sqrt(3)*(cols-0.5) + 1)
   // hexSizeByH: yMax - yMin = 1.5*size*(rows-1) + 2*size = size*(1.5*rows + 0.5)
@@ -47,9 +40,9 @@ function calcHexLayout(screenW: number, screenH: number): { hexSize: number; off
   // 中央配置: offsetX/offsetY はマップの描画原点 (q=0,r=0 のピクセル位置)
   // hexToPixel({0,0}) = (0,0) なので、画面中央から mapW/2 を引いた位置が原点
   const offsetX = Math.floor((screenW - mapW) / 2 + hexSize * Math.sqrt(3) / 2);
-  const offsetY = Math.floor(HUD_HEIGHT + (availH - mapH) / 2 + hexSize);
+  const offsetY = Math.floor(hudHeight + (availH - mapH) / 2 + hexSize);
 
-  return { hexSize, offsetX, offsetY };
+  return { hexSize, offsetX, offsetY, hudHeight, btnHeight };
 }
 
 export class GameScene extends Phaser.Scene {
@@ -62,6 +55,8 @@ export class GameScene extends Phaser.Scene {
   hexSize: number = 36;
   mapOffsetX: number = 80;
   mapOffsetY: number = 70;
+  private hudHeight: number = 65;
+  private btnHeight: number = 60;
 
   private reachableTiles: Set<string> = new Set();
   private attackableTiles: Set<string> = new Set();
@@ -86,6 +81,8 @@ export class GameScene extends Phaser.Scene {
     this.hexSize = layout.hexSize;
     this.mapOffsetX = layout.offsetX;
     this.mapOffsetY = layout.offsetY;
+    this.hudHeight = layout.hudHeight;
+    this.btnHeight = layout.btnHeight;
 
     this.mapRenderer = new MapRenderer(this, this.hexSize);
     this.mapRenderer.setPosition(this.mapOffsetX, this.mapOffsetY);
@@ -108,7 +105,7 @@ export class GameScene extends Phaser.Scene {
     const mapPixelW = this.hexSize * (Math.sqrt(3) * (MAP_GRID_SIZE - 0.5) + 1);
     const mapPixelH = this.hexSize * (1.5 * MAP_GRID_SIZE + 0.5);
     const boundsW = Math.max(width, this.mapOffsetX + mapPixelW + 40);
-    const boundsH = Math.max(height, this.mapOffsetY + mapPixelH + BTN_HEIGHT + 20);
+    const boundsH = Math.max(height, this.mapOffsetY + mapPixelH + this.btnHeight + 20);
     this.cameras.main.setBounds(0, 0, boundsW, boundsH);
 
     // 入力設定
@@ -466,8 +463,8 @@ export class GameScene extends Phaser.Scene {
     const screenX = worldX - cam.scrollX;
     const screenY = worldY - cam.scrollY;
     const marginX = 80;
-    const marginTop = HUD_HEIGHT + 40;
-    const marginBottom = BTN_HEIGHT + 40;
+    const marginTop = this.hudHeight + 40;
+    const marginBottom = this.btnHeight + 40;
 
     const needsPan = screenX < marginX || screenX > cam.width - marginX ||
                      screenY < marginTop || screenY > cam.height - marginBottom;

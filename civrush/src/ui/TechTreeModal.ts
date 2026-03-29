@@ -85,8 +85,9 @@ export class TechTreeModal {
 
   private buildUI(): void {
     const { width, height } = this.scene.scale;
-    const panelW = Math.min(720, width - 16);
-    const panelH = Math.min(560, height - 16);
+    const isSmall = width < 500;
+    const panelW = isSmall ? width - 4 : Math.min(720, width - 16);
+    const panelH = isSmall ? height - 4 : Math.min(560, height - 16);
     const cx = width / 2;
     const cy = height / 2;
 
@@ -157,8 +158,9 @@ export class TechTreeModal {
 
   private buildTechNodes(state: GameState, activeCityId: string | null): void {
     const { width, height } = this.scene.scale;
-    const panelW = Math.min(720, width - 16);
-    const panelH = Math.min(560, height - 16);
+    const isSmall = width < 500;
+    const panelW = isSmall ? width - 4 : Math.min(720, width - 16);
+    const panelH = isSmall ? height - 4 : Math.min(560, height - 16);
     const cx = width / 2;
     const cy = height / 2;
 
@@ -174,11 +176,14 @@ export class TechTreeModal {
     const nodeW = Math.min(155, colGap - 8);
     const nodeH = Math.min(56, rowGap - 6);
 
-    const fontScale = panelW < 500 ? 0.85 : 1.0;
-    const nameFontSize = `${Math.floor(14 * fontScale)}px`;
-    const costFontSize = `${Math.floor(12 * fontScale)}px`;
-    const descFontSize = `${Math.floor(10 * fontScale)}px`;
-    const eraFontSize = `${Math.floor(13 * fontScale)}px`;
+    // ノード幅に連動したフォントスケール（基準: nodeW=155で1.0）
+    const fontScale = Math.min(1.0, nodeW / 155);
+    const nameFontSize = `${Math.max(8, Math.floor(14 * fontScale))}px`;
+    const costFontSize = `${Math.max(7, Math.floor(12 * fontScale))}px`;
+    const descFontSize = `${Math.max(6, Math.floor(10 * fontScale))}px`;
+    const eraFontSize = `${Math.max(8, Math.floor(13 * fontScale))}px`;
+    // コスト表示の幅（フォント縮小時にコスト部分も狭くする）
+    const costAreaW = Math.max(28, Math.floor(43 * fontScale));
 
     const startX = cx - panelW / 2 + 16;
     const startY = cy - panelH / 2 + 48;
@@ -243,21 +248,48 @@ export class TechTreeModal {
       const nodeHitArea = this.scene.add.rectangle(nx + nodeW / 2, ny + nodeH / 2, nodeW, nodeH, 0x000000, 0);
       this.container.add(nodeHitArea);
 
+      // ノード内にテキストを確実に収めるヘルパー
+      const addClippedText = (x: number, y: number, text: string, maxW: number, maxH: number, style: Phaser.Types.GameObjects.Text.TextStyle): Phaser.GameObjects.Text => {
+        const t = this.scene.add.text(x, y, text, style);
+        if (t.width > maxW) {
+          t.setScale(maxW / t.width);
+        }
+        // 高さもクリップ
+        const scaledH = t.height * (t.scaleY);
+        if (scaledH > maxH) {
+          t.setCrop(0, 0, t.width, maxH / (t.scaleY));
+        }
+        this.container.add(t);
+        return t;
+      };
+
       // 技術名
-      this.container.add(this.scene.add.text(nx + 5, ny + 4, tech.name, {
+      const maxNameW = nodeW - 10;
+      const nameText = addClippedText(nx + 4, ny + 2, tech.name, maxNameW, nodeH * 0.45, {
         fontSize: nameFontSize,
         color: isResearched ? '#88ff88' : canResearch ? '#aaccff' : '#888899',
         fontStyle: isResearched ? 'bold' : 'normal',
-      }));
+      });
 
-      // コスト + 効果
-      const costColor = affordable ? '#88aaff' : '#ff6666';
-      this.container.add(this.scene.add.text(nx + 5, ny + 22, `💡${tech.cost}`, {
-        fontSize: costFontSize, color: isResearched ? '#666666' : costColor,
-      }));
-      this.container.add(this.scene.add.text(nx + 52, ny + 22, tech.description, {
-        fontSize: descFontSize, color: '#778899', wordWrap: { width: nodeW - 57 },
-      }));
+      // コスト + 効果（2行目）
+      const nameScaledH = nameText.height * (nameText.scaleY);
+      const row2Y = ny + 2 + Math.min(nameScaledH, nodeH * 0.45);
+      const remainH = ny + nodeH - row2Y - 2;
+      if (remainH > 6) {
+        const costColor = affordable ? '#88aaff' : '#ff6666';
+        const costStr = `💡${tech.cost}`;
+        addClippedText(nx + 4, row2Y, costStr, costAreaW, remainH, {
+          fontSize: costFontSize, color: isResearched ? '#666666' : costColor,
+        });
+
+        const descX = nx + 4 + costAreaW;
+        const descMaxW = nodeW - 8 - costAreaW;
+        if (descMaxW > 10) {
+          addClippedText(descX, row2Y, tech.description, descMaxW, remainH, {
+            fontSize: descFontSize, color: '#778899',
+          });
+        }
+      }
 
 
       // 研究済みチェック

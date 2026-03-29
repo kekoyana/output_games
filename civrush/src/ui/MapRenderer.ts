@@ -1,13 +1,11 @@
 import Phaser from 'phaser';
 import type { GameState, HexCoord, TerrainType, Unit } from '../models/types';
 import { hexKey, hexToPixel } from '../systems/hexUtils';
-import { getUnitStats } from '../models/unitData';
-
 const TERRAIN_COLORS: Record<TerrainType, number> = {
-  plain: 0x8cc844,
-  forest: 0x1e6b1e,
-  mountain: 0x8a7060,
-  sea: 0x1a4aaa,
+  plain: 0x7abf3a,
+  forest: 0x1a5e1a,
+  mountain: 0x7a6555,
+  sea: 0x1848a0,
 };
 
 const TERRAIN_BORDER: Record<TerrainType, number> = {
@@ -16,6 +14,7 @@ const TERRAIN_BORDER: Record<TerrainType, number> = {
   mountain: 0x5a4030,
   sea: 0x0d2a88,
 };
+
 
 export class MapRenderer {
   private scene: Phaser.Scene;
@@ -149,70 +148,116 @@ export class MapRenderer {
     const pos = hexToPixel(coord, this.hexSize);
     const g = this.terrainDetailGraphics;
     const s = this.hexSize;
+    const seed = (coord.q * 73 + coord.r * 31) & 0xff;
 
     switch (terrain) {
       case 'plain': {
-        // ランダムっぽいが決定論的な草のドット（座標ベース）
-        const seed = (coord.q * 73 + coord.r * 31) & 0xff;
-        g.fillStyle(0x55aa22, 0.5);
-        for (let i = 0; i < 5; i++) {
+        // 草の束を複数描画（決定論的配置）
+        for (let i = 0; i < 7; i++) {
           const sx = ((seed * (i + 1) * 37) % 60) - 30;
           const sy = ((seed * (i + 1) * 53) % 40) - 20;
-          const dotR = 1 + (i % 2);
-          // ヘックス内に収める（大まかな円形クリップとして半径の60%以内）
-          if (Math.sqrt(sx * sx + sy * sy) < s * 0.6) {
-            g.fillCircle(pos.x + sx, pos.y + sy, dotR);
+          if (Math.sqrt(sx * sx + sy * sy) > s * 0.55) continue;
+          const px = pos.x + sx;
+          const py = pos.y + sy;
+          // 草の葉（3本の短い線）
+          const grassH = s * 0.12 + (i % 3) * s * 0.04;
+          g.lineStyle(1.2, 0x66bb33, 0.5);
+          g.lineBetween(px, py, px - 2, py - grassH);
+          g.lineBetween(px, py, px, py - grassH * 1.2);
+          g.lineBetween(px, py, px + 2, py - grassH);
+        }
+        // 地面のテクスチャドット
+        g.fillStyle(0x99cc55, 0.2);
+        for (let i = 0; i < 4; i++) {
+          const dx = ((seed * (i + 3) * 41) % 50) - 25;
+          const dy = ((seed * (i + 3) * 59) % 30) - 15;
+          if (Math.sqrt(dx * dx + dy * dy) < s * 0.5) {
+            g.fillCircle(pos.x + dx, pos.y + dy, 2);
           }
         }
         break;
       }
       case 'forest': {
-        // 2本の木（三角形）
-        g.fillStyle(0x0d5c0d, 0.7);
-        const offsets = [
-          { dx: -s * 0.2, dy: s * 0.05 },
-          { dx: s * 0.2, dy: -s * 0.05 },
+        // 3本の木（奥行き感あり）
+        const trees = [
+          { dx: 0, dy: -s * 0.15, scale: 1.0 },
+          { dx: -s * 0.25, dy: s * 0.1, scale: 0.85 },
+          { dx: s * 0.22, dy: s * 0.08, scale: 0.9 },
         ];
-        offsets.forEach(o => {
-          const tx = pos.x + o.dx;
-          const ty = pos.y + o.dy;
-          const th = s * 0.5;
-          const tw = s * 0.3;
-          g.fillTriangle(tx, ty - th, tx - tw, ty + th * 0.4, tx + tw, ty + th * 0.4);
+        trees.forEach((tree, idx) => {
+          const tx = pos.x + tree.dx;
+          const ty = pos.y + tree.dy;
+          const ts = tree.scale;
+          const th = s * 0.45 * ts;
+          const tw = s * 0.28 * ts;
+          // 影
+          g.fillStyle(0x000000, 0.15);
+          g.fillEllipse(tx + 2, ty + th * 0.4 + 3, tw * 1.4, s * 0.12);
+          // 幹
+          g.fillStyle(0x5a3818, 0.8);
+          g.fillRect(tx - 2 * ts, ty + th * 0.15, 4 * ts, s * 0.22 * ts);
+          // 葉の層（2層）
+          const leafColor1 = idx === 0 ? 0x1a6a1a : 0x146014;
+          const leafColor2 = idx === 0 ? 0x228822 : 0x1a7a1a;
+          g.fillStyle(leafColor1, 0.85);
+          g.fillTriangle(tx, ty - th, tx - tw, ty + th * 0.2, tx + tw, ty + th * 0.2);
+          g.fillStyle(leafColor2, 0.7);
+          g.fillTriangle(tx, ty - th * 0.55, tx - tw * 1.15, ty + th * 0.45, tx + tw * 1.15, ty + th * 0.45);
         });
-        // 幹
-        g.fillStyle(0x5a3010, 0.6);
-        offsets.forEach(o => {
-          g.fillRect(pos.x + o.dx - 2, pos.y + o.dy + s * 0.15, 4, s * 0.2);
-        });
+        // 地面のダークパッチ
+        g.fillStyle(0x0a3a0a, 0.25);
+        g.fillEllipse(pos.x, pos.y + s * 0.3, s * 0.6, s * 0.15);
         break;
       }
       case 'mountain': {
-        // 山のシルエット（大きい三角 + 小さい三角）
-        g.fillStyle(0x6a5548, 0.6);
-        const mh = s * 0.6;
+        // メインの山（大きい三角 + 陰影）
+        const mh = s * 0.65;
         const mw = s * 0.55;
-        g.fillTriangle(pos.x, pos.y - mh, pos.x - mw, pos.y + mh * 0.3, pos.x + mw, pos.y + mh * 0.3);
-        // 雪のキャップ
-        g.fillStyle(0xeeeeee, 0.5);
-        g.fillTriangle(pos.x, pos.y - mh, pos.x - mw * 0.35, pos.y - mh * 0.45, pos.x + mw * 0.35, pos.y - mh * 0.45);
+        // 影面（右側が暗い）
+        g.fillStyle(0x5a4a3a, 0.7);
+        g.fillTriangle(pos.x, pos.y - mh, pos.x + mw, pos.y + mh * 0.3, pos.x, pos.y + mh * 0.3);
+        // 日当たり面（左側が明るい）
+        g.fillStyle(0x8a7868, 0.7);
+        g.fillTriangle(pos.x, pos.y - mh, pos.x - mw, pos.y + mh * 0.3, pos.x, pos.y + mh * 0.3);
+        // 小さい山（背景）
+        g.fillStyle(0x6a5a48, 0.5);
+        g.fillTriangle(pos.x + s * 0.3, pos.y - mh * 0.4, pos.x + mw + s * 0.1, pos.y + mh * 0.3, pos.x + s * 0.1, pos.y + mh * 0.3);
+        // 雪のキャップ（よりリアルに）
+        g.fillStyle(0xf0f0f0, 0.75);
+        g.fillTriangle(pos.x, pos.y - mh, pos.x - mw * 0.3, pos.y - mh * 0.5, pos.x + mw * 0.25, pos.y - mh * 0.55);
+        // 岩のテクスチャ
+        g.fillStyle(0x6a6050, 0.3);
+        for (let i = 0; i < 3; i++) {
+          const rx = ((seed * (i + 1) * 29) % 30) - 15;
+          const ry = ((seed * (i + 1) * 43) % 20) - 5;
+          g.fillCircle(pos.x + rx, pos.y + ry, 2);
+        }
         break;
       }
       case 'sea': {
-        // 波線パターン（sinカーブ）
-        g.lineStyle(1.5, 0x5588ee, 0.45);
+        // 海の深度感（中心ほど暗い）
+        g.fillStyle(0x0a3088, 0.2);
+        g.fillCircle(pos.x, pos.y, s * 0.45);
+        // 波線パターン（2層、アニメ風に太さを変えて）
+        g.lineStyle(2, 0x4488dd, 0.35);
         for (let wi = -1; wi <= 1; wi++) {
-          const wy = pos.y + wi * s * 0.25;
+          const wy = pos.y + wi * s * 0.28;
+          const phase = (seed + wi * 2) * 0.5;
           const pts: { x: number; y: number }[] = [];
-          for (let xi = -8; xi <= 8; xi++) {
-            const wx = pos.x + xi * (s * 0.1);
-            const wyo = wy + Math.sin((xi / 2) * Math.PI) * (s * 0.06);
+          for (let xi = -6; xi <= 6; xi++) {
+            const wx = pos.x + xi * (s * 0.12);
+            const wyo = wy + Math.sin((xi / 2 + phase) * Math.PI) * (s * 0.07);
             pts.push({ x: wx, y: wyo });
           }
           for (let pi = 0; pi < pts.length - 1; pi++) {
             g.lineBetween(pts[pi].x, pts[pi].y, pts[pi + 1].x, pts[pi + 1].y);
           }
         }
+        // ハイライト（光の反射）
+        g.fillStyle(0x88bbff, 0.2);
+        g.fillCircle(pos.x - s * 0.1, pos.y - s * 0.15, s * 0.12);
+        g.fillStyle(0xaaddff, 0.15);
+        g.fillCircle(pos.x + s * 0.2, pos.y + s * 0.1, s * 0.08);
         break;
       }
     }
@@ -256,12 +301,20 @@ export class MapRenderer {
   private drawHex(coord: HexCoord, fillColor: number, strokeColor: number, alpha: number): void {
     const pos = hexToPixel(coord, this.hexSize);
     const points = this.getHexPoints(pos.x, pos.y);
+    const g = this.tileGraphics;
 
-    this.tileGraphics.fillStyle(fillColor, alpha);
-    this.tileGraphics.fillPoints(points, true);
+    // ベースカラー
+    g.fillStyle(fillColor, alpha);
+    g.fillPoints(points, true);
 
-    this.tileGraphics.lineStyle(0.8, strokeColor, alpha * 0.7);
-    this.tileGraphics.strokePoints(points, true);
+    // 上半分にハイライト（疑似グラデーション）
+    const innerPts = this.getHexPoints(pos.x, pos.y - this.hexSize * 0.08, this.hexSize * 0.7);
+    g.fillStyle(0xffffff, alpha * 0.08);
+    g.fillPoints(innerPts, true);
+
+    // ボーダー
+    g.lineStyle(1.2, strokeColor, alpha * 0.8);
+    g.strokePoints(points, true);
   }
 
   private drawHexFog(coord: HexCoord): void {
@@ -398,13 +451,14 @@ export class MapRenderer {
     g.strokePoints(shieldPts, true);
   }
 
-  private getHexPoints(cx: number, cy: number): Phaser.Geom.Point[] {
+  private getHexPoints(cx: number, cy: number, size?: number): Phaser.Geom.Point[] {
+    const s = size ?? this.hexSize;
     const points: Phaser.Geom.Point[] = [];
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI / 3) * i - Math.PI / 6;
       points.push(new Phaser.Geom.Point(
-        cx + this.hexSize * Math.cos(angle),
-        cy + this.hexSize * Math.sin(angle)
+        cx + s * Math.cos(angle),
+        cy + s * Math.sin(angle)
       ));
     }
     return points;

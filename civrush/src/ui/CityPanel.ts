@@ -48,11 +48,12 @@ export class CityPanel {
     const player = state.players.get('player');
     if (!city || !player) return;
 
-    const { width } = this.scene.scale;
+    const { width, height } = this.scene.scale;
+    const isSmall = width < 500;
     const panelW = Math.min(340, width - 20);
-    const panelH = 500;
+    const panelH = Math.min(500, height - (isSmall ? 60 : 80));
     const px = width - panelW - 10;
-    const py = 62;
+    const py = isSmall ? 50 : 62;
 
     // ドロップシャドウ
     const shadow = this.scene.add.graphics();
