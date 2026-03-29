@@ -186,8 +186,8 @@ const translations = {
     en: '📖 Units get stronger: Warrior→Archer→Cavalry→Artillery. Unlock via tech. Terrain gives defense bonuses',
   },
   tutorialVictory: {
-    ja: '📖 勝利条件:\n・制覇: 敵首都を全て占領\n・科学: 宇宙開発を研究\n・判定: 40ターン後に最大領土\n頑張ってください！',
-    en: '📖 Victory conditions:\n- Conquest: Capture all enemy capitals\n- Science: Research Space Program\n- Timeout: Most territory after 40 turns\nGood luck!',
+    ja: '📖 勝利条件（いずれかを達成）:\n・制覇: 敵首都を全て占領\n・科学: 宇宙開発を研究\n・判定: 40ターン後に最大領土\n頑張ってください！',
+    en: '📖 Victory (achieve any one):\n- Conquest: Capture all enemy capitals\n- Science: Research Space Program\n- Timeout: Most territory after 40 turns\nGood luck!',
   },
   tutorialComplete: { ja: '✅ 説明完了！自由にプレイしましょう', en: '✅ Tutorial done! Play freely' },
   tutorialNext: { ja: '次へ ▶', en: 'Next ▶' },
