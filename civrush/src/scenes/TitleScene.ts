@@ -121,7 +121,7 @@ export class TitleScene extends Phaser.Scene {
 
         // 説明（左寄せ、ラベルの下）
         this.add.text(btnX - sBtnW / 2 + 16, btnY + 12, diff.desc, {
-          fontSize: '13px', color: '#bbbbbb',
+          fontSize: '13px', color: '#eeeedd',
           stroke: '#000000', strokeThickness: 1,
         }).setOrigin(0, 0.5);
 
