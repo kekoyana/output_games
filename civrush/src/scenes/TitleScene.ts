@@ -58,14 +58,25 @@ export class TitleScene extends Phaser.Scene {
     // suppress unused variable warning
     void toggleText;
 
-    // ロゴ画像（暗い背景を透過させるためSCREENブレンド）
-    const logo = this.add.image(cx, cy - 150, 'logo');
-    const logoMaxW = Math.min(480, width - 40);
-    const logoScale = logoMaxW / logo.width;
-    logo.setScale(logoScale);
-
-    const logoBottom = cy - 150 + logo.displayHeight / 2;
     const isSmall = width < 500;
+
+    // タイトルテキスト
+    const titleText = this.add.text(cx, cy - 150, t('title'), {
+      fontSize: isSmall ? '42px' : '64px',
+      color: '#ffd700',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6,
+    }).setOrigin(0.5);
+
+    const subtitleText = this.add.text(cx, titleText.y + titleText.height / 2 + 8, t('subtitle'), {
+      fontSize: isSmall ? '16px' : '20px',
+      color: '#cccccc',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+
+    const logoBottom = subtitleText.y + subtitleText.height / 2;
 
     const selectText = this.add.text(cx, logoBottom + 8, t('selectDifficulty'), {
       fontSize: isSmall ? '15px' : '18px',

@@ -12,7 +12,7 @@ export function getLang(): Lang {
 
 const translations = {
   // ===== Title Scene =====
-  title: { ja: 'CivRush', en: 'CivRush' },
+  title: { ja: '10 Min Civ', en: '10 Min Civ' },
   subtitle: { ja: '10分文明戦略', en: '10-Min Civilization' },
   selectDifficulty: { ja: '難易度を選択してください', en: 'Select Difficulty' },
   easy: { ja: '簡単', en: 'Easy' },
@@ -162,8 +162,8 @@ const translations = {
 
   // ===== Tutorial =====
   tutorialWelcome: {
-    ja: '📖 CivRushへようこそ！40ターンで文明を発展させ、敵を倒すゲームです。基本を説明します',
-    en: '📖 Welcome to CivRush! Build your civilization in 40 turns. Let me explain the basics',
+    ja: '📖 10 Min Civへようこそ！40ターンで文明を発展させ、敵を倒すゲームです。基本を説明します',
+    en: '📖 Welcome to 10 Min Civ! Build your civilization in 40 turns. Let me explain the basics',
   },
   tutorialResources: {
     ja: '📖 上部の🏭は生産力（ユニット生産・建設に使用）、💡は科学力（技術研究に使用）です。都市が毎ターン生産します',
