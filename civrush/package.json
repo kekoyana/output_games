@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:itch": "tsc && vite build --outDir dist-itch --base ./",
     "preview": "vite preview"
   },
   "devDependencies": {
