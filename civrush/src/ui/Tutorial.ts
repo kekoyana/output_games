@@ -32,15 +32,24 @@ export class Tutorial {
     });
   }
 
-  /** 日本語テキストを指定幅で手動改行 */
+  /** 日本語テキストを実際のレンダリング幅で改行 */
   private wrapJa(text: string, fontSize: number, maxWidth: number): string {
-    const charW = fontSize * 0.85;
-    const charsPerLine = Math.max(1, Math.floor(maxWidth / charW));
-    if (text.length <= charsPerLine) return text;
+    // 一時テキストオブジェクトで実測
+    const measure = this.scene.add.text(0, 0, '', { fontSize: `${fontSize}px` }).setVisible(false);
     const lines: string[] = [];
-    for (let i = 0; i < text.length; i += charsPerLine) {
-      lines.push(text.slice(i, i + charsPerLine));
+    let current = '';
+    for (const ch of text) {
+      const test = current + ch;
+      measure.setText(test);
+      if (measure.width > maxWidth && current.length > 0) {
+        lines.push(current);
+        current = ch;
+      } else {
+        current = test;
+      }
     }
+    if (current) lines.push(current);
+    measure.destroy();
     return lines.join('\n');
   }
 
