@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Difficulty } from '../models/types';
 import titleBgUrl from '../assets/title_bg.jpg';
-import logoUrl from '../assets/logo.png';
+import logoUrl from '../assets/title_logo.png';
 import { t, getLang, setLang } from '../i18n';
 
 export class TitleScene extends Phaser.Scene {
@@ -60,23 +60,13 @@ export class TitleScene extends Phaser.Scene {
 
     const isSmall = width < 500;
 
-    // タイトルテキスト
-    const titleText = this.add.text(cx, cy - 150, t('title'), {
-      fontSize: isSmall ? '42px' : '64px',
-      color: '#ffd700',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 6,
-    }).setOrigin(0.5);
+    // ロゴ画像
+    const logo = this.add.image(cx, cy - 150, 'logo');
+    const logoMaxW = Math.min(480, width - 40);
+    const logoScale = logoMaxW / logo.width;
+    logo.setScale(logoScale);
 
-    const subtitleText = this.add.text(cx, titleText.y + titleText.height / 2 + 8, t('subtitle'), {
-      fontSize: isSmall ? '16px' : '20px',
-      color: '#cccccc',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
-
-    const logoBottom = subtitleText.y + subtitleText.height / 2;
+    const logoBottom = cy - 150 + logo.displayHeight / 2;
 
     const selectText = this.add.text(cx, logoBottom + 8, t('selectDifficulty'), {
       fontSize: isSmall ? '15px' : '18px',
