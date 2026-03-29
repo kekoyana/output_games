@@ -190,6 +190,9 @@ const translations = {
     en: '📖 Win by: ①Capture all enemy capitals ②Research Space Program ③Most territory after 40 turns. Good luck!',
   },
   tutorialComplete: { ja: '✅ 説明完了！自由にプレイしましょう', en: '✅ Tutorial done! Play freely' },
+  tutorialNext: { ja: '次へ ▶', en: 'Next ▶' },
+  tutorialSkip: { ja: 'スキップ', en: 'Skip' },
+  tutorialStart: { ja: 'ゲーム開始！', en: 'Start Game!' },
 
   // ===== Misc =====
   production: { ja: '生産力', en: 'Production' },

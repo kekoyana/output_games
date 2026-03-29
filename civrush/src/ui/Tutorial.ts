@@ -3,18 +3,13 @@ import { t } from '../i18n';
 
 export class Tutorial {
   private scene: Phaser.Scene;
-  private showMessage: (text: string, color?: string, duration?: number) => void;
   private active: boolean;
   private stepIndex = 0;
   private steps: string[] = [];
+  private container: Phaser.GameObjects.Container | null = null;
 
-  constructor(
-    scene: Phaser.Scene,
-    showMessage: (text: string, color?: string, duration?: number) => void,
-    enabled: boolean
-  ) {
+  constructor(scene: Phaser.Scene, enabled: boolean) {
     this.scene = scene;
-    this.showMessage = showMessage;
     this.active = enabled;
   }
 
@@ -32,43 +27,162 @@ export class Tutorial {
     ];
 
     this.stepIndex = 0;
-    this.scene.time.delayedCall(1500, () => {
-      this.showCurrentStep();
+    this.scene.time.delayedCall(1000, () => {
+      this.showPopup();
     });
   }
 
-  /** 次のステップへ進む */
-  next(): void {
-    if (!this.active) return;
-    this.stepIndex++;
-    if (this.stepIndex >= this.steps.length) {
-      this.active = false;
-      this.showMessage(t('tutorialComplete'), '#88ff88');
-      return;
+  /** 日本語テキストを指定幅で手動改行 */
+  private wrapJa(text: string, fontSize: number, maxWidth: number): string {
+    const charW = fontSize * 0.85;
+    const charsPerLine = Math.max(1, Math.floor(maxWidth / charW));
+    if (text.length <= charsPerLine) return text;
+    const lines: string[] = [];
+    for (let i = 0; i < text.length; i += charsPerLine) {
+      lines.push(text.slice(i, i + charsPerLine));
     }
-    this.showCurrentStep();
+    return lines.join('\n');
   }
 
-  private showCurrentStep(): void {
-    const msg = this.steps[this.stepIndex];
-    const progress = `(${this.stepIndex + 1}/${this.steps.length})`;
-    this.showMessage(`${msg}\n${progress} ▶ タップで次へ`, '#ffee88');
+  private showPopup(): void {
+    this.destroyPopup();
+
+    const { width, height } = this.scene.scale;
+    const isSmall = width < 500;
+    const panelW = isSmall ? width - 24 : Math.min(500, width - 60);
+    const panelPad = 20;
+    const cx = width / 2;
+    const fontSize = isSmall ? 14 : 16;
+    const textW = panelW - panelPad * 2;
+
+    this.container = this.scene.add.container(0, 0).setDepth(300).setScrollFactor(0);
+
+    // 半透明オーバーレイ（タッチを吸収するがボタンは上に配置）
+    const overlay = this.scene.add.rectangle(0, 0, width, height, 0x000000, 0.5)
+      .setOrigin(0, 0).setInteractive();
+    this.container.add(overlay);
+
+    // テキストを手動改行して作成
+    const msg = this.wrapJa(this.steps[this.stepIndex], fontSize, textW);
+    const progress = `${this.stepIndex + 1} / ${this.steps.length}`;
+
+    const msgText = this.scene.add.text(0, 0, msg, {
+      fontSize: `${fontSize}px`,
+      color: '#ffffff',
+      lineSpacing: 6,
+    });
+
+    const progressText = this.scene.add.text(0, 0, progress, {
+      fontSize: '13px',
+      color: '#aaaaaa',
+    });
+
+    // パネルサイズ計算
+    const btnH = 42;
+    const btnGap = 12;
+    const contentH = msgText.height + 14 + progressText.height + btnGap + btnH;
+    const panelH = contentH + panelPad * 2;
+    const panelY = Math.floor((height - panelH) / 2);
+
+    // パネル背景
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x0f1a30, 0.95);
+    bg.fillRoundedRect(cx - panelW / 2, panelY, panelW, panelH, 12);
+    bg.lineStyle(2, 0x4488ff, 0.8);
+    bg.strokeRoundedRect(cx - panelW / 2, panelY, panelW, panelH, 12);
+    this.container.add(bg);
+
+    // メッセージテキスト配置
+    const textX = cx - panelW / 2 + panelPad;
+    const textY = panelY + panelPad;
+    msgText.setPosition(textX, textY);
+    this.container.add(msgText);
+
+    // 進捗テキスト
+    const progY = textY + msgText.height + 8;
+    progressText.setPosition(cx, progY).setOrigin(0.5, 0);
+    this.container.add(progressText);
+
+    // ボタン行
+    const btnY = progY + progressText.height + btnGap;
+    const isLast = this.stepIndex >= this.steps.length - 1;
+
+    if (isLast) {
+      this.addButton(cx, btnY, panelW - panelPad * 2, btnH, t('tutorialStart'), 0x226622, 0x44cc44, () => {
+        this.finish();
+      });
+    } else {
+      const halfW = (panelW - panelPad * 2 - 10) / 2;
+      this.addButton(cx - halfW / 2 - 5, btnY, halfW, btnH, t('tutorialSkip'), 0x333344, 0x666688, () => {
+        this.finish();
+      });
+      this.addButton(cx + halfW / 2 + 5, btnY, halfW, btnH, t('tutorialNext'), 0x224488, 0x4488ff, () => {
+        this.stepIndex++;
+        this.showPopup();
+      });
+    }
   }
 
-  /** イベント通知（互換性のため残すがno-op） */
-  notify(_event: string): void {
-    // 情報表示のみのため何もしない
+  private addButton(
+    cx: number, y: number, w: number, h: number,
+    label: string, bgColor: number, borderColor: number,
+    onClick: () => void
+  ): void {
+    if (!this.container) return;
+    const btnBg = this.scene.add.graphics();
+    btnBg.fillStyle(bgColor, 0.9);
+    btnBg.fillRoundedRect(cx - w / 2, y, w, h, 8);
+    btnBg.lineStyle(1.5, borderColor, 0.9);
+    btnBg.strokeRoundedRect(cx - w / 2, y, w, h, 8);
+    this.container.add(btnBg);
+
+    const hitArea = this.scene.add.rectangle(cx, y + h / 2, w, h, 0x000000, 0)
+      .setInteractive({ cursor: 'pointer' });
+    this.container.add(hitArea);
+
+    const btnText = this.scene.add.text(cx, y + h / 2, label, {
+      fontSize: '15px', color: '#ffffff', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.container.add(btnText);
+
+    hitArea.on('pointerover', () => {
+      btnBg.clear();
+      btnBg.fillStyle(borderColor, 0.6);
+      btnBg.fillRoundedRect(cx - w / 2, y, w, h, 8);
+      btnBg.lineStyle(1.5, 0xffffff, 0.9);
+      btnBg.strokeRoundedRect(cx - w / 2, y, w, h, 8);
+    });
+    hitArea.on('pointerout', () => {
+      btnBg.clear();
+      btnBg.fillStyle(bgColor, 0.9);
+      btnBg.fillRoundedRect(cx - w / 2, y, w, h, 8);
+      btnBg.lineStyle(1.5, borderColor, 0.9);
+      btnBg.strokeRoundedRect(cx - w / 2, y, w, h, 8);
+    });
+    hitArea.on('pointerdown', onClick);
   }
+
+  private finish(): void {
+    this.active = false;
+    this.destroyPopup();
+  }
+
+  private destroyPopup(): void {
+    if (this.container) {
+      this.container.destroy();
+      this.container = null;
+    }
+  }
+
+  notify(_event: string): void {}
+  next(): void {}
 
   get isActive(): boolean {
     return this.active;
   }
 
-  get hasNext(): boolean {
-    return this.active && this.stepIndex < this.steps.length;
-  }
-
   destroy(): void {
     this.active = false;
+    this.destroyPopup();
   }
 }

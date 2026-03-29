@@ -117,14 +117,7 @@ export class GameScene extends Phaser.Scene {
     collectResourcesForPlayer(this.state, 'player');
 
     // チュートリアル（簡単モードのみ）
-    this.tutorial = new Tutorial(
-      this,
-      (text, color) => this.hud.showMessage(text, color),
-      difficulty === 'easy'
-    );
-    if (difficulty === 'easy') {
-      this.hud.setOnMessageTap(() => this.tutorial.next());
-    }
+    this.tutorial = new Tutorial(this, difficulty === 'easy');
     this.tutorial.start();
 
     // 初回描画
