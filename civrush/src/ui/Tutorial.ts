@@ -66,10 +66,36 @@ export class Tutorial {
 
     this.container = this.scene.add.container(0, 0).setDepth(300).setScrollFactor(0);
 
-    // 半透明オーバーレイ（タッチを吸収するがボタンは上に配置）
-    const overlay = this.scene.add.rectangle(0, 0, width, height, 0x000000, 0.5)
+    // スポットライト付きオーバーレイ
+    const spotlight = this.getSpotlight();
+    const overlayGfx = this.scene.add.graphics();
+    if (spotlight) {
+      // スポットライト: 穴あきオーバーレイ（上下左右の4つの矩形で構成）
+      const { x: sx, y: sy, w: sw, h: sh } = spotlight;
+      const pad = 4;
+      const hx = sx - pad, hy = sy - pad, hw = sw + pad * 2, hh = sh + pad * 2;
+      overlayGfx.fillStyle(0x000000, 0.5);
+      // 上
+      overlayGfx.fillRect(0, 0, width, hy);
+      // 下
+      overlayGfx.fillRect(0, hy + hh, width, height - (hy + hh));
+      // 左
+      overlayGfx.fillRect(0, hy, hx, hh);
+      // 右
+      overlayGfx.fillRect(hx + hw, hy, width - (hx + hw), hh);
+      // ハイライト枠
+      overlayGfx.lineStyle(2, 0xffd700, 1);
+      overlayGfx.strokeRoundedRect(hx, hy, hw, hh, 6);
+    } else {
+      overlayGfx.fillStyle(0x000000, 0.5);
+      overlayGfx.fillRect(0, 0, width, height);
+    }
+    this.container.add(overlayGfx);
+
+    // タッチ吸収用の透明矩形
+    const overlayHit = this.scene.add.rectangle(0, 0, width, height, 0x000000, 0)
       .setOrigin(0, 0).setInteractive();
-    this.container.add(overlay);
+    this.container.add(overlayHit);
 
     // テキストを手動改行して作成
     const msg = this.wrapJa(this.steps[this.stepIndex], fontSize, textW);
@@ -181,6 +207,29 @@ export class Tutorial {
       this.container.destroy();
       this.container = null;
     }
+  }
+
+  /** ステップに応じたスポットライト領域を返す（なければnull） */
+  private getSpotlight(): { x: number; y: number; w: number; h: number } | null {
+    const { width } = this.scene.scale;
+    const isSmall = width < 500;
+
+    if (this.stepIndex === 1) {
+      // 2/7: 生産力・科学力カプセル（HUD中央上部）
+      const capsuleW = isSmall ? 80 : 120;
+      const capsuleH = isSmall ? 24 : 32;
+      const capsuleY = isSmall ? 14 : 24;
+      const capsuleGap = isSmall ? 8 : 20;
+      const totalW = capsuleW * 2 + capsuleGap;
+      return {
+        x: width / 2 - capsuleW - capsuleGap / 2,
+        y: capsuleY,
+        w: totalW,
+        h: capsuleH,
+      };
+    }
+
+    return null;
   }
 
   notify(_event: string): void {}
