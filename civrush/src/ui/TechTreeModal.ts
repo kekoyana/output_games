@@ -176,14 +176,10 @@ export class TechTreeModal {
     const nodeW = Math.min(155, colGap - 8);
     const nodeH = Math.min(56, rowGap - 6);
 
-    // ノード幅に連動したフォントスケール（基準: nodeW=155で1.0）
-    const fontScale = Math.min(1.0, nodeW / 155);
-    const nameFontSize = `${Math.max(8, Math.floor(14 * fontScale))}px`;
-    const costFontSize = `${Math.max(7, Math.floor(12 * fontScale))}px`;
-    const descFontSize = `${Math.max(6, Math.floor(10 * fontScale))}px`;
-    const eraFontSize = `${Math.max(8, Math.floor(13 * fontScale))}px`;
-    // コスト表示の幅（フォント縮小時にコスト部分も狭くする）
-    const costAreaW = Math.max(28, Math.floor(43 * fontScale));
+    // フォントは読みやすさ優先で固定サイズ、はみ出しはスケール縮小で対応
+    const nameFontSize = '13px';
+    const descFontSize = '11px';
+    const eraFontSize = '12px';
 
     const startX = cx - panelW / 2 + 16;
     const startY = cy - panelH / 2 + 48;
@@ -271,24 +267,17 @@ export class TechTreeModal {
         fontStyle: isResearched ? 'bold' : 'normal',
       });
 
-      // コスト + 効果（2行目）
+      // コスト + 効果（2行目: 1行にまとめてノード全幅を使用）
       const nameScaledH = nameText.height * (nameText.scaleY);
       const row2Y = ny + 2 + Math.min(nameScaledH, nodeH * 0.45);
       const remainH = ny + nodeH - row2Y - 2;
+      const row2MaxW = nodeW - 8;
       if (remainH > 6) {
         const costColor = affordable ? '#88aaff' : '#ff6666';
-        const costStr = `💡${tech.cost}`;
-        addClippedText(nx + 4, row2Y, costStr, costAreaW, remainH, {
-          fontSize: costFontSize, color: isResearched ? '#666666' : costColor,
+        const row2Str = `💡${tech.cost} ${tech.description}`;
+        addClippedText(nx + 4, row2Y, row2Str, row2MaxW, remainH, {
+          fontSize: descFontSize, color: isResearched ? '#666666' : costColor,
         });
-
-        const descX = nx + 4 + costAreaW;
-        const descMaxW = nodeW - 8 - costAreaW;
-        if (descMaxW > 10) {
-          addClippedText(descX, row2Y, tech.description, descMaxW, remainH, {
-            fontSize: descFontSize, color: '#778899',
-          });
-        }
       }
 
 
