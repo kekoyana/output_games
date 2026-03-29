@@ -87,9 +87,10 @@ export class TitleScene extends Phaser.Scene {
       { label: t('hard'), desc: t('hardDesc'), value: 'hard', color: 0x662222, icon: '🔥', accentColor: 0xff4444 },
     ];
 
-    const btnW = 150;
-    const btnH = 80;
-    const btnGap = 16;
+    const isSmall = width < 500;
+    const btnW = isSmall ? Math.floor((width - 32) / 3 - 8) : 150;
+    const btnH = isSmall ? 64 : 80;
+    const btnGap = isSmall ? 8 : 16;
     const totalW = difficulties.length * btnW + (difficulties.length - 1) * btnGap;
     const btnStartX = cx - totalW / 2;
 
@@ -114,13 +115,13 @@ export class TitleScene extends Phaser.Scene {
         .setInteractive({ cursor: 'pointer' });
 
       // アイコン
-      this.add.text(btnX, btnY - 22, diff.icon, {
-        fontSize: '24px',
+      this.add.text(btnX, btnY - (isSmall ? 16 : 22), diff.icon, {
+        fontSize: isSmall ? '18px' : '24px',
       }).setOrigin(0.5);
 
       // ラベル
-      const labelText = this.add.text(btnX, btnY + 4, diff.label, {
-        fontSize: '18px',
+      const labelText = this.add.text(btnX, btnY + (isSmall ? 2 : 4), diff.label, {
+        fontSize: isSmall ? '14px' : '18px',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -128,11 +129,12 @@ export class TitleScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       // 説明テキスト
-      const descText = this.add.text(btnX, btnY + 24, diff.desc, {
-        fontSize: '10px',
+      const descText = this.add.text(btnX, btnY + (isSmall ? 18 : 24), diff.desc, {
+        fontSize: isSmall ? '8px' : '10px',
         color: '#bbbbbb',
         stroke: '#000000',
         strokeThickness: 1,
+        wordWrap: { width: btnW - 8 },
       }).setOrigin(0.5);
 
       hitArea.on('pointerover', () => {
@@ -164,19 +166,24 @@ export class TitleScene extends Phaser.Scene {
       t('controlEnd'),
     ].join('\n');
 
+    const descFontSize = isSmall ? '12px' : '15px';
+    const descLineSpacing = isSmall ? 3 : 6;
+    const descMaxW = Math.min(480, width - 32);
+
     // サイズ計測用の一時テキスト
     const measureText = this.add.text(0, 0, descLines, {
-      fontSize: '15px',
-      lineSpacing: 6,
+      fontSize: descFontSize,
+      lineSpacing: descLineSpacing,
+      wordWrap: { width: descMaxW },
     }).setVisible(false);
     const textW = measureText.displayWidth;
     const textH = measureText.displayHeight;
     measureText.destroy();
 
     // 背景パネル
-    const pad = 18;
+    const pad = isSmall ? 10 : 18;
     const btnBottom = logoBottom + 68 + btnH / 2;
-    const descY = btnBottom + 24;
+    const descY = btnBottom + (isSmall ? 12 : 24);
     const descBg = this.add.graphics();
     descBg.fillStyle(0x111122, 0.92);
     descBg.fillRoundedRect(
@@ -187,12 +194,13 @@ export class TitleScene extends Phaser.Scene {
       8
     );
 
-    // テキスト（背景パネルの後に追加するので上に描画される）
+    // テキスト
     this.add.text(cx, descY, descLines, {
-      fontSize: '15px',
+      fontSize: descFontSize,
       color: '#ffffff',
       align: 'center',
-      lineSpacing: 6,
+      lineSpacing: descLineSpacing,
+      wordWrap: { width: descMaxW },
     }).setOrigin(0.5, 0);
   }
 
