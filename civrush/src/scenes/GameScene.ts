@@ -13,6 +13,7 @@ import { CityPanel } from '../ui/CityPanel';
 import { TechTreeModal } from '../ui/TechTreeModal';
 import { getUnitStats } from '../models/unitData';
 import { t } from '../i18n';
+import { Tutorial } from '../ui/Tutorial';
 
 // HEX_SIZEとオフセットは画面サイズに応じて動的計算
 const MAP_GRID_SIZE = 10;
@@ -51,6 +52,7 @@ export class GameScene extends Phaser.Scene {
   private mapRenderer!: MapRenderer;
   private cityPanel!: CityPanel;
   private techModal!: TechTreeModal;
+  private tutorial!: Tutorial;
 
   hexSize: number = 36;
   mapOffsetX: number = 80;
@@ -87,7 +89,7 @@ export class GameScene extends Phaser.Scene {
     this.mapRenderer = new MapRenderer(this, this.hexSize);
     this.mapRenderer.setPosition(this.mapOffsetX, this.mapOffsetY);
 
-    this.hud = new HUD(this, () => this.onEndTurn());
+    this.hud = new HUD(this, () => this.onEndTurn(), () => this.openTechTreeFromHud());
 
     this.cityPanel = new CityPanel(this, {
       onResearch: (cityId) => this.openTechModal(cityId),
@@ -113,6 +115,17 @@ export class GameScene extends Phaser.Scene {
 
     // 初ターンの資源獲得
     collectResourcesForPlayer(this.state, 'player');
+
+    // チュートリアル（簡単モードのみ）
+    this.tutorial = new Tutorial(
+      this,
+      (text, color) => this.hud.showMessage(text, color),
+      difficulty === 'easy'
+    );
+    if (difficulty === 'easy') {
+      this.hud.setOnMessageTap(() => this.tutorial.next());
+    }
+    this.tutorial.start();
 
     // 初回描画
     this.redrawAll();
@@ -158,6 +171,7 @@ export class GameScene extends Phaser.Scene {
         if (city?.owner === 'player') {
           // 同じ都市または別の都市をクリックした場合はパネルを更新
           this.cityPanel.show(this.state, tile.cityId);
+
           this.redrawAll();
           return;
         }
@@ -192,6 +206,7 @@ export class GameScene extends Phaser.Scene {
           resolveCombat(this.state, this.state.selectedUnitId, tile.unitId);
           this.state.selectedUnitId = null;
           this.clearHighlights();
+
           this.redrawAll();
           return;
         }
@@ -209,6 +224,7 @@ export class GameScene extends Phaser.Scene {
         this.clearHighlights();
         updateVisibility(this.state);
         this.panToCoord(coord);
+
         this.redrawAll();
         return;
       }
@@ -230,6 +246,7 @@ export class GameScene extends Phaser.Scene {
           this.state.selectedUnitId = null;
           this.clearHighlights();
           this.cityPanel.show(this.state, tile.cityId);
+
           this.redrawAll();
           return;
         }
@@ -257,6 +274,7 @@ export class GameScene extends Phaser.Scene {
       const city = this.state.cities.get(tile.cityId);
       if (city?.owner === 'player') {
         this.cityPanel.show(this.state, tile.cityId);
+        this.tutorial.notify('city_opened');
         this.redrawAll();
         return;
       }
@@ -316,6 +334,7 @@ export class GameScene extends Phaser.Scene {
     this.reachableTiles = getReachableTiles(this.state, unitId);
     this.attackableTiles = getAttackableTiles(this.state, unitId);
     this.buildableTiles = new Set();
+
   }
 
   private clearHighlights(): void {
@@ -405,6 +424,12 @@ export class GameScene extends Phaser.Scene {
     this.redrawAll();
   }
 
+  /** HUD上の科学力タップから技術ツリーを閲覧モードで開く */
+  private openTechTreeFromHud(): void {
+    if (this.techModal.visible) return;
+    this.techModal.show(this.state, null);
+  }
+
   private openTechModal(cityId: string): void {
     this.activeCityIdForTech = cityId;
     this.cityPanel.hide();
@@ -423,6 +448,7 @@ export class GameScene extends Phaser.Scene {
 
     if (success) {
       city.actionUsed = true;
+
       const newEra = this.state.players.get('player')?.currentEra;
       if (newEra && prevEra !== newEra) {
         this.showEraTransition(newEra);
@@ -442,6 +468,7 @@ export class GameScene extends Phaser.Scene {
     this.cityPanel.hide();
 
     endPlayerTurn(this.state);
+
 
     this.redrawAll();
     this.hud.update(this.state);
@@ -527,5 +554,6 @@ export class GameScene extends Phaser.Scene {
     this.hud.destroy();
     this.cityPanel.destroy();
     this.techModal.destroy();
+    this.tutorial.destroy();
   }
 }

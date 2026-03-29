@@ -17,8 +17,18 @@ export class HUD {
   private combatLogText: Phaser.GameObjects.Text;
   private errorText: Phaser.GameObjects.Text | null = null;
   private errorTimer: Phaser.Time.TimerEvent | null = null;
+  private msgBarBg!: Phaser.GameObjects.Graphics;
+  private msgBarRect = { x: 0, y: 0, w: 0, h: 0 };
+  private msgTimer: Phaser.Time.TimerEvent | null = null;
+  private msgCloseBtn!: Phaser.GameObjects.Text;
+  private msgReopenBg!: Phaser.GameObjects.Graphics;
+  private msgReopenBtn!: Phaser.GameObjects.Text;
+  private lastMessageText = '';
+  private lastMessageColor = '#ffffff';
+  private onMessageTap: (() => void) | null = null;
+  private msgTapArea!: Phaser.GameObjects.Rectangle;
 
-  constructor(scene: Phaser.Scene, onEndTurn: () => void) {
+  constructor(scene: Phaser.Scene, onEndTurn: () => void, onScienceTap?: () => void) {
     this.scene = scene;
     const { width, height } = scene.scale;
     const isSmall = width < 500;
@@ -77,24 +87,33 @@ export class HUD {
     }).setOrigin(0.5, 0.5);
     this.container.add(this.scienceText);
 
+    // 科学力カプセルをタップで技術ツリーを開く
+    if (onScienceTap) {
+      const sciHit = scene.add.rectangle(
+        width / 2 + capsuleGap / 2 + capsuleW / 2, capsuleY + capsuleH / 2,
+        capsuleW, capsuleH, 0x000000, 0
+      ).setInteractive({ cursor: 'pointer' });
+      sciHit.on('pointerdown', onScienceTap);
+      this.container.add(sciHit);
+    }
+
     // ===== フェーズ表示 =====
     this.phaseText = scene.add.text(width / 2, isSmall ? 2 : 8, '', {
       fontSize: `${Math.floor(11 * fs)}px`, color: '#88ffcc',
     }).setOrigin(0.5, 0);
     this.container.add(this.phaseText);
 
-    // ===== 右側: 情報テキスト（スマホでは非表示） =====
-    const infoW = isSmall ? 0 : 200;
+    // ===== 右側: 情報テキスト =====
     this.infoText = scene.add.text(width - 10, 8, '', {
-      fontSize: `${Math.floor(12 * fs)}px`, color: '#cccccc', wordWrap: { width: infoW }, align: 'right',
+      fontSize: '12px', color: '#cccccc', wordWrap: { width: 200 }, align: 'right',
     }).setOrigin(1, 0).setVisible(!isSmall);
     this.container.add(this.infoText);
 
-    // ターン終了ボタン
+    // ターン終了ボタン（左上、HUDバー下）
     const btnW = isSmall ? 100 : 140;
-    const btnH = isSmall ? 38 : 48;
-    const btnX = width - btnW / 2 - 10;
-    const btnY = height - (isSmall ? 24 : 32);
+    const btnH = isSmall ? 34 : 48;
+    const btnX = btnW / 2 + 8;
+    const btnY = topBarH + btnH / 2 + 4;
 
     const btnBg = scene.add.graphics();
     btnBg.fillGradientStyle(0x2255cc, 0x2255cc, 0x1133aa, 0x1133aa, 1, 1, 1, 1);
@@ -108,7 +127,7 @@ export class HUD {
     this.container.add(this.endTurnBtn);
 
     this.endTurnText = scene.add.text(btnX, btnY, t('endTurn'), {
-      fontSize: `${Math.floor(16 * fs)}px`, color: '#ffffff', fontStyle: 'bold',
+      fontSize: isSmall ? '14px' : '16px', color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5);
     this.container.add(this.endTurnText);
 
@@ -127,20 +146,58 @@ export class HUD {
     });
     this.endTurnBtn.on('pointerdown', onEndTurn);
 
-    // 戦闘ログ（左下、スマホでは小さく）
-    const logW = isSmall ? 160 : 220;
-    const logH = isSmall ? 70 : 108;
-    const logBg = scene.add.graphics();
-    logBg.fillStyle(0x000000, 0.55);
-    logBg.fillRoundedRect(4, height - logH - 4, logW, logH, 6);
-    logBg.lineStyle(1, 0x334466, 0.7);
-    logBg.strokeRoundedRect(4, height - logH - 4, logW, logH, 6);
-    this.container.add(logBg);
+    // メッセージバー（画面下部、横いっぱい、閉じる/再表示可能）
+    const msgBarW = width - 8;
+    const msgBarH = isSmall ? 60 : 80;
+    const msgBarX = 4;
+    const msgBarY = height - msgBarH - 4;
 
-    this.combatLogText = scene.add.text(10, height - logH, '', {
-      fontSize: `${Math.floor(11 * fs)}px`, color: '#ffccaa', wordWrap: { width: logW - 16 }, lineSpacing: 2,
-    });
+    this.msgBarBg = scene.add.graphics().setAlpha(0);
+    this.container.add(this.msgBarBg);
+
+    this.combatLogText = scene.add.text(msgBarX + 10, msgBarY + 6, '', {
+      fontSize: isSmall ? '13px' : '12px',
+      color: '#ffffff',
+      wordWrap: { width: msgBarW - 40 },
+      lineSpacing: 3,
+    }).setAlpha(0);
     this.container.add(this.combatLogText);
+
+    // 閉じるボタン（メッセージバー右上）
+    this.msgCloseBtn = scene.add.text(msgBarX + msgBarW - 10, msgBarY + 4, '✕', {
+      fontSize: '16px', color: '#ff8888',
+      stroke: '#000000', strokeThickness: 1,
+    }).setOrigin(1, 0).setInteractive({ cursor: 'pointer' }).setAlpha(0);
+    this.msgCloseBtn.on('pointerdown', () => this.hideMessage());
+    this.container.add(this.msgCloseBtn);
+
+    // 再表示ボタン（画面右下、メッセージが閉じられたとき表示）
+    const reopenX = width - 36;
+    const reopenY = height - 36;
+    this.msgReopenBg = scene.add.graphics().setAlpha(0);
+    this.msgReopenBg.fillStyle(0x000000, 0.7);
+    this.msgReopenBg.fillCircle(reopenX, reopenY, 20);
+    this.msgReopenBg.lineStyle(1.5, 0x4488ff, 0.8);
+    this.msgReopenBg.strokeCircle(reopenX, reopenY, 20);
+    this.container.add(this.msgReopenBg);
+
+    this.msgReopenBtn = scene.add.text(reopenX, reopenY, '💬', {
+      fontSize: '18px',
+    }).setOrigin(0.5).setInteractive({ cursor: 'pointer' }).setAlpha(0);
+    this.msgReopenBtn.on('pointerdown', () => this.reopenMessage());
+    this.container.add(this.msgReopenBtn);
+
+    // メッセージバー全体のタップ領域（閉じるボタンより上に配置）
+    this.msgTapArea = scene.add.rectangle(
+      msgBarX + msgBarW / 2, msgBarY + msgBarH / 2,
+      msgBarW - 40, msgBarH, 0x000000, 0
+    ).setInteractive({ cursor: 'pointer' }).setAlpha(0);
+    this.msgTapArea.on('pointerdown', () => {
+      if (this.onMessageTap) this.onMessageTap();
+    });
+    this.container.add(this.msgTapArea);
+
+    this.msgBarRect = { x: msgBarX, y: msgBarY, w: msgBarW, h: msgBarH };
   }
 
   update(state: GameState): void {
@@ -158,11 +215,76 @@ export class HUD {
     };
     this.phaseText.setText(phaseLabels[state.phase] ?? '');
 
-    this.combatLogText.setText(state.combatLog.slice(0, 5).join('\n'));
+    // 新しい戦闘ログがあればメッセージバーに表示
+    const recentLog = state.combatLog.slice(0, 3).join('\n');
+    if (recentLog && recentLog !== this.lastCombatLog) {
+      this.lastCombatLog = recentLog;
+      this.showMessage(recentLog, '#ffccaa', 4000);
+    }
   }
+
+  private lastCombatLog = '';
 
   setInfoText(text: string): void {
     this.infoText.setText(text);
+    // スマホではメッセージバーに表示
+    if (this.scene.scale.width < 500 && text) {
+      this.showMessage(text, '#ccddee', 3000);
+    }
+  }
+
+  setOnMessageTap(callback: (() => void) | null): void {
+    this.onMessageTap = callback;
+  }
+
+  /** メッセージバーにメッセージを表示（閉じるボタンで消せる） */
+  showMessage(text: string, color: string = '#ffffff', _duration?: number): void {
+    if (this.msgTimer) {
+      this.msgTimer.destroy();
+      this.msgTimer = null;
+    }
+
+    this.lastMessageText = text;
+    this.lastMessageColor = color;
+
+    const { x, y, w, h } = this.msgBarRect;
+    this.msgBarBg.clear();
+    this.msgBarBg.fillStyle(0x000000, 0.7);
+    this.msgBarBg.fillRoundedRect(x, y, w, h, 6);
+    this.msgBarBg.lineStyle(1, 0x334466, 0.7);
+    this.msgBarBg.strokeRoundedRect(x, y, w, h, 6);
+    this.msgBarBg.setAlpha(1);
+
+    this.combatLogText.setText(text);
+    this.combatLogText.setColor(color);
+    this.combatLogText.setAlpha(1);
+    this.combatLogText.setY(y + 6);
+
+    this.msgCloseBtn.setAlpha(1);
+    this.msgTapArea.setAlpha(1);
+    // 再表示ボタンは隠す
+    this.msgReopenBg.setAlpha(0);
+    this.msgReopenBtn.setAlpha(0);
+  }
+
+  /** メッセージバーを閉じる */
+  private hideMessage(): void {
+    this.msgBarBg.setAlpha(0);
+    this.combatLogText.setAlpha(0);
+    this.msgCloseBtn.setAlpha(0);
+    this.msgTapArea.setAlpha(0);
+    // 再表示ボタンを表示
+    if (this.lastMessageText) {
+      this.msgReopenBg.setAlpha(1);
+      this.msgReopenBtn.setAlpha(1);
+    }
+  }
+
+  /** 最後のメッセージを再表示 */
+  private reopenMessage(): void {
+    if (this.lastMessageText) {
+      this.showMessage(this.lastMessageText, this.lastMessageColor);
+    }
   }
 
   showErrorMessage(message: string): void {
@@ -208,6 +330,7 @@ export class HUD {
   destroy(): void {
     if (this.errorText) this.errorText.destroy();
     if (this.errorTimer) this.errorTimer.destroy();
+    if (this.msgTimer) this.msgTimer.destroy();
     this.container.destroy();
   }
 }

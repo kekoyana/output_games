@@ -160,6 +160,37 @@ const translations = {
     en: ['Imperial City', 'Metropolis', 'Trade Port', 'Fort City', 'Academy', 'Farmland', 'Industry', 'Holy City', 'Harbor', 'Frontier'],
   },
 
+  // ===== Tutorial =====
+  tutorialWelcome: {
+    ja: '📖 CivRushへようこそ！40ターンで文明を発展させ、敵を倒すゲームです。基本を説明します',
+    en: '📖 Welcome to CivRush! Build your civilization in 40 turns. Let me explain the basics',
+  },
+  tutorialResources: {
+    ja: '📖 上部の🏭は生産力（ユニット生産・建設に使用）、💡は科学力（技術研究に使用）です。都市が毎ターン生産します',
+    en: '📖 🏭 = Production (units/buildings), 💡 = Science (research). Cities generate these each turn',
+  },
+  tutorialCity: {
+    ja: '📖 都市をダブルタップすると都市パネルが開きます。1ターンに1回、研究・生産・建設のどれかを実行できます',
+    en: '📖 Double-tap a city to open its panel. You can research, produce, or build once per turn',
+  },
+  tutorialTechTree: {
+    ja: '📖 上部の💡科学力をタップすると技術ツリーが開きます。技術を研究すると新ユニットや強化が解放されます',
+    en: '📖 Tap 💡 science in the top bar to open the tech tree. Research unlocks new units and bonuses',
+  },
+  tutorialUnit: {
+    ja: '📖 盾マークのユニットをタップ→水色マスをタップで移動。赤マスの敵をタップで攻撃。1ターン1回行動できます',
+    en: '📖 Tap a unit → tap blue tile to move, red tile to attack. Each unit acts once per turn',
+  },
+  tutorialCombat: {
+    ja: '📖 戦士→弓兵→騎兵→砲兵の順に強くなります。技術研究で解放しましょう。地形や建物で防御ボーナスもあります',
+    en: '📖 Units get stronger: Warrior→Archer→Cavalry→Artillery. Unlock via tech. Terrain gives defense bonuses',
+  },
+  tutorialVictory: {
+    ja: '📖 勝利条件: ①敵首都を全て占領（制覇）②宇宙開発を研究（科学）③40ターン後に最大領土（判定）。頑張ってください！',
+    en: '📖 Win by: ①Capture all enemy capitals ②Research Space Program ③Most territory after 40 turns. Good luck!',
+  },
+  tutorialComplete: { ja: '✅ 説明完了！自由にプレイしましょう', en: '✅ Tutorial done! Play freely' },
+
   // ===== Misc =====
   production: { ja: '生産力', en: 'Production' },
   science: { ja: '科学力', en: 'Science' },
