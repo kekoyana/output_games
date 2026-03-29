@@ -139,12 +139,51 @@ export class TechTreeModal {
     this.buildTechNodes(state, activeCityId);
     this.container.setVisible(true);
     this.isVisible = true;
+    this.setupScroll();
+  }
+
+  private scrollY = 0;
+  private scrollMinY = 0;
+
+  private setupScroll(): void {
+    const { width, height } = this.scene.scale;
+    if (width >= 500) return; // PCではスクロール不要
+
+    const panelH = height - 4;
+    const contentH = panelH - 52;
+    const totalRows = 7;
+    const minNodeH = 70;
+    const rowGap = Math.max(minNodeH + 12, Math.floor(contentH / totalRows));
+    const totalContentH = totalRows * rowGap + 60;
+    this.scrollMinY = Math.min(0, contentH - totalContentH);
+    this.scrollY = 0;
+
+    let dragStartY = 0;
+    let dragStartScroll = 0;
+
+    this.scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (!this.isVisible) return;
+      dragStartY = p.y;
+      dragStartScroll = this.scrollY;
+    });
+    this.scene.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (!this.isVisible || !p.isDown) return;
+      const dy = p.y - dragStartY;
+      if (Math.abs(dy) > 5) {
+        this.scrollY = Math.max(this.scrollMinY, Math.min(0, dragStartScroll + dy));
+        // コンテナ内の全要素をオフセット（オーバーレイ・背景・タイトル以外）
+        // container.yでスクロール
+        this.container.y = this.scrollY;
+      }
+    });
   }
 
   hide(): void {
     this.stopPulseTimers();
     this.container.removeAll(true);
     this.container.setVisible(false);
+    this.container.y = 0;
+    this.scrollY = 0;
     this.isVisible = false;
     this.onClose();
   }
@@ -172,14 +211,16 @@ export class TechTreeModal {
     const totalRows = 7;
     const colCount = 4;
     const colGap = Math.floor(contentW / colCount);
-    const rowGap = Math.floor(contentH / totalRows);
+    // スマホ: ノードの高さを十分確保（縦にはみ出してOK、スクロールで対応）
+    const minNodeH = isSmall ? 70 : 56;
+    const rowGap = isSmall ? Math.max(minNodeH + 12, Math.floor(contentH / totalRows)) : Math.floor(contentH / totalRows);
     const nodeW = Math.min(155, colGap - 8);
-    const nodeH = Math.min(56, rowGap - 6);
+    const nodeH = Math.min(isSmall ? 70 : 56, rowGap - 6);
 
-    // フォントは読みやすさ優先で固定サイズ、はみ出しはスケール縮小で対応
-    const nameFontSize = '13px';
-    const descFontSize = '11px';
-    const eraFontSize = '12px';
+    // フォントサイズ
+    const nameFontSize = isSmall ? '14px' : '13px';
+    const descFontSize = isSmall ? '12px' : '11px';
+    const eraFontSize = isSmall ? '13px' : '12px';
 
     const startX = cx - panelW / 2 + 16;
     const startY = cy - panelH / 2 + 48;
@@ -244,40 +285,48 @@ export class TechTreeModal {
       const nodeHitArea = this.scene.add.rectangle(nx + nodeW / 2, ny + nodeH / 2, nodeW, nodeH, 0x000000, 0);
       this.container.add(nodeHitArea);
 
-      // ノード内にテキストを確実に収めるヘルパー
-      const addClippedText = (x: number, y: number, text: string, maxW: number, maxH: number, style: Phaser.Types.GameObjects.Text.TextStyle): Phaser.GameObjects.Text => {
-        const t = this.scene.add.text(x, y, text, style);
-        if (t.width > maxW) {
-          t.setScale(maxW / t.width);
-        }
-        // 高さもクリップ
-        const scaledH = t.height * (t.scaleY);
-        if (scaledH > maxH) {
-          t.setCrop(0, 0, t.width, maxH / (t.scaleY));
-        }
-        this.container.add(t);
-        return t;
-      };
-
       // 技術名
       const maxNameW = nodeW - 10;
-      const nameText = addClippedText(nx + 4, ny + 2, tech.name, maxNameW, nodeH * 0.45, {
+      const nameText = this.scene.add.text(nx + 4, ny + 2, tech.name, {
         fontSize: nameFontSize,
         color: isResearched ? '#88ff88' : canResearch ? '#aaccff' : '#888899',
         fontStyle: isResearched ? 'bold' : 'normal',
+        wordWrap: { width: maxNameW },
+        maxLines: 1,
       });
+      if (nameText.width > maxNameW) {
+        nameText.setScale(maxNameW / nameText.width);
+      }
+      this.container.add(nameText);
 
-      // コスト + 効果（2行目: 1行にまとめてノード全幅を使用）
-      const nameScaledH = nameText.height * (nameText.scaleY);
-      const row2Y = ny + 2 + Math.min(nameScaledH, nodeH * 0.45);
-      const remainH = ny + nodeH - row2Y - 2;
+      // コスト
+      const nameH = nameText.height * (nameText.scaleY || 1);
+      const row2Y = ny + 2 + Math.min(nameH, 18);
+      const remainH = ny + nodeH - row2Y - 3;
       const row2MaxW = nodeW - 8;
-      if (remainH > 6) {
+      if (remainH > 8) {
         const costColor = affordable ? '#88aaff' : '#ff6666';
-        const row2Str = `💡${tech.cost} ${tech.description}`;
-        addClippedText(nx + 4, row2Y, row2Str, row2MaxW, remainH, {
-          fontSize: descFontSize, color: isResearched ? '#666666' : costColor,
+        const costText = this.scene.add.text(nx + 4, row2Y, `💡${tech.cost}`, {
+          fontSize: descFontSize,
+          color: isResearched ? '#666666' : costColor,
         });
+        this.container.add(costText);
+
+        // 説明（手動で文字単位改行して枠内に収める）
+        const descY = row2Y + costText.height + 1;
+        const descRemainH = ny + nodeH - descY - 2;
+        if (descRemainH > 8) {
+          const wrappedDesc = this.wrapText(tech.description, row2MaxW, descFontSize);
+          const descText = this.scene.add.text(nx + 4, descY, wrappedDesc, {
+            fontSize: descFontSize,
+            color: isResearched ? '#888888' : '#ffffff',
+            lineSpacing: 1,
+          });
+          if (descText.height > descRemainH) {
+            descText.setCrop(0, 0, row2MaxW, descRemainH);
+          }
+          this.container.add(descText);
+        }
       }
 
 
@@ -375,6 +424,20 @@ export class TechTreeModal {
         lineGraphics.fillPath();
       });
     });
+  }
+
+  /** 文字単位で折り返し（日本語対応） */
+  private wrapText(text: string, maxWidth: number, fontSize: string): string {
+    const size = parseInt(fontSize, 10) || 12;
+    // 1文字あたりの幅を概算（日本語は等幅に近い）
+    const charW = size * 0.85;
+    const charsPerLine = Math.max(1, Math.floor(maxWidth / charW));
+    if (text.length <= charsPerLine) return text;
+    const lines: string[] = [];
+    for (let i = 0; i < text.length; i += charsPerLine) {
+      lines.push(text.slice(i, i + charsPerLine));
+    }
+    return lines.join('\n');
   }
 
   private canResearch(state: GameState, playerId: PlayerId, techId: TechId): boolean {

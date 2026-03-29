@@ -103,7 +103,8 @@ export class CityPanel {
     ].join('\n');
 
     const stats = this.scene.add.text(px + 12, py + 50, statsText, {
-      fontSize: '12px', color: '#aabbcc', lineSpacing: 5,
+      fontSize: isSmall ? '14px' : '12px', color: '#aabbcc', lineSpacing: 5,
+      wordWrap: { width: panelW - 24 },
     });
     this.container.add(stats);
 
@@ -207,21 +208,24 @@ export class CityPanel {
   }
 
   private addSectionHeader(x: number, y: number, w: number, label: string): number {
+    const isSmall = this.scene.scale.width < 500;
+    const h = isSmall ? 26 : 22;
     const headerGfx = this.scene.add.graphics();
     headerGfx.fillStyle(0x223355, 0.7);
-    headerGfx.fillRoundedRect(x, y, w, 22, 4);
+    headerGfx.fillRoundedRect(x, y, w, h, 4);
     this.container.add(headerGfx);
 
-    const headerText = this.scene.add.text(x + 8, y + 4, `▸ ${label}`, {
-      fontSize: '12px', color: '#88aaff', fontStyle: 'bold',
+    const headerText = this.scene.add.text(x + 8, y + (isSmall ? 5 : 4), `▸ ${label}`, {
+      fontSize: isSmall ? '14px' : '12px', color: '#88aaff', fontStyle: 'bold',
     });
     this.container.add(headerText);
 
-    return y + 26;
+    return y + h + 4;
   }
 
   private addButton(x: number, y: number, w: number, label: string, color: number, onClick: () => void): number {
-    const h = 34;
+    const isSmall = this.scene.scale.width < 500;
+    const h = isSmall ? 40 : 34;
     const btnGfx = this.scene.add.graphics();
     btnGfx.fillStyle(color, 0.9);
     btnGfx.fillRoundedRect(x, y, w, h, 5);
@@ -234,7 +238,7 @@ export class CityPanel {
     this.container.add(hitArea);
 
     const btnText = this.scene.add.text(x + 8, y + h / 2, label, {
-      fontSize: '12px', color: '#e8e8e8', wordWrap: { width: w - 16 },
+      fontSize: isSmall ? '14px' : '12px', color: '#e8e8e8', wordWrap: { width: w - 16 },
     }).setOrigin(0, 0.5);
     this.container.add(btnText);
 
@@ -261,7 +265,8 @@ export class CityPanel {
   }
 
   private addButtonDisabled(x: number, y: number, w: number, label: string): number {
-    const h = 34;
+    const isSmall = this.scene.scale.width < 500;
+    const h = isSmall ? 40 : 34;
     const btnGfx = this.scene.add.graphics();
     btnGfx.fillStyle(0x181820, 0.7);
     btnGfx.fillRoundedRect(x, y, w, h, 5);
@@ -270,7 +275,7 @@ export class CityPanel {
     this.container.add(btnGfx);
 
     const btnText = this.scene.add.text(x + 8, y + h / 2, label, {
-      fontSize: '12px', color: '#555566', wordWrap: { width: w - 16 },
+      fontSize: isSmall ? '14px' : '12px', color: '#555566', wordWrap: { width: w - 16 },
     }).setOrigin(0, 0.5);
     this.container.add(btnText);
 
