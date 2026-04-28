@@ -6,7 +6,7 @@ import { clearCanvas } from "../ui/canvas-utils";
 import type { StageDef } from "../stage-types";
 import { GAME_CONFIG } from "../game-config";
 
-import suitsUrl from "../assets/symbols/suits.png";
+import suitsUrl from "../assets/symbols/suits.webp";
 
 /**
  * Loading scene — loads all assets for the selected stage,

@@ -14,7 +14,7 @@ import {
   drawImageCover,
   roundRect,
 } from "../ui/canvas-utils";
-import trophyUrl from "../assets/ending/trophy.png";
+import trophyUrl from "../assets/ending/trophy.webp";
 
 interface Spark {
   x: number;

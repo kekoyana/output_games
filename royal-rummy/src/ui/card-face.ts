@@ -10,7 +10,7 @@ import type { Card } from "../game/gin-rummy";
 import { RANK_LABELS } from "../game/gin-rummy";
 import { roundRect } from "./canvas-utils";
 import { getCachedImage, loadImage } from "../core/image-loader";
-import suitsUrl from "../assets/symbols/suits.png";
+import suitsUrl from "../assets/symbols/suits.webp";
 
 /**
  * Suit sprite sheet layout. The user-supplied suits.png is a 2×2 grid
