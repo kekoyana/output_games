@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#1c2244"/>
+  <!-- Royal crown silhouette -->
+  <g fill="#f5d76e" stroke="#7a5a18" stroke-width="0.6">
+    <path d="M5 22 L7 11 L11 16 L16 8 L21 16 L25 11 L27 22 Z"/>
+    <rect x="5" y="22" width="22" height="3" rx="0.6"/>
+  </g>
+  <circle cx="7" cy="11" r="1.4" fill="#ff6477"/>
+  <circle cx="16" cy="8" r="1.6" fill="#7eb6ff"/>
+  <circle cx="25" cy="11" r="1.4" fill="#ff6477"/>
+</svg>
