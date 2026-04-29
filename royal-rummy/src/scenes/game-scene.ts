@@ -212,9 +212,9 @@ export class GameScene implements Scene {
   private playerWins = 0;
   private opponentWins = 0;
   /**
-   * Per-hand knock ceiling. The first up-card's points value (J/Q/K=10, A=1)
-   * sets this each hand — Hollywood Gin "knock card" rule. ATTACK is allowed
-   * only when LEFT ≤ knockMax.
+   * Per-hand knock ceiling. The first up-card's points value (face value 1..13,
+   * A=1) sets this each hand — Hollywood Gin "knock card" rule. ATTACK is
+   * allowed only when LEFT ≤ knockMax.
    */
   private knockMax = 10;
   private messageKey: TextKey | "" = "";
@@ -1388,15 +1388,133 @@ export class GameScene implements Scene {
     const ch = 128;
     const gap = 6;
     const total = this.opponentHand.length;
+    if (total === 0) return;
     const startX = (GAME_W - (cw * total + gap * (total - 1))) / 2;
     const slotY = 80;
-    for (let i = 0; i < total; i++) {
-      const card = this.opponentHand[i];
-      const slotX = startX + i * (cw + gap);
-      const pos = this.dealOffsetFor(card.id, slotX, slotY, cw, ch);
-      if (pos === null) continue;
-      this.drawCardBack(ctx, pos.x, pos.y, cw, ch);
+    // Reveal opponent hand face-up only after a cast is committed (player
+    // confirmed ATTACK) or when the opponent is casting. The cast_prompt
+    // phase itself stays hidden so the player can't peek before deciding.
+    const revealed =
+      this.phase === "opponent_casting" ||
+      this.phase === "impact_pending" ||
+      this.phase === "hand_over" ||
+      this.phase === "match_over";
+
+    if (!revealed) {
+      for (let i = 0; i < total; i++) {
+        const card = this.opponentHand[i];
+        const slotX = startX + i * (cw + gap);
+        const pos = this.dealOffsetFor(card.id, slotX, slotY, cw, ch);
+        if (pos === null) continue;
+        this.drawCardBack(ctx, pos.x, pos.y, cw, ch);
+      }
+      return;
     }
+
+    // Revealed: detect melds and highlight like the player hand.
+    const bestMeld = bestMelds(this.opponentHand);
+    const meldPalettes = bestMeld.melds.map(meldPaletteFor);
+    const meldByCardId = new Map<number, { idx: number; meld: Card[] }>();
+    bestMeld.melds.forEach((m, idx) => {
+      m.forEach((c) => meldByCardId.set(c.id, { idx, meld: m }));
+    });
+
+    // Display order: meld cards (grouped per meld) on the left, deadwood last.
+    const displayHand: Card[] = [];
+    bestMeld.melds.forEach((m) => {
+      for (const c of m) displayHand.push(c);
+    });
+    for (const c of this.opponentHand) {
+      if (!meldByCardId.has(c.id)) displayHand.push(c);
+    }
+
+    const pulse = 0.5 + 0.5 * Math.sin(this.timeAccum * 4);
+
+    const meldRectsByIdx: Array<Array<{ x: number; y: number }>> = [];
+    for (let i = 0; i < total; i++) {
+      const c = displayHand[i];
+      const x = startX + i * (cw + gap);
+      const y = slotY;
+      const meldInfo = meldByCardId.get(c.id);
+      if (meldInfo) {
+        const palette = meldPalettes[meldInfo.idx];
+        ctx.save();
+        ctx.shadowColor = palette.glow;
+        ctx.shadowBlur = 18 + 8 * pulse;
+        ctx.fillStyle = palette.fill;
+        roundRect(ctx, x - 5, y - 5, cw + 10, ch + 10, 12);
+        ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.strokeStyle = palette.glow;
+        ctx.lineWidth = 3;
+        roundRect(ctx, x - 1, y - 1, cw + 2, ch + 2, 9);
+        ctx.stroke();
+        ctx.restore();
+        if (!meldRectsByIdx[meldInfo.idx]) meldRectsByIdx[meldInfo.idx] = [];
+        meldRectsByIdx[meldInfo.idx].push({ x, y });
+      }
+      drawCardFace(ctx, c, x, y, cw, ch, false);
+    }
+
+    // Banners below the opponent hand (cards are pinned to the top edge —
+    // putting banners above would clip the title bar).
+    const bh = 28;
+    const bannerFont = "bold 18px sans-serif";
+    type BannerInfo = { idx: number; bx: number; bw: number; by: number; label: string };
+    const banners: BannerInfo[] = [];
+    ctx.save();
+    ctx.font = bannerFont;
+    bestMeld.melds.forEach((meld, idx) => {
+      const cards = meldRectsByIdx[idx];
+      if (!cards || cards.length === 0) return;
+      const minX = Math.min(...cards.map((p) => p.x));
+      const maxX = Math.max(...cards.map((p) => p.x)) + cw;
+      const isSet = meld.every((c) => c.rank === meld[0].rank);
+      const label = `★ ${t(isSet ? "coven" : "cascade")} ×${meld.length}`;
+      const textW = ctx.measureText(label).width;
+      const bw = Math.ceil(textW + 24);
+      const rawBx = (minX + maxX) / 2 - bw / 2;
+      const bx = Math.max(8, Math.min(GAME_W - bw - 8, rawBx));
+      banners.push({ idx, bx, bw, by: slotY + ch + 6, label });
+    });
+    ctx.restore();
+
+    // Stagger overlapping banners by pushing later rows DOWN (cards above).
+    const rowOccupancy: Array<Array<{ bx: number; bw: number }>> = [];
+    banners
+      .slice()
+      .sort((a, b) => a.bx - b.bx)
+      .forEach((b) => {
+        let row = 0;
+        while (true) {
+          const used = rowOccupancy[row] ?? [];
+          const overlaps = used.some((r) => b.bx < r.bx + r.bw + 6 && b.bx + b.bw + 6 > r.bx);
+          if (!overlaps) {
+            if (!rowOccupancy[row]) rowOccupancy[row] = [];
+            rowOccupancy[row].push({ bx: b.bx, bw: b.bw });
+            b.by += row * (bh + 6);
+            break;
+          }
+          row++;
+        }
+      });
+
+    banners.forEach((b) => {
+      const palette = meldPalettes[b.idx];
+      ctx.save();
+      ctx.shadowColor = palette.glow;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = palette.glow;
+      roundRect(ctx, b.bx, b.by, b.bw, bh, 8);
+      ctx.fill();
+      ctx.restore();
+      drawTextWithShadow(ctx, b.label, b.bx + b.bw / 2, b.by + bh / 2, {
+        font: bannerFont,
+        color: "#fff",
+        shadowBlur: 2,
+      });
+    });
   }
 
   private drawCenterPiles(ctx: CanvasRenderingContext2D): void {

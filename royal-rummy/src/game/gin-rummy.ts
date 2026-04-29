@@ -6,7 +6,7 @@
  * - On a turn: draw (stock or discard), then discard.
  * - Knock allowed when deadwood <= 10 after discarding. Gin when deadwood = 0.
  * - Melds: sets (3-4 same rank) or runs (3+ consecutive same suit, ace low).
- * - Ace = 1 point, J/Q/K = 10, others = face value.
+ * - Card points = face value (1..13). Ace = 1, 11/12/13 count as 11/12/13.
  */
 
 export type Suit = 0 | 1 | 2 | 3; // 0=Sword 1=Wand 2=Shield 3=Crown
@@ -29,8 +29,6 @@ export const RANK_LABELS: Record<Rank, string> = {
 };
 
 export function cardPoints(rank: Rank): number {
-  if (rank === 1) return 1;
-  if (rank >= 11) return 10;
   return rank;
 }
 
