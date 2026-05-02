@@ -152,14 +152,16 @@ export class TutorialScene implements Scene {
     else if (this.page === 2) this.drawMeldConcept(ctx, visualCy);
     else this.drawTurnFlow(ctx, visualCy);
 
-    // Body text — multi-line wrap inside panel inner width
+    // Body text — multi-line wrap inside panel inner width.
+    // Top-anchored so a long body (e.g. page 2 in JA wraps to 5–6 lines)
+    // never creeps up into the visual area above.
     const body = [
       t("tutPage1Body"),
       t("tutPage2Body"),
       t("tutPage3Body"),
       t("tutPage4Body"),
     ][this.page];
-    this.drawWrappedText(ctx, body, GAME_W / 2, PANEL_Y + 800, PANEL_W - 120, 36);
+    this.drawWrappedText(ctx, body, GAME_W / 2, PANEL_Y + 750, PANEL_W - 120, 36);
 
     // (Per-page hint line removed — body copy alone, no redundant subtitle.)
 
@@ -336,13 +338,13 @@ export class TutorialScene implements Scene {
   // drawCardRow removed — the prior dedicated COVEN/CASCADE pages were merged
   // into the single "What is a Meld?" page (see drawMeldConcept).
 
-  private drawWrappedText(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, maxW: number, lineH: number): void {
+  private drawWrappedText(ctx: CanvasRenderingContext2D, text: string, cx: number, topY: number, maxW: number, lineH: number): void {
     ctx.save();
     // Set font BEFORE wrapText so measureText reflects the rendered metrics.
     ctx.font = "500 30px 'Hiragino Sans','Yu Gothic','Helvetica Neue',sans-serif";
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.textBaseline = "top";
     ctx.shadowColor = "rgba(0,0,0,0.85)";
     ctx.shadowBlur = 4;
     // Honour explicit newlines as paragraph breaks; wrap each chunk separately.
@@ -353,9 +355,8 @@ export class TutorialScene implements Scene {
       if (wrapped.length === 0) lines.push("");
       else for (const w of wrapped) lines.push(w);
     }
-    const top = cy - ((lines.length - 1) * lineH) / 2;
     for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i].trim(), cx, top + i * lineH);
+      ctx.fillText(lines[i].trim(), cx, topY + i * lineH);
     }
     ctx.restore();
   }
