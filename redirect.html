@@ -8,8 +8,7 @@
   <title>ゲーム一覧へ移動しました</title>
   <script>
     const games = new Set([
-      'bounce-breaker', 'civrush', 'hex-tower',
-      'hyper-dash', 'merge-drop', 'royal-rummy'
+      'civrush', 'royal-rummy'
     ]);
     const game = location.pathname.match(/^\/output_games\/([^/]+)(?:\/|$)/)?.[1];
     const destination = games.has(game)

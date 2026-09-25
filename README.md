@@ -10,10 +10,6 @@ AIエージェントが自動生成したWebゲームのコレクションです
 
 | ゲーム | 説明 | リンク |
 |--------|------|--------|
-| Bounce Breaker | ターン制ブロック崩し | [プレイする](https://kekoyana.github.io/gamelist/games/bounce-breaker/) |
-| Hex Tower | 六角ブロック積み上げパズル | [プレイする](https://kekoyana.github.io/gamelist/games/hex-tower/) |
-| Merge Drop | マージ落下パズル | [プレイする](https://kekoyana.github.io/gamelist/games/merge-drop/) |
-| HYPER DASH!! | サイバーパンク風3レーン無限ランナー | [プレイする](https://kekoyana.github.io/gamelist/games/hyper-dash/) |
 | Royal Rummy | ジン・ラミーのカードゲーム | [プレイする](https://kekoyana.github.io/gamelist/games/royal-rummy/) |
 | CivRush | 10分で遊べるミニ文明戦略ゲーム | [プレイする](https://kekoyana.github.io/gamelist/games/civrush/) |
 
