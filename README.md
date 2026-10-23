@@ -14,6 +14,7 @@ AIエージェントが自動生成したWebゲームのコレクションです
 | HYPER DASH!! | サイバーパンク風3レーン無限ランナー | [プレイする](https://kekoyana.github.io/output_games/hyper-dash/) |
 | Neon Sweep | オセロ式サンドイッチパズル | [プレイする](https://kekoyana.github.io/output_games/neon-sweep/) |
 | CivRush | 10分で遊べるミニ文明戦略ゲーム | [プレイする](https://kekoyana.github.io/output_games/civrush/) |
+| Find Ponta! | 迷子のたぬき「ポンタ」を街の中から探す隠れキャラ探しゲーム | [プレイする](https://kekoyana.github.io/output_games/find-ponta/) |
 
 ## 技術スタック
 
