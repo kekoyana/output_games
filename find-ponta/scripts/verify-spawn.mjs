@@ -12,6 +12,7 @@ const result = await build({
       'export * from "./src/game/geometry";',
       'export * from "./src/game/stages";',
       'export * from "./src/game/types";',
+      'export * from "./src/game/motion";',
     ].join("\n"),
     resolveDir: root,
     sourcefile: "verify-entry.ts",
@@ -22,7 +23,7 @@ const result = await build({
 const code = result.outputFiles[0].text;
 const M = await import("data:text/javascript;base64," + Buffer.from(code).toString("base64"));
 const { STAGES, WALK_POLYGONS, generateScene, allEntities, entityBox, entityCenter, entityHeight,
-  pointInPolygon, WORLD_W, WORLD_H } = M;
+  pointInPolygon, applyMotions, WORLD_W, WORLD_H } = M;
 
 const SEEDS = 100;
 const EXPECT = {
@@ -49,12 +50,17 @@ function rasterVisible(l, stage) {
   return vis / n;
 }
 
+/** 検証用の独立した時刻列（生成側の標本とは別。決定的） */
+const CHECK_TIMES = Array.from({ length: 120 }, (_, i) => ((i * 7919) % 12011) / 100 + 0.013 * i);
+const POSES = ["side", "shop", "flee", "chase"];
+
 let totalFail = 0;
 for (const stage of STAGES) {
   const ex = EXPECT[stage.id];
   const fails = {};
   const fail = (k, msg) => { (fails[k] ??= []).push(msg); };
   const poly = WALK_POLYGONS[stage.bg].map((p) => ({ x: p.x * WORLD_W, y: p.y * WORLD_H }));
+  const stats = { moving: 0, total: 0, pontaMoving: 0, pontaShop: 0, dynMin: 1 };
   let maxAttempt = 0, minVis = 1, minNear = 99, minDecoyDist = 1e9, minGapSeen = 1e9;
   const t0 = performance.now();
   for (let i = 0; i < SEEDS; i++) {
@@ -102,6 +108,35 @@ for (const stage of STAGES) {
       if (e.scale < 0.9 - 1e-9 || e.scale > 1.1 + 1e-9) fail("scale", `seed ${seed}: #${e.id}`);
       void entityHeight;
     }
+    // --- 動き ---
+    const chars = [l.ponta, ...l.decoys, ...l.mobs];
+    const byId = new Map(all.map((e) => [e.id, e]));
+    for (const e of chars) {
+      if (!e.move) { if (e.pose !== "front" && e.pose !== "shop") fail("motionPose", `seed ${seed}: #${e.id} ${e.pose}`); continue; }
+      stats.moving++;
+      if (e.pose !== "walk" && e.pose !== "pair") fail("motionPose", `seed ${seed}: #${e.id} ${e.pose}`);
+      for (const x of [e.hx - e.move.amp, e.hx + e.move.amp]) {
+        if (!pointInPolygon(x, e.y, poly) || x < 80 || x > WORLD_W - 80) fail("motionArea", `seed ${seed}: #${e.id} x=${x | 0}`);
+      }
+      if (e.pose === "pair") {
+        const o = byId.get(e.move.partner);
+        const ok = o && o.move && o.move.partner === e.id && o.move.slot === -e.move.slot
+          && o.move.amp === e.move.amp && o.move.period === e.move.period && o.move.phase === e.move.phase
+          && (e.hx - o.hx) * e.move.slot > 0;
+        if (!ok) fail("pairs", `seed ${seed}: #${e.id}`);
+      }
+    }
+    stats.total += chars.length;
+    if (l.ponta.move) stats.pontaMoving++;
+    if (l.ponta.pose === "shop") stats.pontaShop++;
+    let dynMin = 1;
+    for (const t of CHECK_TIMES) {
+      applyMotions(chars, t);
+      dynMin = Math.min(dynMin, rasterVisible(l, stage));
+    }
+    for (const e of chars) e.x = e.hx;
+    stats.dynMin = Math.min(stats.dynMin, dynMin);
+    if (dynMin < ex.vis - 0.02) fail("motionVisible", `seed ${seed}: ${(dynMin * 100).toFixed(1)}%`);
     for (let a = 0; a < all.length; a++) for (let b = a + 1; b < all.length; b++) {
       const g = Math.hypot(all[a].x - all[b].x, all[a].y - all[b].y);
       minGapSeen = Math.min(minGapSeen, g);
@@ -109,10 +144,11 @@ for (const stage of STAGES) {
     }
   }
   const ms = ((performance.now() - t0) / SEEDS).toFixed(1);
-  const keys = ["generate", "count", "ponta1", "repro", "center", "edge", "decoyDist", "near", "visible", "decoyTypes", "mobTypes", "walkArea", "edgeAll", "scale", "minGap"];
+  const keys = ["generate", "count", "ponta1", "repro", "center", "edge", "decoyDist", "near", "visible", "decoyTypes", "mobTypes", "walkArea", "edgeAll", "scale", "minGap", "motionPose", "motionArea", "pairs", "motionVisible"];
   const bad = keys.filter((k) => fails[k]);
   totalFail += bad.length;
   console.log(`Stage ${stage.id} ${stage.name.en}: ${bad.length === 0 ? "PASS" : "FAIL"}  (${SEEDS} seeds, ${ms}ms/seed, maxRetry=${maxAttempt}, minVisible=${(minVis * 100).toFixed(1)}%, minNear=${minNear}, minDecoyDist=${minDecoyDist.toFixed(0)}, minGap=${minGapSeen.toFixed(0)})`);
+  console.log(`   motion: moving=${(stats.moving / stats.total * 100).toFixed(0)}% pontaMoving=${stats.pontaMoving}/${SEEDS} pontaShop=${stats.pontaShop}/${SEEDS} dynamicMinVisible=${(stats.dynMin * 100).toFixed(1)}%`);
   for (const k of keys) console.log(`   ${fails[k] ? "FAIL" : "PASS"} ${k}${fails[k] ? `  x${fails[k].length} e.g. ${fails[k].slice(0, 3).join(" | ")}` : ""}`);
 }
 console.log(totalFail === 0 ? "\nALL PASS" : `\nFAILED checks: ${totalFail}`);

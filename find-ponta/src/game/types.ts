@@ -13,14 +13,35 @@ export interface Point {
   y: number;
 }
 
+/** front=正面立ち / shop=買い物（その場）/ walk=横向き歩き（往復）/ pair=追いかけっこ（2体組の往復） */
+export type Pose = "front" | "shop" | "walk" | "pair";
+
+/** 水平方向の往復運動。三角波（等速で往復し、端で向きを変える）。 */
+export interface Move {
+  /** 振幅(px)。x は hx ± amp の範囲を動く */
+  amp: number;
+  /** 往復1周の秒数 */
+  period: number;
+  /** 0-1 の位相 */
+  phase: number;
+  /** pair のみ: 相方の id と、相方に対する自分の側(+1=右, -1=左) */
+  partner?: number;
+  slot?: 1 | -1;
+}
+
 /** 配置エンティティ。x,y は足元（スプライト下端中央）の世界座標。 */
 export interface Entity {
   id: number;
   kind: EntityKind;
-  /** テクスチャキー（ファイル名と同じ） */
+  /** 基本テクスチャキー（正面。ポーズ違いは `${tex}_side` 等。ファイル名と同じ） */
   tex: string;
+  /** 現在の x（動くキャラは毎フレーム更新される。当たり判定・演出はこれを使う） */
   x: number;
+  /** 配置上の基準 x（配置・検証はこれで行う） */
+  hx: number;
   y: number;
+  pose: Pose;
+  move?: Move;
   flip: boolean;
   scale: number;
 }

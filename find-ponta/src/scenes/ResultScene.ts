@@ -91,9 +91,9 @@ export class ResultScene extends Phaser.Scene {
     ly += lineH;
     this.line(cx, pw, ly, `${t("miss")} / ${t("hint")}`, `${r.misses} / ${r.hints}`, "#e6dcc4");
     ly += lineH;
-    this.line(cx, pw, ly, t("seed"), `${r.seed}${r.mode === "random" ? " (new)" : ""}`, "#a89c80");
+    this.line(cx, pw, ly, t("seed"), `${r.seed}${r.mode === "random" ? " (new)" : ""}${r.hard ? " · HARD" : ""}`, "#a89c80");
     if (allClear) {
-      const tb = getTotalBest(STAGES.length);
+      const tb = getTotalBest(STAGES.length, r.hard);
       ly += lineH;
       this.line(cx, pw, ly, t("totalScoreAll"), `${tb.score}`, "#ffd966");
       ly += lineH;
@@ -117,10 +117,10 @@ export class ResultScene extends Phaser.Scene {
     const hasNext = r.cleared && r.stage < STAGES.length;
     const specs: Array<{ label: string; variant: "gold" | "primary" | "purple" | "dark"; fn: () => void }> = [];
     if (hasNext) {
-      specs.push({ label: t("next"), variant: "gold", fn: () => this.play(r.stage + 1, "fixed", STAGES[r.stage].fixedSeed) });
+      specs.push({ label: t("next"), variant: "gold", fn: () => this.play(r.stage + 1, "fixed", STAGES[r.stage].fixedSeed, r.hard) });
     }
-    specs.push({ label: t("retry"), variant: hasNext ? "primary" : "gold", fn: () => this.play(r.stage, r.mode, r.seed) });
-    specs.push({ label: t("newLayout"), variant: "purple", fn: () => this.play(r.stage, "random", randomSeed()) });
+    specs.push({ label: t("retry"), variant: hasNext ? "primary" : "gold", fn: () => this.play(r.stage, r.mode, r.seed, r.hard) });
+    specs.push({ label: t("newLayout"), variant: "purple", fn: () => this.play(r.stage, "random", randomSeed(), r.hard) });
     specs.push({ label: t("toStages"), variant: "dark", fn: () => this.scene.start("StageSelect") });
 
     if (land) {
@@ -152,7 +152,7 @@ export class ResultScene extends Phaser.Scene {
     }
   }
 
-  private play(stage: number, mode: ResultData["mode"], seed: number): void {
-    this.scene.start("Game", { stage, mode, seed });
+  private play(stage: number, mode: ResultData["mode"], seed: number, hard: boolean): void {
+    this.scene.start("Game", { stage, mode, seed, hard });
   }
 }

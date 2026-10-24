@@ -57,6 +57,32 @@ export function showIntro(hud: Hud, stage: StageDef, onStart: () => void): void 
   hud.addButton("start", cx, top + ph - 40, Math.min(220, pw - 60), 54, t("start"), 0xd4892a, onStart, () => true, true, 26);
 }
 
+/** 手配書の拡大表示。どこをタップしても閉じる（閉じるボタンあり）。 */
+export function showPoster(hud: Hud, onClose: () => void): void {
+  const { w, h } = hud;
+  dim(hud, 0.7);
+  const pw = Math.min(w - 24, 520);
+  const ph = Math.min(h - 24, 640);
+  const cx = w / 2;
+  const top = h / 2 - ph / 2;
+  panel(hud, cx, h / 2, pw, ph, 0xfff3d6, 0x8a5a2a);
+  const small = ph < 520;
+  label(hud, cx, top + 34, t("wanted"), small ? 30 : 40, "#b02a1a");
+  const img = Math.max(120, Math.min(pw - 60, ph * (small ? 0.38 : 0.44)));
+  reg(hud, hud.scene.add.image(cx, top + 62 + img / 2, "ponta").setDisplaySize(img, img));
+  let y = top + 62 + img + 30;
+  const step = small ? 30 : 38;
+  for (const f of [t("featLeaf"), t("featBundle"), t("featScarf")]) {
+    label(hud, cx, y, `・${f}`, small ? 18 : 22, "#3a2410", pw - 40);
+    y += step;
+  }
+  label(hud, cx, y + 6, t("introHint"), small ? 15 : 18, "#b02a1a", pw - 40);
+  const bw = Math.min(200, pw - 60);
+  // ボタンを先に登録し、その後ろに全画面の「どこでも閉じる」領域を置く
+  hud.addButton("close", cx, top + ph - 36, bw, 50, t("close"), 0xd4892a, onClose, () => true, true, 22);
+  hud.modalButtons.push({ id: "closeAny", x: 0, y: 0, w, h, fn: onClose, enabled: () => true });
+}
+
 export interface PauseActions {
   resume: () => void;
   settings: () => void;

@@ -27,6 +27,7 @@ export interface HudActions {
   zoomOut: () => void;
   hint: () => void;
   pause: () => void;
+  poster: () => void;
 }
 
 const BTN = 52;
@@ -104,6 +105,8 @@ export class Hud {
     }));
     this.add(this.scene.add.image(x + 38, y + ch / 2 + 6, "ponta").setDisplaySize(68, 68));
     const lines = [t("featCompact1"), t("featCompact2"), t("featCompact3")];
+    // カード全体をタップで手配書を拡大表示
+    this.buttons.push({ id: "poster", x, y, w: cw, h: ch, fn: this.actions.poster, enabled: () => true });
     this.add(this.scene.add.text(x + 76, y + 28, lines.map((l) => `・${l}`).join("\n"), {
       fontFamily: UI.sans, fontSize: "12px", color: "#3a2410", lineSpacing: 6,
       wordWrap: { width: cw - 84 },

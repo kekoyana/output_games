@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { NIGHT_TINT } from "../../game/stages";
 import { allEntities } from "../../game/spawn";
+import { sampleMotion, stillSample } from "../../game/motion";
 import { BONUS_SIZE, entityHeight } from "../../game/geometry";
 import type { Entity, SceneLayout, StageDef } from "../../game/types";
 
@@ -9,8 +10,13 @@ export class WorldView {
   readonly layer: Phaser.GameObjects.Layer;
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   private hint: Phaser.GameObjects.Graphics | null = null;
+  /** 往復・追いかけっこで動くキャラ（毎フレーム位置とポーズを更新） */
+  private movers: { e: Entity; img: Phaser.GameObjects.Image; h: number }[] = [];
+  private frozen = false;
 
-  constructor(readonly scene: Phaser.Scene, private stage: StageDef, layout: SceneLayout) {
+  constructor(
+    readonly scene: Phaser.Scene, private stage: StageDef, layout: SceneLayout, private animated: boolean,
+  ) {
     this.layer = scene.add.layer();
     const bg = scene.add.image(0, 0, stage.bg).setOrigin(0, 0).setScale(1.5).setDepth(-1);
     if (stage.night) bg.setTint(NIGHT_TINT);
@@ -29,6 +35,83 @@ export class WorldView {
     img.setFlipX(e.flip).setDepth(e.y);
     this.layer.add(img);
     this.sprites.set(e.id, img);
+    if (e.move && this.animated) {
+      this.movers.push({ e, img, h: entityHeight(e, this.stage) });
+      this.applyMover(e, img, entityHeight(e, this.stage), 0);
+    } else if (e.move) {
+      // NORMAL: 止まった絵。ポーズと向きは動き出しの瞬間のもの
+      const m = stillSample(e);
+      img.setTexture(this.scene.textures.exists(m.texKey) ? m.texKey : e.tex).setFlipX(m.flip);
+    } else {
+      const shop = sampleMotion(e, 0).texKey;
+      if (e.pose === "shop" && this.scene.textures.exists(shop)) img.setTexture(shop);
+      if (this.animated) this.animate(e, img);
+    }
+  }
+
+  private applyMover(e: Entity, img: Phaser.GameObjects.Image, h: number, t: number): void {
+    const m = sampleMotion(e, t);
+    e.x = m.x;
+    img.setPosition(m.x, e.y - m.bob * h * 0.035);
+    const key = this.scene.textures.exists(m.texKey) ? m.texKey : e.tex;
+    if (img.texture.key !== key) img.setTexture(key);
+    img.setFlipX(m.flip);
+  }
+
+  /** 毎フレーム呼ぶ。t はシーン開始からの秒数。 */
+  update(t: number): void {
+    if (this.frozen) return;
+    for (const m of this.movers) this.applyMover(m.e, m.img, m.h, t);
+  }
+
+  /** クリア/失敗時: 動きを止める。ポンタは正面の絵に戻す（見つけた/ここだ、を分かりやすく）。 */
+  freeze(ponta: Entity): void {
+    this.frozen = true;
+    const s = this.sprites.get(ponta.id);
+    if (!s) return;
+    this.scene.tweens.killTweensOf(s);
+    s.setTexture(ponta.tex).setAngle(0).setScale(entityHeight(ponta, this.stage) / 240).setPosition(ponta.x, ponta.y);
+    s.setFlipX(false);
+  }
+
+  /**
+   * 待機モーション。足元(origin 下端)を支点にした小さな動きだけにして、当たり判定(論理座標)とずらさない。
+   * 種類・周期・位相は ID から決める。ポンタも他キャラと同じ分布で、動きで見分けがつかないようにする。
+   */
+  private animate(e: Entity, img: Phaser.GameObjects.Image): void {
+    if (!this.animated) return;
+    const hash = Math.imul(e.id + 1, 2654435761) >>> 0;
+    const period = 650 + (hash % 500);
+    const delay = (hash >>> 8) % 1000;
+    const sx = img.scaleX;
+    const sy = img.scaleY;
+    const common = { yoyo: true, repeat: -1, delay, duration: period };
+
+    if (e.kind === "bonus") {
+      this.scene.tweens.add({ targets: img, y: img.y - 5, ease: "Sine.easeInOut", ...common, duration: 900 });
+      img.setAngle(-6);
+      this.scene.tweens.add({ targets: img, angle: 6, ease: "Sine.easeInOut", ...common, duration: 1100 });
+      return;
+    }
+    const h = img.displayHeight;
+    switch ((hash >>> 16) % 3) {
+      case 0: // ぴょんぴょん
+        this.scene.tweens.add({ targets: img, y: e.y - h * 0.05, scaleY: sy * 1.04, scaleX: sx * 0.97, ease: "Quad.easeOut", ...common, duration: period * 0.45, repeatDelay: period * 0.5 });
+        break;
+      case 1: // ゆらゆら
+        img.setAngle(-3.5);
+        this.scene.tweens.add({ targets: img, angle: 3.5, ease: "Sine.easeInOut", ...common, duration: period * 1.4 });
+        break;
+      default: // 深呼吸
+        this.scene.tweens.add({ targets: img, scaleY: sy * 1.05, scaleX: sx * 0.97, ease: "Sine.easeInOut", ...common, duration: period * 1.6 });
+        break;
+    }
+  }
+
+  /** 待機モーションを止めて元の姿勢に戻す */
+  private settle(e: Entity, img: Phaser.GameObjects.Image, scale: number): void {
+    this.scene.tweens.killTweensOf(img);
+    img.setPosition(e.x, e.y).setAngle(0).setScale(scale).setTexture(e.tex).setFlipX(false);
   }
 
   sprite(id: number): Phaser.GameObjects.Image | undefined {
@@ -44,6 +127,7 @@ export class WorldView {
     const s = this.sprites.get(e.id);
     if (!s) return;
     this.sprites.delete(e.id);
+    this.scene.tweens.killTweensOf(s);
     this.scene.tweens.add({
       targets: s, y: s.y - 60, scale: s.scale * 1.8, alpha: 0, duration: 500, ease: "Cubic.easeOut",
       onComplete: () => s.destroy(),
@@ -112,6 +196,7 @@ export class WorldView {
   jump(e: Entity): void {
     const s = this.sprites.get(e.id);
     if (!s) return;
+    this.settle(e, s, entityHeight(e, this.stage) / 240);
     s.setDepth(1e6 - 2);
     this.scene.tweens.add({
       targets: s, y: e.y - 70, duration: 260, yoyo: true, repeat: 3, ease: "Quad.easeOut",

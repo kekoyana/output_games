@@ -4,7 +4,7 @@ import { addGearButton } from "../ui/gear";
 import { bindLayout, bodyText, coverBackground, heading } from "../ui/common";
 import { pickLocalized, t, tr } from "../i18n";
 import { STAGES, NIGHT_TINT } from "../game/stages";
-import { getBest, isUnlocked, randomSeed, type GameStartData } from "../game/save";
+import { getBest, isHardMode, isUnlocked, randomSeed, setHardMode, type GameStartData } from "../game/save";
 import type { StageDef } from "../game/types";
 import { playBgm } from "../core/bgm";
 
@@ -24,12 +24,30 @@ export class StageSelectScene extends Phaser.Scene {
     const h = this.scale.height;
     const land = w > h;
     coverBackground(this, "bg_market", 0.7);
-    heading(this, w / 2, 36, t("stageSelect"), land ? 36 : 28);
+    heading(this, w / 2, 32, t("stageSelect"), land ? 34 : 28);
+
+    // NORMAL / HARD 切り替え（HARD はキャラが動き回る）
+    const hard = isHardMode();
+    const dw = 128;
+    for (const [isHard, label] of [[false, t("normalMode")], [true, t("hardMode")]] as const) {
+      createButton({
+        scene: this, x: w / 2 + (isHard ? dw / 2 + 6 : -dw / 2 - 6), y: 72, width: dw, height: 34, label,
+        variant: hard === isHard ? (isHard ? "purple" : "gold") : "dark", fontSize: 16,
+        onClick: () => {
+          if (isHardMode() === isHard) return;
+          setHardMode(isHard);
+          this.tweens.killAll();
+          this.children.removeAll(true);
+          this.layout();
+        },
+      });
+    }
+    if (hard) bodyText(this, w / 2, 96, t("hardNote"), 12, "#c8a6ff", 0.5);
 
     const cols = land ? 2 : 1;
     const rows = Math.ceil(STAGES.length / cols);
     const gap = 14;
-    const top = 70;
+    const top = 108;
     const bottomPad = 64;
     const availH = h - top - bottomPad;
     const cardH = Math.max(112, Math.min(210, (availH - gap * (rows - 1)) / rows));
@@ -93,20 +111,20 @@ export class StageSelectScene extends Phaser.Scene {
       );
       bodyText(this, px, y + 64, info, 12, UI.textDim, 0);
     }
-    this.drawBest(px, y + (compact ? 52 : 84), `${t("bestFixed")}`, getBest(st.id, "fixed"));
-    this.drawBest(px, y + (compact ? 68 : 102), `${t("bestRandom")}`, getBest(st.id, "random"));
+    this.drawBest(px, y + (compact ? 52 : 84), `${t("bestFixed")}`, getBest(st.id, "fixed", isHardMode()));
+    this.drawBest(px, y + (compact ? 68 : 102), `${t("bestRandom")}`, getBest(st.id, "random", isHardMode()));
 
     const bw = (pw - 8) / 2;
     const by = y + ch - (compact ? 20 : 26);
     createButton({
       scene: this, x: px + bw / 2, y: by, width: bw, height: compact ? 34 : 40, label: t("fixedPlay"),
       variant: "gold", fontSize: 18,
-      onClick: () => this.go({ stage: st.id, mode: "fixed", seed: st.fixedSeed }),
+      onClick: () => this.go({ stage: st.id, mode: "fixed", seed: st.fixedSeed, hard: isHardMode() }),
     });
     createButton({
       scene: this, x: px + bw * 1.5 + 8, y: by, width: bw, height: compact ? 34 : 40, label: t("newLayout"),
       variant: "purple", fontSize: 14,
-      onClick: () => this.go({ stage: st.id, mode: "random", seed: randomSeed() }),
+      onClick: () => this.go({ stage: st.id, mode: "random", seed: randomSeed(), hard: isHardMode() }),
     });
   }
 

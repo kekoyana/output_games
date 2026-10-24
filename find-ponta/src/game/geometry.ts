@@ -3,6 +3,8 @@ import type { Box, Entity, Point, StageDef } from "./types";
 /** キャラの当たり箱の幅 / 高さ（尻尾を含む見た目の幅） */
 export const BODY_W_RATIO = 0.7;
 export const BONUS_SIZE = 48;
+/** 動くキャラのタップ判定の追加半径(px) */
+export const MOVING_TAP_BONUS = 10;
 /** スプライト画像(256px)中で可視部分が占める高さ(240px) */
 export const SPRITE_VISIBLE_RATIO = 240 / 256;
 
@@ -42,10 +44,14 @@ export function hitEllipse(e: Entity, stage: StageDef): { cx: number; cy: number
 }
 
 /** タップ判定。半径 r の円と楕円を近似的に判定し、正規化距離(<=1でヒット)を返す。 */
-export function hitDistance(e: Entity, stage: StageDef, px: number, py: number, r: number): number {
+export function hitDistance(
+  e: Entity, stage: StageDef, px: number, py: number, r: number, animated = true,
+): number {
   const el = hitEllipse(e, stage);
-  const dx = (px - el.cx) / (el.rx + r);
-  const dy = (py - el.cy) / (el.ry + r);
+  // 動いているキャラは狙いにくいので、判定を少し広げる
+  const rr = r + (animated && e.move ? MOVING_TAP_BONUS : 0);
+  const dx = (px - el.cx) / (el.rx + rr);
+  const dy = (py - el.cy) / (el.ry + rr);
   return dx * dx + dy * dy;
 }
 

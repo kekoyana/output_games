@@ -4,6 +4,7 @@ import { WALK_POLYGONS } from "./stages";
 import {
   entityBox, entityCenter, isInFront, pointInPolygon, visibleFraction,
 } from "./geometry";
+import { applyMotions, cancelMotion } from "./motion";
 import {
   WORLD_H, WORLD_W,
   type Entity, type EntityKind, type Point, type SceneLayout, type StageDef,
@@ -76,7 +77,7 @@ function place(
     if (p.y < EDGE_MARGIN || p.y > WORLD_H - EDGE_MARGIN) continue;
     if (!pointInPolygon(p.x, p.y, ctx.poly)) continue;
     const e: Entity = {
-      id: ctx.nextId, kind, tex, x: p.x, y: p.y,
+      id: ctx.nextId, kind, tex, x: p.x, hx: p.x, y: p.y, pose: "front",
       flip: ctx.rng() < 0.5,
       scale: kind === "bonus" ? 1 : rngRange(ctx.rng, 0.9, 1.1),
     };
@@ -150,7 +151,112 @@ function generateOnce(stage: StageDef, seed: number): Omit<SceneLayout, "usedSee
     if (!e) return null;
     mobs.push(e);
   }
+  assignMotions(ctx, seed, [ponta, ...decoys, ...mobs], bonuses);
   return { ponta, decoys, mobs, bonuses };
+}
+
+/** 動き（往復・買い物・追いかけっこ）の割り当て比率 */
+const PAIR_RATIO = 0.14;
+const WALK_RATIO = 0.24;
+const SHOP_RATIO = 0.13;
+/** 往復の速さ(px/秒)。タップできる速さに抑える */
+const WALK_SPEED: [number, number] = [26, 40];
+const PAIR_SPEED: [number, number] = [58, 82];
+const MIN_AMP = 30;
+/** 動いたときの可視面積を調べる時刻の数 */
+const MOTION_SAMPLES = 160;
+const MOTION_SAMPLE_SPAN = 120;
+
+/** 端・歩行領域からはみ出さない最大の振幅（MIN_AMP 未満なら 0） */
+function fitAmp(ctx: Ctx, e: Entity, want: number): number {
+  let amp = want;
+  while (amp >= MIN_AMP) {
+    const ok = [e.hx - amp, e.hx + amp].every(
+      (x) => x >= EDGE_MARGIN && x <= WORLD_W - EDGE_MARGIN && pointInPolygon(x, e.y, ctx.poly),
+    );
+    if (ok) return amp;
+    amp *= 0.85;
+  }
+  return 0;
+}
+
+/**
+ * 配置後に各キャラの動きを決める（配置の乱数列は変えない）。
+ * 動いたときにポンタ・ボーナスの可視面積が下限を割るなら、その動きは取り消して正面立ちに戻す。
+ */
+function assignMotions(ctx: Ctx, seed: number, chars: Entity[], bonuses: Entity[]): void {
+  const rng = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+  const byId = (id: number): Entity | undefined => chars.find((c) => c.id === id);
+  const order = shuffle(rng, chars);
+  const assigned = new Set<number>();
+  const pairTarget = Math.round((chars.length * PAIR_RATIO) / 2);
+  let pairs = 0;
+  for (const a of order) {
+    if (pairs >= pairTarget) break;
+    if (assigned.has(a.id)) continue;
+    let b: Entity | null = null;
+    for (const c of chars) {
+      if (c === a || assigned.has(c.id)) continue;
+      const dx = Math.abs(c.hx - a.hx);
+      if (Math.abs(c.y - a.y) > 30 || dx < 90 || dx > 220) continue;
+      if (!b || dx < Math.abs(b.hx - a.hx)) b = c;
+    }
+    if (!b) continue;
+    const speed = rngRange(rng, PAIR_SPEED[0], PAIR_SPEED[1]);
+    const amp = Math.min(fitAmp(ctx, a, rngRange(rng, 80, 130)), fitAmp(ctx, b, 130));
+    if (amp < MIN_AMP) continue;
+    const period = (4 * amp) / speed;
+    const phase = rng();
+    const side: 1 | -1 = a.hx > b.hx ? 1 : -1;
+    a.pose = b.pose = "pair";
+    a.move = { amp, period, phase, partner: b.id, slot: side };
+    b.move = { amp, period, phase, partner: a.id, slot: side === 1 ? -1 : 1 };
+    assigned.add(a.id);
+    assigned.add(b.id);
+    pairs++;
+  }
+  for (const e of order) {
+    if (assigned.has(e.id)) continue;
+    const r = rng();
+    if (r < WALK_RATIO) {
+      const amp = fitAmp(ctx, e, rngRange(rng, 40, 90));
+      if (amp < MIN_AMP) continue;
+      e.pose = "walk";
+      e.move = { amp, period: (4 * amp) / rngRange(rng, WALK_SPEED[0], WALK_SPEED[1]), phase: rng() };
+    } else if (r < WALK_RATIO + SHOP_RATIO) {
+      e.pose = "shop";
+    }
+  }
+  stabilizeMotions(ctx, seed, chars, bonuses, byId);
+}
+
+/** 動きの全時刻でポンタ/ボーナスの可視面積が下限以上になるまで、邪魔な動きを取り消す。 */
+function stabilizeMotions(
+  ctx: Ctx, seed: number, chars: Entity[], bonuses: Entity[], byId: (id: number) => Entity | undefined,
+): void {
+  const everyone = [...chars, ...bonuses];
+  const rng = mulberry32((seed ^ 0x85ebca6b) >>> 0);
+  const times = Array.from({ length: MOTION_SAMPLES }, () => rng() * MOTION_SAMPLE_SPAN);
+  for (let pass = 0; pass < 40; pass++) {
+    let violated = false;
+    for (const t of times) {
+      applyMotions(chars, t);
+      for (const p of ctx.prot) {
+        if (visibleFraction(p.e, everyone, ctx.stage) >= p.min) continue;
+        violated = true;
+        const pb = entityBox(p.e, ctx.stage);
+        const blockers = chars.filter((c) => c.move && c !== p.e && isInFront(c, p.e) && overlaps(pb, entityBox(c, ctx.stage)));
+        for (const c of blockers) cancelMotion(c, byId);
+        if (blockers.length === 0 && p.e.move) cancelMotion(p.e, byId);
+        break;
+      }
+      if (violated) break;
+    }
+    for (const c of chars) c.x = c.hx;
+    if (!violated) return;
+  }
+  // 収束しなければ全て取り消す（安全側）
+  for (const c of chars) if (c.move) cancelMotion(c, byId);
 }
 
 export function countPonta(l: Pick<SceneLayout, "ponta" | "decoys" | "mobs" | "bonuses">): number {

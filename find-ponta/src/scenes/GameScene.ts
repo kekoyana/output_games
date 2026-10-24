@@ -20,7 +20,7 @@ import { openSettings } from "../ui/common";
 import { CameraRig } from "./game/CameraRig";
 import { GestureInput } from "./game/GestureInput";
 import { Hud } from "./game/Hud";
-import { showIntro, showPause } from "./game/Modals";
+import { showIntro, showPause, showPoster } from "./game/Modals";
 import { WorldView } from "./game/WorldView";
 import { createGameApi } from "./game/gameApi";
 
@@ -30,6 +30,8 @@ type KeyMap = Record<"w" | "a" | "s" | "d" | "up" | "down" | "left" | "right", P
 export class GameScene extends Phaser.Scene {
   stage!: StageDef;
   mode: GameStartData["mode"] = "fixed";
+  /** HARD: キャラが動く */
+  hard = false;
   seed = 0;
   layout!: SceneLayout;
   phase: Phase = "intro";
@@ -54,9 +56,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data: GameStartData): void {
-    const d = data && data.stage ? data : { stage: 1, mode: "fixed" as const, seed: STAGES[0].fixedSeed };
+    const d: GameStartData = data && data.stage ? data : { stage: 1, mode: "fixed", seed: STAGES[0].fixedSeed };
     this.stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, d.stage - 1))];
     this.mode = d.mode;
+    this.hard = d.hard === true;
     this.seed = d.seed;
     this.layout = generateScene(this.stage, this.seed);
     this.phase = "intro";
@@ -72,12 +75,13 @@ export class GameScene extends Phaser.Scene {
 
     const w = this.scale.width;
     const h = this.scale.height;
-    this.world = new WorldView(this, this.stage, this.layout);
+    this.world = new WorldView(this, this.stage, this.layout, this.hard);
     this.hud = new Hud(this, this.stage, {
       zoomIn: () => this.zoomBy(1.3),
       zoomOut: () => this.zoomBy(1 / 1.3),
       hint: () => this.useHint(),
       pause: () => this.pause(),
+      poster: () => this.openPoster(),
     });
     this.hudCam = this.cameras.add(0, 0, w, h);
     this.cameras.main.ignore(this.hud.layer);
@@ -171,6 +175,14 @@ export class GameScene extends Phaser.Scene {
     }));
   }
 
+  /** 手配書の拡大表示。表示中は時間を止める（pause と同じ扱い）。 */
+  private openPoster(): void {
+    if (this.phase !== "playing") return;
+    this.phase = "paused";
+    this.gestures.cancelAll();
+    this.showModal(() => showPoster(this.hud, () => this.resumePlay()));
+  }
+
   private resumePlay(): void {
     if (this.phase !== "paused") return;
     this.clearModal();
@@ -209,7 +221,7 @@ export class GameScene extends Phaser.Scene {
       let b: Entity | null = null;
       let bd = 1;
       for (const e of list) {
-        const d = hitDistance(e, this.stage, wx, wy, radius);
+        const d = hitDistance(e, this.stage, wx, wy, radius, this.hard);
         if (d <= bd) { bd = d; b = e; }
       }
       return b;
@@ -219,14 +231,14 @@ export class GameScene extends Phaser.Scene {
       this.collectBonus(bonus);
       return "bonus";
     }
-    if (hitDistance(L.ponta, this.stage, wx, wy, radius) <= 1) {
+    if (hitDistance(L.ponta, this.stage, wx, wy, radius, this.hard) <= 1) {
       this.clearStage();
       return "ponta";
     }
     const decoy = best(L.decoys);
     const mob = best(L.mobs);
-    const dd = decoy ? hitDistance(decoy, this.stage, wx, wy, radius) : 2;
-    const md = mob ? hitDistance(mob, this.stage, wx, wy, radius) : 2;
+    const dd = decoy ? hitDistance(decoy, this.stage, wx, wy, radius, this.hard) : 2;
+    const md = mob ? hitDistance(mob, this.stage, wx, wy, radius, this.hard) : 2;
     if (decoy && dd <= md) { this.miss("decoy", wx, wy); return "decoy"; }
     if (mob) { this.miss("mob", wx, wy); return "mob"; }
     this.miss("empty", wx, wy);
@@ -263,7 +275,7 @@ export class GameScene extends Phaser.Scene {
       ? computeStars({ misses: this.misses, hints: this.hintsUsed, timeLeft: this.timeLeft, timeLimit: this.stage.timeLimit })
       : 0;
     return {
-      stage: this.stage.id, mode: this.mode, seed: this.seed, cleared,
+      stage: this.stage.id, mode: this.mode, seed: this.seed, hard: this.hard, cleared,
       timeLeft: Math.max(0, this.timeLeft), misses: this.misses, hints: this.hintsUsed,
       bonusFound: this.found.size, bonusTotal,
       missedBonus: this.layout.bonuses.filter((b) => !this.found.has(b.id)).map((b) => b.tex),
@@ -273,11 +285,12 @@ export class GameScene extends Phaser.Scene {
 
   private clearStage(): void {
     this.phase = "cleared";
+    this.world.freeze(this.layout.ponta);
     this.world.clearHint();
     const res = this.buildResult(true);
     this.score = res.score;
     markCleared(this.stage.id);
-    res.newBest = submitBest(this.stage.id, this.mode, { score: res.score, stars: res.stars });
+    res.newBest = submitBest(this.stage.id, this.mode, { score: res.score, stars: res.stars }, this.hard);
     this.lastResult = res;
     playFoundFanfare();
     this.world.jump(this.layout.ponta);
@@ -291,6 +304,7 @@ export class GameScene extends Phaser.Scene {
   private failStage(): void {
     this.timeLeft = 0;
     this.phase = "failed";
+    this.world.freeze(this.layout.ponta);
     this.world.clearHint();
     this.lastResult = this.buildResult(false);
     playFail();
@@ -312,7 +326,8 @@ export class GameScene extends Phaser.Scene {
     this.scene.start("Result", r);
   }
 
-  update(_time: number, delta: number): void {
+  update(time: number, delta: number): void {
+    this.world.update(time / 1000);
     this.rig.update(delta);
     this.panByKeys(delta);
     if (this.phase === "playing" && !document.hidden) {
