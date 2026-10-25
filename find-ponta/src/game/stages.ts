@@ -35,35 +35,35 @@ function rep(list: Array<[DecoyKey, number]>): DecoyKey[] {
 export const STAGES: StageDef[] = [
   {
     id: 1, name: { en: "Sunny Park", ja: "ひなたの公園" },
-    bg: "bg_park", night: false, fixedSeed: 1101,
+    bg: "bg_park", night: false,
     mobCount: 60, mobTypes: BASE_MOBS,
     decoys: rep([["decoy_d", 2], ["decoy_e", 2]]),
     height: 96, timeLimit: 90, hints: 3, minVisible: 0.85, minGap: 70,
-    bonuses: [], decoyMinDist: 300, decoyNear: 0,
+    bonuses: [], decoyMinDist: 300, decoyNear: 0, hardFriends: 2,
   },
   {
     id: 2, name: { en: "Seaside Market", ja: "うみべのマーケット" },
-    bg: "bg_market", night: false, fixedSeed: 1202,
+    bg: "bg_market", night: false,
     mobCount: 100, mobTypes: MOBS_11,
     decoys: rep([["decoy_a", 2], ["decoy_b", 2], ["decoy_d", 2], ["decoy_e", 2]]),
     height: 84, timeLimit: 105, hints: 2, minVisible: 0.8, minGap: 55,
-    bonuses: [], decoyMinDist: 300, decoyNear: 0,
+    bonuses: [], decoyMinDist: 300, decoyNear: 0, hardFriends: 3,
   },
   {
     id: 3, name: { en: "Festival Street", ja: "おまつりどおり" },
-    bg: "bg_festival", night: false, fixedSeed: 1303,
+    bg: "bg_festival", night: false,
     mobCount: 150, mobTypes: MOBS_14,
     decoys: rep([["decoy_a", 3], ["decoy_b", 3], ["decoy_c", 2], ["decoy_d", 2], ["decoy_e", 2]]),
     height: 72, timeLimit: 120, hints: 2, minVisible: 0.75, minGap: 45,
-    bonuses: ["item_straw_hat"], decoyMinDist: 150, decoyNear: 3,
+    bonuses: ["item_straw_hat"], decoyMinDist: 150, decoyNear: 3, hardFriends: 3,
   },
   {
     id: 4, name: { en: "Moonlit Park", ja: "つきよの公園" },
-    bg: "bg_park", night: true, fixedSeed: 1404,
+    bg: "bg_park", night: true,
     mobCount: 200, mobTypes: MOBS_14,
     decoys: rep([["decoy_a", 4], ["decoy_b", 4], ["decoy_c", 3], ["decoy_d", 3], ["decoy_e", 2]]),
     height: 64, timeLimit: 150, hints: 1, minVisible: 0.7, minGap: 38,
-    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 100, decoyNear: 4,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 100, decoyNear: 4, hardFriends: 4,
   },
 ];
 

@@ -111,27 +111,20 @@ export class StageSelectScene extends Phaser.Scene {
       );
       bodyText(this, px, y + 64, info, 12, UI.textDim, 0);
     }
-    this.drawBest(px, y + (compact ? 52 : 84), `${t("bestFixed")}`, getBest(st.id, "fixed", isHardMode()));
-    this.drawBest(px, y + (compact ? 68 : 102), `${t("bestRandom")}`, getBest(st.id, "random", isHardMode()));
+    this.drawBest(px, y + (compact ? 58 : 92), getBest(st.id, isHardMode()));
 
-    const bw = (pw - 8) / 2;
-    const by = y + ch - (compact ? 20 : 26);
+    // 配置はプレイのたびにランダム
     createButton({
-      scene: this, x: px + bw / 2, y: by, width: bw, height: compact ? 34 : 40, label: t("fixedPlay"),
+      scene: this, x: px + pw / 2, y: y + ch - (compact ? 20 : 26), width: pw, height: compact ? 34 : 40, label: t("play"),
       variant: "gold", fontSize: 18,
-      onClick: () => this.go({ stage: st.id, mode: "fixed", seed: st.fixedSeed, hard: isHardMode() }),
-    });
-    createButton({
-      scene: this, x: px + bw * 1.5 + 8, y: by, width: bw, height: compact ? 34 : 40, label: t("newLayout"),
-      variant: "purple", fontSize: 14,
-      onClick: () => this.go({ stage: st.id, mode: "random", seed: randomSeed(), hard: isHardMode() }),
+      onClick: () => this.go({ stage: st.id, seed: randomSeed(), hard: isHardMode() }),
     });
   }
 
-  private drawBest(x: number, y: number, label: string, rec: { score: number; stars: number } | null): void {
-    bodyText(this, x, y, `${t("best")} (${label})`, 12, UI.textDim, 0);
+  private drawBest(x: number, y: number, rec: { score: number; stars: number } | null): void {
+    bodyText(this, x, y, t("best"), 12, UI.textDim, 0);
     const stars = rec ? "★".repeat(rec.stars) + "☆".repeat(3 - rec.stars) : "☆☆☆";
-    this.add.text(x + 108, y, `${stars}  ${rec ? rec.score : "-"}`, {
+    this.add.text(x + 52, y, `${stars}  ${rec ? rec.score : "-"}`, {
       fontFamily: "sans-serif", fontSize: "13px", color: rec ? "#ffd23f" : "#6a5f7c",
     }).setOrigin(0, 0.5);
   }

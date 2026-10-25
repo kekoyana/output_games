@@ -2,19 +2,16 @@
 import { getBool, setBool, getJson, setJson } from "../core/storage";
 import type { ScoreBreakdown } from "./score";
 
-export type PlayMode = "fixed" | "random";
-
 export interface GameStartData {
   stage: number;
-  mode: PlayMode;
+  /** 配置は毎回ランダム（シードは開始ごとに採番） */
   seed: number;
-  /** HARD: キャラが動く。省略時は NORMAL（止まった絵） */
+  /** HARD: キャラが動く + ポンタのほかになかまも探す。省略時は NORMAL（止まった絵） */
   hard?: boolean;
 }
 
 export interface ResultData {
   stage: number;
-  mode: PlayMode;
   seed: number;
   hard: boolean;
   cleared: boolean;
@@ -23,6 +20,9 @@ export interface ResultData {
   hints: number;
   bonusFound: number;
   bonusTotal: number;
+  /** HARD のなかま（NORMAL は 0） */
+  friendFound: number;
+  friendTotal: number;
   /** 取り逃したボーナスのテクスチャキー */
   missedBonus: string[];
   score: number;
@@ -58,39 +58,35 @@ export function setHardMode(v: boolean): void {
   setBool("hard", v);
 }
 
-/** ベストは NORMAL / HARD 別に保存する（NORMAL の保存キーは従来どおり） */
-function bestKey(stageId: number, mode: PlayMode, hard: boolean): string {
-  return hard ? `best-hard-${mode}-${stageId}` : `best-${mode}-${stageId}`;
+/** ベストは NORMAL / HARD 別に保存する */
+function bestKey(stageId: number, hard: boolean): string {
+  return hard ? `best-hard-${stageId}` : `best-${stageId}`;
 }
 
-export function getBest(stageId: number, mode: PlayMode, hard = false): BestRecord | null {
-  return getJson<BestRecord>(bestKey(stageId, mode, hard));
+export function getBest(stageId: number, hard = false): BestRecord | null {
+  return getJson<BestRecord>(bestKey(stageId, hard));
 }
 
 /** ベスト更新なら true（スコア優先、同点ならスター） */
-export function submitBest(stageId: number, mode: PlayMode, rec: BestRecord, hard = false): boolean {
-  const cur = getBest(stageId, mode, hard);
+export function submitBest(stageId: number, rec: BestRecord, hard = false): boolean {
+  const cur = getBest(stageId, hard);
   const better = !cur || rec.score > cur.score;
   const stars = Math.max(cur?.stars ?? 0, rec.stars);
-  setJson<BestRecord>(bestKey(stageId, mode, hard), {
+  setJson<BestRecord>(bestKey(stageId, hard), {
     score: better ? rec.score : (cur?.score ?? 0),
     stars,
   });
   return better;
 }
 
-/**
- * 全ステージ合計のベスト。ステージ選択画面は固定・ランダムのベストを並べて表示するため、
- * 各ステージで両者のうち高い方（スコア・スターそれぞれ）を採用する。
- */
+/** 全ステージ合計のベスト（スコア・スター） */
 export function getTotalBest(stageCount: number, hard = false): { score: number; stars: number } {
   let score = 0;
   let stars = 0;
   for (let id = 1; id <= stageCount; id++) {
-    const f = getBest(id, "fixed", hard);
-    const r = getBest(id, "random", hard);
-    score += Math.max(f?.score ?? 0, r?.score ?? 0);
-    stars += Math.min(3, Math.max(f?.stars ?? 0, r?.stars ?? 0));
+    const b = getBest(id, hard);
+    score += b?.score ?? 0;
+    stars += Math.min(3, b?.stars ?? 0);
   }
   return { score, stars };
 }

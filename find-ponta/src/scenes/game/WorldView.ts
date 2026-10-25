@@ -64,6 +64,25 @@ export class WorldView {
     for (const m of this.movers) this.applyMover(m.e, m.img, m.h, t);
   }
 
+  /** HARD: 見つけたポンタ/なかまを止めて、緑のチェック印をつける（全部そろうまで残る）。 */
+  markFound(e: Entity): void {
+    const s = this.sprites.get(e.id);
+    if (!s) return;
+    const i = this.movers.findIndex((m) => m.e === e);
+    if (i >= 0) this.movers.splice(i, 1);
+    const h = entityHeight(e, this.stage);
+    this.settle(e, s, h / 240);
+    const badge = this.scene.add.container(e.x, e.y - h - 16).setDepth(1e6 - 3);
+    badge.add([
+      this.scene.add.circle(0, 0, 17, 0x2fb457).setStrokeStyle(3, 0xffffff),
+      this.scene.add.text(0, 0, "✓", { fontFamily: "sans-serif", fontSize: "22px", color: "#ffffff", fontStyle: "bold" }).setOrigin(0.5),
+    ]);
+    this.layer.add(badge);
+    badge.setScale(0.2);
+    this.scene.tweens.add({ targets: badge, scale: 1, duration: 260, ease: "Back.easeOut" });
+    this.scene.tweens.add({ targets: s, y: e.y - 30, duration: 160, yoyo: true, ease: "Quad.easeOut" });
+  }
+
   /** クリア/失敗時: 動きを止める。ポンタは正面の絵に戻す（見つけた/ここだ、を分かりやすく）。 */
   freeze(ponta: Entity): void {
     this.frozen = true;

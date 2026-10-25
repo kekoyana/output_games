@@ -20,6 +20,9 @@ export interface HudInfo {
   hintsLeft: number;
   bonusFound: number;
   bonusTotal: number;
+  /** HARD: ポンタ/なかまを見つけたか（なかまは Hud 生成時の並び順） */
+  pontaFound?: boolean;
+  friendsFound?: boolean[];
 }
 
 export interface HudActions {
@@ -48,8 +51,14 @@ export class Hud {
   private hintEnabled = true;
   private lastLow = false;
   private btnObjs = new Map<string, Phaser.GameObjects.GameObject[]>();
+  /** HARD: 手配書の下に並べる「なかま」アイコンと、見つけたときのチェック */
+  private friendIcons: Phaser.GameObjects.Image[] = [];
+  private friendChecks: Phaser.GameObjects.Text[] = [];
+  private pontaCheck: Phaser.GameObjects.Text | null = null;
 
-  constructor(readonly scene: Phaser.Scene, private stage: StageDef, private actions: HudActions) {
+  constructor(
+    readonly scene: Phaser.Scene, private stage: StageDef, private friends: string[], private actions: HudActions,
+  ) {
     this.layer = scene.add.layer();
     this.layer.setDepth(10);
   }
@@ -89,6 +98,7 @@ export class Hud {
     }).setOrigin(1, 0.5));
 
     this.buildCard(8, barH + 8);
+    this.buildFriends(8, barH + 8 + 88 + 6);
     this.buildButtons();
     for (const o of this.btnObjs.get("hint") ?? []) (o as Phaser.GameObjects.Text).setAlpha(this.hintEnabled ? 1 : 0.4);
     if (this.lastInfo) this.update(this.lastInfo);
@@ -104,6 +114,10 @@ export class Hud {
       fontFamily: UI.serif, fontSize: "12px", color: "#8a2a1a", fontStyle: "bold",
     }));
     this.add(this.scene.add.image(x + 38, y + ch / 2 + 6, "ponta").setDisplaySize(68, 68));
+    this.pontaCheck = this.add(this.scene.add.text(x + 62, y + ch - 10, "✓", {
+      fontFamily: "sans-serif", fontSize: "20px", color: "#ffffff", fontStyle: "bold",
+      backgroundColor: "#2fb457", padding: { x: 4, y: 0 },
+    }).setOrigin(0.5).setVisible(false));
     const lines = [t("featCompact1"), t("featCompact2"), t("featCompact3")];
     // カード全体をタップで手配書を拡大表示
     this.buttons.push({ id: "poster", x, y, w: cw, h: ch, fn: this.actions.poster, enabled: () => true });
@@ -111,6 +125,34 @@ export class Hud {
       fontFamily: UI.sans, fontSize: "12px", color: "#3a2410", lineSpacing: 6,
       wordWrap: { width: cw - 84 },
     }));
+  }
+
+  /** HARD: ポンタといっしょに探す「なかま」の一覧（見つけると✓） */
+  private buildFriends(x: number, y: number): void {
+    this.friendIcons = [];
+    this.friendChecks = [];
+    const n = this.friends.length;
+    if (n === 0) return;
+    const cell = 40;
+    const pw = Math.min(this.w * 0.58, 260);
+    const per = Math.max(1, Math.floor((pw - 12) / cell));
+    const rows = Math.ceil(n / per);
+    const ph = 22 + rows * cell + 6;
+    const g = this.add(this.scene.add.graphics());
+    g.fillStyle(0x120a22, 0.78).fillRoundedRect(x, y, pw, ph, 8);
+    g.lineStyle(2, 0xc9a14a, 0.9).strokeRoundedRect(x, y, pw, ph, 8);
+    this.add(this.scene.add.text(x + 8, y + 5, t("friendsLabel"), {
+      fontFamily: UI.sans, fontSize: "11px", color: "#ffd966", fontStyle: "bold",
+    }));
+    this.friends.forEach((tex, i) => {
+      const cx = x + 6 + cell / 2 + (i % per) * cell;
+      const cy = y + 22 + cell / 2 + Math.floor(i / per) * cell;
+      this.friendIcons.push(this.add(this.scene.add.image(cx, cy, tex).setDisplaySize(cell - 6, cell - 6)));
+      this.friendChecks.push(this.add(this.scene.add.text(cx + cell / 2 - 8, cy + cell / 2 - 8, "✓", {
+        fontFamily: "sans-serif", fontSize: "15px", color: "#ffffff", fontStyle: "bold",
+        backgroundColor: "#2fb457", padding: { x: 3, y: 0 },
+      }).setOrigin(0.5).setVisible(false)));
+    });
   }
 
   private buildButtons(): void {
@@ -196,6 +238,12 @@ export class Hud {
     this.missText.setText(`${t("miss")} ${info.misses}`);
     this.bonusText.setText(info.bonusTotal > 0 ? `${t("bonus")} ${info.bonusFound}/${info.bonusTotal}` : "");
     this.hintBadge.setText(String(info.hintsLeft));
+    this.pontaCheck?.setVisible(info.pontaFound === true);
+    this.friendIcons.forEach((img, i) => {
+      const found = info.friendsFound?.[i] === true;
+      img.setAlpha(found ? 0.4 : 1);
+      this.friendChecks[i]?.setVisible(found);
+    });
   }
 
   toast(text: string, color = "#ff9a9a", y = this.h * 0.27): void {

@@ -4,10 +4,10 @@ import { generateScene } from "../game/spawn";
 import { entityCenter, hitDistance } from "../game/geometry";
 import { mulberry32, rngRange } from "../game/rng";
 import {
-  BONUS_SCORE, BONUS_TIME, HINT_DURATION, computeStars, hintRadius, missPenaltySeconds,
+  BONUS_SCORE, BONUS_TIME, FRIEND_TIME, HINT_DURATION, computeStars, hintRadius, missPenaltySeconds,
   scoreBreakdown, type MissKind,
 } from "../game/score";
-import { markCleared, submitBest, type GameStartData, type ResultData } from "../game/save";
+import { markCleared, randomSeed, submitBest, type GameStartData, type ResultData } from "../game/save";
 import { registerGameApi } from "../game/debug";
 import type { Entity, SceneLayout, StageDef, TapResult } from "../game/types";
 import { t } from "../i18n";
@@ -29,9 +29,11 @@ type KeyMap = Record<"w" | "a" | "s" | "d" | "up" | "down" | "left" | "right", P
 
 export class GameScene extends Phaser.Scene {
   stage!: StageDef;
-  mode: GameStartData["mode"] = "fixed";
-  /** HARD: キャラが動く */
+  /** HARD: キャラが動く + ポンタのほかになかまも探す */
   hard = false;
+  /** 制限時間・ヒント回数（HARD はなかまの数だけ増える） */
+  timeLimit = 0;
+  hintMax = 0;
   seed = 0;
   layout!: SceneLayout;
   phase: Phase = "intro";
@@ -40,6 +42,9 @@ export class GameScene extends Phaser.Scene {
   hintsUsed = 0;
   score = 0;
   found = new Set<number>();
+  /** HARD: 見つけたなかまの id と、ポンタを見つけたか */
+  foundFriends = new Set<number>();
+  pontaFound = false;
   rig!: CameraRig;
   hud!: Hud;
   world!: WorldView;
@@ -56,18 +61,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data: GameStartData): void {
-    const d: GameStartData = data && data.stage ? data : { stage: 1, mode: "fixed", seed: STAGES[0].fixedSeed };
+    const d: GameStartData = data && data.stage ? data : { stage: 1, seed: randomSeed() };
     this.stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, d.stage - 1))];
-    this.mode = d.mode;
     this.hard = d.hard === true;
     this.seed = d.seed;
-    this.layout = generateScene(this.stage, this.seed);
+    this.layout = generateScene(this.stage, this.seed, this.hard);
+    const nf = this.layout.friends.length;
+    this.timeLimit = this.stage.timeLimit + nf * FRIEND_TIME;
+    this.hintMax = this.stage.hints + (nf > 0 ? 1 : 0);
     this.phase = "intro";
-    this.timeLeft = this.stage.timeLimit;
+    this.timeLeft = this.timeLimit;
     this.misses = 0;
     this.hintsUsed = 0;
     this.score = 0;
     this.found = new Set<number>();
+    this.foundFriends = new Set<number>();
+    this.pontaFound = false;
     this.hintLeft = 0;
     this.lastTickSec = -1;
     this.modalFn = null;
@@ -76,7 +85,7 @@ export class GameScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.world = new WorldView(this, this.stage, this.layout, this.hard);
-    this.hud = new Hud(this, this.stage, {
+    this.hud = new Hud(this, this.stage, this.layout.friends.map((f) => f.tex), {
       zoomIn: () => this.zoomBy(1.3),
       zoomOut: () => this.zoomBy(1 / 1.3),
       hint: () => this.useHint(),
@@ -103,7 +112,7 @@ export class GameScene extends Phaser.Scene {
     this.setupKeys();
 
     this.hud.build();
-    this.showModal(() => showIntro(this.hud, this.stage, () => this.startPlay()));
+    this.showModal(() => showIntro(this.hud, this.stage, this.info(), () => this.startPlay()));
     playBgm(this.stage.night ? "night" : "day");
     this.cameras.main.fadeIn(250, 0, 0, 0);
 
@@ -180,7 +189,7 @@ export class GameScene extends Phaser.Scene {
     if (this.phase !== "playing") return;
     this.phase = "paused";
     this.gestures.cancelAll();
-    this.showModal(() => showPoster(this.hud, () => this.resumePlay()));
+    this.showModal(() => showPoster(this.hud, this.layout.friends.map((f) => f.tex), () => this.resumePlay()));
   }
 
   private resumePlay(): void {
@@ -195,12 +204,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private useHint(): void {
-    if (this.phase !== "playing" || this.hintsUsed >= this.stage.hints) return;
+    if (this.phase !== "playing" || this.hintsUsed >= this.hintMax) return;
     const r = hintRadius(this.hintsUsed);
     const rng = mulberry32((this.seed * 31 + this.hintsUsed * 977 + 7) >>> 0);
     const ang = rngRange(rng, 0, Math.PI * 2);
     const off = r * rngRange(rng, 0.25, 0.7);
-    const pc = entityCenter(this.layout.ponta, this.stage);
+    // まだ見つけていないもの（ポンタ/なかま）からランダムに1つ示す
+    const left = this.remainingTargets();
+    const target = left[Math.floor(rng() * left.length)] ?? this.layout.ponta;
+    const pc = entityCenter(target, this.stage);
     const cx = pc.x + Math.cos(ang) * off;
     const cy = pc.y + Math.sin(ang) * off;
     this.hintsUsed++;
@@ -231,18 +243,58 @@ export class GameScene extends Phaser.Scene {
       this.collectBonus(bonus);
       return "bonus";
     }
-    if (hitDistance(L.ponta, this.stage, wx, wy, radius, this.hard) <= 1) {
-      this.clearStage();
+    const friend = best(L.friends.filter((e) => !this.foundFriends.has(e.id)));
+    if (friend) {
+      this.collectFriend(friend);
+      return "friend";
+    }
+    if (hitDistance(L.ponta, this.stage, wx, wy, radius, this.hard) <= 1 && !this.pontaFound) {
+      this.pontaFound = true;
+      if (this.allFound()) this.clearStage();
+      else this.markFound(L.ponta, t("pontaFound"));
       return "ponta";
     }
     const decoy = best(L.decoys);
     const mob = best(L.mobs);
     const dd = decoy ? hitDistance(decoy, this.stage, wx, wy, radius, this.hard) : 2;
     const md = mob ? hitDistance(mob, this.stage, wx, wy, radius, this.hard) : 2;
+    // 見つけ済みのポンタ/なかまを押し直しても、ミスにはしない
+    const done = best([...L.friends.filter((e) => this.foundFriends.has(e.id)), ...(this.pontaFound ? [L.ponta] : [])]);
+    if (done && hitDistance(done, this.stage, wx, wy, radius, this.hard) <= Math.min(dd, md)) return "empty";
     if (decoy && dd <= md) { this.miss("decoy", wx, wy); return "decoy"; }
     if (mob) { this.miss("mob", wx, wy); return "mob"; }
     this.miss("empty", wx, wy);
     return "empty";
+  }
+
+  /** ポンタ（見つけ済みなら除く）となかまのうち、まだ見つけていないもの */
+  remainingTargets(): Entity[] {
+    return [
+      ...(this.pontaFound ? [] : [this.layout.ponta]),
+      ...this.layout.friends.filter((e) => !this.foundFriends.has(e.id)),
+    ];
+  }
+
+  private allFound(): boolean {
+    return this.pontaFound && this.foundFriends.size >= this.layout.friends.length;
+  }
+
+  private info(): { timeLimit: number; hints: number; friends: string[] } {
+    return { timeLimit: this.timeLimit, hints: this.hintMax, friends: this.layout.friends.map((f) => f.tex) };
+  }
+
+  /** 見つけた印をつけて止める（全部そろうまでの途中経過） */
+  private markFound(e: Entity, text: string): void {
+    this.world.markFound(e);
+    const left = this.remainingTargets().length;
+    this.hud.toast(`${text}  ${t("remaining")} ${left}`, "#9af0a8", this.hud.h * 0.34);
+    playBonusFound();
+  }
+
+  private collectFriend(e: Entity): void {
+    this.foundFriends.add(e.id);
+    if (this.allFound()) this.clearStage();
+    else this.markFound(e, t("friendFound"));
   }
 
   private collectBonus(e: Entity): void {
@@ -269,15 +321,17 @@ export class GameScene extends Phaser.Scene {
   private buildResult(cleared: boolean): ResultData {
     const bonusTotal = this.layout.bonuses.length;
     const bd = scoreBreakdown({
-      timeLeft: cleared ? this.timeLeft : 0, bonus: this.found.size, misses: this.misses, hints: this.hintsUsed,
+      timeLeft: cleared ? this.timeLeft : 0, bonus: this.found.size, friends: this.foundFriends.size,
+      misses: this.misses, hints: this.hintsUsed,
     });
     const stars = cleared
-      ? computeStars({ misses: this.misses, hints: this.hintsUsed, timeLeft: this.timeLeft, timeLimit: this.stage.timeLimit })
+      ? computeStars({ misses: this.misses, hints: this.hintsUsed, timeLeft: this.timeLeft, timeLimit: this.timeLimit })
       : 0;
     return {
-      stage: this.stage.id, mode: this.mode, seed: this.seed, hard: this.hard, cleared,
+      stage: this.stage.id, seed: this.seed, hard: this.hard, cleared,
       timeLeft: Math.max(0, this.timeLeft), misses: this.misses, hints: this.hintsUsed,
       bonusFound: this.found.size, bonusTotal,
+      friendFound: this.foundFriends.size, friendTotal: this.layout.friends.length,
       missedBonus: this.layout.bonuses.filter((b) => !this.found.has(b.id)).map((b) => b.tex),
       score: cleared ? bd.total : 0, stars, newBest: false, breakdown: bd,
     };
@@ -290,7 +344,7 @@ export class GameScene extends Phaser.Scene {
     const res = this.buildResult(true);
     this.score = res.score;
     markCleared(this.stage.id);
-    res.newBest = submitBest(this.stage.id, this.mode, { score: res.score, stars: res.stars }, this.hard);
+    res.newBest = submitBest(this.stage.id, { score: res.score, stars: res.stars }, this.hard);
     this.lastResult = res;
     playFoundFanfare();
     this.world.jump(this.layout.ponta);
@@ -308,9 +362,14 @@ export class GameScene extends Phaser.Scene {
     this.world.clearHint();
     this.lastResult = this.buildResult(false);
     playFail();
-    const pc = entityCenter(this.layout.ponta, this.stage);
+    // 見つけられなかったもの（HARD ではなかまも）の位置を示す
+    const left = this.remainingTargets();
+    const pc = entityCenter(left[0] ?? this.layout.ponta, this.stage);
     this.rig.moveTo(Math.max(this.rig.zoom, 1.2), pc.x, pc.y, 700);
-    this.world.pulseRing(pc.x, pc.y, this.stage.height * 0.7);
+    for (const e of left) {
+      const c = entityCenter(e, this.stage);
+      this.world.pulseRing(c.x, c.y, this.stage.height * 0.7);
+    }
     this.hud.banner(t("timeUp"), "#ff7a7a");
     this.hud.toast(t("here"), "#ffffff", this.hud.h * 0.5);
     this.modalFn = null;
@@ -342,11 +401,13 @@ export class GameScene extends Phaser.Scene {
       this.lastTickSec = sec;
       if (this.timeLeft <= 0) this.failStage();
     }
-    this.hud.setHintEnabled(this.phase === "playing" && this.hintsUsed < this.stage.hints);
+    this.hud.setHintEnabled(this.phase === "playing" && this.hintsUsed < this.hintMax);
     this.hud.update({
       timeLeft: Math.max(0, this.timeLeft), misses: this.misses,
-      hintsLeft: this.stage.hints - this.hintsUsed, bonusFound: this.found.size,
+      hintsLeft: this.hintMax - this.hintsUsed, bonusFound: this.found.size,
       bonusTotal: this.layout.bonuses.length,
+      pontaFound: this.pontaFound,
+      friendsFound: this.layout.friends.map((f) => this.foundFriends.has(f.id)),
     });
   }
 

@@ -5,6 +5,9 @@ export const PENALTY_MOB = 4;
 export const PENALTY_DECOY = 8;
 export const BONUS_SCORE = 500;
 export const BONUS_TIME = 5;
+export const FRIEND_SCORE = 200;
+/** HARD: なかま1体ごとに増える制限時間(秒) */
+export const FRIEND_TIME = 20;
 export const MISS_SCORE = 100;
 export const HINT_SCORE = 300;
 export const HINT_RADIUS_FIRST = 450;
@@ -14,6 +17,8 @@ export const HINT_DURATION = 5;
 export interface ScoreInput {
   timeLeft: number;
   bonus: number;
+  /** HARD で見つけたなかまの数 */
+  friends?: number;
   misses: number;
   hints: number;
 }
@@ -22,6 +27,7 @@ export interface ScoreBreakdown {
   base: number;
   time: number;
   bonus: number;
+  friends: number;
   missPenalty: number;
   hintPenalty: number;
   total: number;
@@ -31,10 +37,11 @@ export function scoreBreakdown(a: ScoreInput): ScoreBreakdown {
   const base = 1000;
   const time = Math.max(0, Math.floor(a.timeLeft)) * 20;
   const bonus = a.bonus * BONUS_SCORE;
+  const friends = (a.friends ?? 0) * FRIEND_SCORE;
   const missPenalty = a.misses * MISS_SCORE;
   const hintPenalty = a.hints * HINT_SCORE;
-  const total = Math.max(0, base + time + bonus - missPenalty - hintPenalty);
-  return { base, time, bonus, missPenalty, hintPenalty, total };
+  const total = Math.max(0, base + time + bonus + friends - missPenalty - hintPenalty);
+  return { base, time, bonus, friends, missPenalty, hintPenalty, total };
 }
 
 export function computeScore(a: ScoreInput): number {

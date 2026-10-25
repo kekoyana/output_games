@@ -6,7 +6,7 @@ import { pickLocalized, t, tr } from "../i18n";
 import { STAGES, NIGHT_TINT } from "../game/stages";
 import { getTotalBest, randomSeed, type ResultData } from "../game/save";
 import { setLastResult } from "../game/debug";
-import { BONUS_SCORE, HINT_SCORE, MISS_SCORE } from "../game/score";
+import { BONUS_SCORE, FRIEND_SCORE, HINT_SCORE, MISS_SCORE } from "../game/score";
 import { playBgm } from "../core/bgm";
 
 const BONUS_NAME: Record<string, string> = { item_straw_hat: "strawHat", item_balloon: "balloon" };
@@ -37,6 +37,7 @@ export class ResultScene extends Phaser.Scene {
       rows.push([t("scoreBase"), `+${b.base}`]);
       rows.push([`${t("scoreTime")} (${Math.floor(r.timeLeft)}s × 20)`, `+${b.time}`]);
       rows.push([`${t("scoreBonus")} (${r.bonusFound} × ${BONUS_SCORE})`, `+${b.bonus}`]);
+      if (r.friendTotal > 0) rows.push([`${t("scoreFriends")} (${r.friendFound} × ${FRIEND_SCORE})`, `+${b.friends}`]);
     }
     const neg = (n: number): string => (n === 0 ? "0" : `-${n}`);
     rows.push([`${t("scoreMiss")} (${r.misses} × ${MISS_SCORE})`, neg(b.missPenalty), "#ff9a9a"]);
@@ -91,7 +92,7 @@ export class ResultScene extends Phaser.Scene {
     ly += lineH;
     this.line(cx, pw, ly, `${t("miss")} / ${t("hint")}`, `${r.misses} / ${r.hints}`, "#e6dcc4");
     ly += lineH;
-    this.line(cx, pw, ly, t("seed"), `${r.seed}${r.mode === "random" ? " (new)" : ""}${r.hard ? " · HARD" : ""}`, "#a89c80");
+    this.line(cx, pw, ly, t("seed"), `${r.seed}${r.hard ? " · HARD" : ""}`, "#a89c80");
     if (allClear) {
       const tb = getTotalBest(STAGES.length, r.hard);
       ly += lineH;
@@ -117,10 +118,10 @@ export class ResultScene extends Phaser.Scene {
     const hasNext = r.cleared && r.stage < STAGES.length;
     const specs: Array<{ label: string; variant: "gold" | "primary" | "purple" | "dark"; fn: () => void }> = [];
     if (hasNext) {
-      specs.push({ label: t("next"), variant: "gold", fn: () => this.play(r.stage + 1, "fixed", STAGES[r.stage].fixedSeed, r.hard) });
+      specs.push({ label: t("next"), variant: "gold", fn: () => this.play(r.stage + 1, r.hard) });
     }
-    specs.push({ label: t("retry"), variant: hasNext ? "primary" : "gold", fn: () => this.play(r.stage, r.mode, r.seed, r.hard) });
-    specs.push({ label: t("newLayout"), variant: "purple", fn: () => this.play(r.stage, "random", randomSeed(), r.hard) });
+    // 配置は毎回ランダム（もう一度も別の配置になる）
+    specs.push({ label: t("retry"), variant: hasNext ? "primary" : "gold", fn: () => this.play(r.stage, r.hard) });
     specs.push({ label: t("toStages"), variant: "dark", fn: () => this.scene.start("StageSelect") });
 
     if (land) {
@@ -152,7 +153,7 @@ export class ResultScene extends Phaser.Scene {
     }
   }
 
-  private play(stage: number, mode: ResultData["mode"], seed: number, hard: boolean): void {
-    this.scene.start("Game", { stage, mode, seed, hard });
+  private play(stage: number, hard: boolean): void {
+    this.scene.start("Game", { stage, seed: randomSeed(), hard });
   }
 }

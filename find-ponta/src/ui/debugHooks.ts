@@ -56,7 +56,7 @@ export function installDebugHooks(game: Phaser.Game): void {
       return {
         ...base, scene: key, stage: r.stage, seed: r.seed, timeLeft: r.timeLeft, misses: r.misses,
         hintsUsed: r.hints, bonusFound: r.bonusFound, score: r.score, cleared: r.cleared, stars: r.stars,
-        mode: r.mode,
+        hard: r.hard,
       };
     }
     return base;
@@ -71,6 +71,7 @@ export function installDebugHooks(game: Phaser.Game): void {
     getDecoyWorldPositions: () => need((a) => a.getDecoyWorldPositions()) ?? [],
     getMobWorldPositions: () => need((a) => a.getMobWorldPositions()) ?? [],
     getBonusWorldPositions: () => need((a) => a.getBonusWorldPositions()) ?? [],
+    getFriendWorldPositions: () => need((a) => a.getFriendWorldPositions()) ?? [],
     tapWorld: (x: number, y: number) => need((a) => a.tapWorld(x, y)),
     setView: (z: number, x: number, y: number) => { need((a) => a.setView(z, x, y)); },
     skipIntro: () => { need((a) => a.skipIntro()); },

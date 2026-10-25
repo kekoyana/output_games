@@ -34,8 +34,7 @@ const EXPECT = {
 };
 
 /** 独立実装: 1px 格子で手前の箱に隠されない点の割合を数える */
-function rasterVisible(l, stage) {
-  const t = l.ponta;
+function rasterVisible(l, stage, t = l.ponta) {
   const tb = entityBox(t, stage);
   const fronts = allEntities(l)
     .filter((o) => o !== t && (o.y > t.y || (o.y === t.y && o.id > t.id)))
@@ -55,26 +54,29 @@ const CHECK_TIMES = Array.from({ length: 120 }, (_, i) => ((i * 7919) % 12011) /
 const POSES = ["side", "shop", "flee", "chase"];
 
 let totalFail = 0;
-for (const stage of STAGES) {
+for (const hard of [false, true]) for (const stage of STAGES) {
   const ex = EXPECT[stage.id];
+  const nFriends = hard ? stage.hardFriends : 0;
   const fails = {};
   const fail = (k, msg) => { (fails[k] ??= []).push(msg); };
   const poly = WALK_POLYGONS[stage.bg].map((p) => ({ x: p.x * WORLD_W, y: p.y * WORLD_H }));
+  let dynFriendMin = 1;
   const stats = { moving: 0, total: 0, pontaMoving: 0, pontaShop: 0, dynMin: 1 };
-  let maxAttempt = 0, minVis = 1, minNear = 99, minDecoyDist = 1e9, minGapSeen = 1e9;
+  let friendMinVis = 1, maxAttempt = 0, minVis = 1, minNear = 99, minDecoyDist = 1e9, minGapSeen = 1e9;
   const t0 = performance.now();
   for (let i = 0; i < SEEDS; i++) {
-    const seed = stage.fixedSeed + i * 7919 + (i === 0 ? 0 : 13);
+    const seed = stage.id * 1101 + i * 7919 + (i === 0 ? 0 : 13);
     let l;
-    try { l = generateScene(stage, seed); } catch (e) { fail("generate", `seed ${seed}: ${e.message}`); continue; }
+    try { l = generateScene(stage, seed, hard); } catch (e) { fail("generate", `seed ${seed}: ${e.message}`); continue; }
     const all = allEntities(l);
     maxAttempt = Math.max(maxAttempt, l.attempt);
     if (l.mobs.length !== ex.mobs) fail("count", `seed ${seed}: mobs ${l.mobs.length}`);
     if (l.decoys.length !== ex.decoys) fail("count", `seed ${seed}: decoys ${l.decoys.length}`);
     if (l.bonuses.length !== ex.bonus) fail("count", `seed ${seed}: bonus ${l.bonuses.length}`);
+    if (l.friends.length !== nFriends) fail("count", `seed ${seed}: friends ${l.friends.length}`);
     const pc = all.filter((e) => e.tex === "ponta" || e.kind === "ponta").length;
     if (pc !== 1) fail("ponta1", `seed ${seed}: ${pc}`);
-    const l2 = generateScene(stage, seed);
+    const l2 = generateScene(stage, seed, hard);
     if (JSON.stringify(l) !== JSON.stringify(l2)) fail("repro", `seed ${seed}`);
     const p = l.ponta;
     const pcen = entityCenter(p, stage);
@@ -101,7 +103,17 @@ for (const stage of STAGES) {
     const dtypes = new Set(l.decoys.map((d) => d.tex));
     if (dtypes.size !== ex.types.length || ex.types.some((t) => !dtypes.has(t))) fail("decoyTypes", `seed ${seed}: ${[...dtypes]}`);
     const mtypes = new Set(l.mobs.map((m) => m.tex));
-    if (mtypes.size !== stage.mobTypes.length) fail("mobTypes", `seed ${seed}: ${mtypes.size}`);
+    if (mtypes.size !== stage.mobTypes.length - nFriends) fail("mobTypes", `seed ${seed}: ${mtypes.size}`);
+    // なかま: 種類はそれぞれ別・モブ側には同じ種類がいない（見分けがつく）・位置が遠すぎず見えている
+    const ftypes = new Set(l.friends.map((f) => f.tex));
+    if (ftypes.size !== nFriends || l.friends.some((f) => !stage.mobTypes.includes(f.tex) || mtypes.has(f.tex) || f.kind !== "friend")) {
+      fail("friends", `seed ${seed}: ${[...ftypes]}`);
+    }
+    for (const f of l.friends) {
+      const fv = rasterVisible(l, stage, f);
+      friendMinVis = Math.min(friendMinVis, fv);
+      if (fv < stage.minVisible) fail("friendVisible", `seed ${seed}: ${f.tex} ${(fv * 100).toFixed(1)}%`);
+    }
     for (const e of all) {
       if (!pointInPolygon(e.x, e.y, poly)) fail("walkArea", `seed ${seed}: #${e.id} ${e.tex}`);
       if (e.x < 80 || e.y < 80 || e.x > WORLD_W - 80 || e.y > WORLD_H - 80) fail("edgeAll", `seed ${seed}: #${e.id}`);
@@ -109,7 +121,7 @@ for (const stage of STAGES) {
       void entityHeight;
     }
     // --- 動き ---
-    const chars = [l.ponta, ...l.decoys, ...l.mobs];
+    const chars = [l.ponta, ...l.decoys, ...l.friends, ...l.mobs];
     const byId = new Map(all.map((e) => [e.id, e]));
     for (const e of chars) {
       if (!e.move) { if (e.pose !== "front" && e.pose !== "shop") fail("motionPose", `seed ${seed}: #${e.id} ${e.pose}`); continue; }
@@ -129,13 +141,16 @@ for (const stage of STAGES) {
     stats.total += chars.length;
     if (l.ponta.move) stats.pontaMoving++;
     if (l.ponta.pose === "shop") stats.pontaShop++;
-    let dynMin = 1;
+    let dynMin = 1, seedFriendDyn = 1;
     for (const t of CHECK_TIMES) {
       applyMotions(chars, t);
       dynMin = Math.min(dynMin, rasterVisible(l, stage));
+      for (const f of l.friends) seedFriendDyn = Math.min(seedFriendDyn, rasterVisible(l, stage, f));
     }
     for (const e of chars) e.x = e.hx;
     stats.dynMin = Math.min(stats.dynMin, dynMin);
+    dynFriendMin = Math.min(dynFriendMin, seedFriendDyn);
+    if (seedFriendDyn < stage.minVisible - 0.02) fail("friendMotionVisible", `seed ${seed}: ${(seedFriendDyn * 100).toFixed(1)}%`);
     if (dynMin < ex.vis - 0.02) fail("motionVisible", `seed ${seed}: ${(dynMin * 100).toFixed(1)}%`);
     for (let a = 0; a < all.length; a++) for (let b = a + 1; b < all.length; b++) {
       const g = Math.hypot(all[a].x - all[b].x, all[a].y - all[b].y);
@@ -144,11 +159,11 @@ for (const stage of STAGES) {
     }
   }
   const ms = ((performance.now() - t0) / SEEDS).toFixed(1);
-  const keys = ["generate", "count", "ponta1", "repro", "center", "edge", "decoyDist", "near", "visible", "decoyTypes", "mobTypes", "walkArea", "edgeAll", "scale", "minGap", "motionPose", "motionArea", "pairs", "motionVisible"];
+  const keys = ["generate", "count", "ponta1", "repro", "center", "edge", "decoyDist", "near", "visible", "decoyTypes", "mobTypes", "walkArea", "edgeAll", "scale", "minGap", "motionPose", "motionArea", "pairs", "motionVisible", "friends", "friendVisible", "friendMotionVisible"];
   const bad = keys.filter((k) => fails[k]);
   totalFail += bad.length;
-  console.log(`Stage ${stage.id} ${stage.name.en}: ${bad.length === 0 ? "PASS" : "FAIL"}  (${SEEDS} seeds, ${ms}ms/seed, maxRetry=${maxAttempt}, minVisible=${(minVis * 100).toFixed(1)}%, minNear=${minNear}, minDecoyDist=${minDecoyDist.toFixed(0)}, minGap=${minGapSeen.toFixed(0)})`);
-  console.log(`   motion: moving=${(stats.moving / stats.total * 100).toFixed(0)}% pontaMoving=${stats.pontaMoving}/${SEEDS} pontaShop=${stats.pontaShop}/${SEEDS} dynamicMinVisible=${(stats.dynMin * 100).toFixed(1)}%`);
+  console.log(`${hard ? "HARD  " : "NORMAL"} Stage ${stage.id} ${stage.name.en}: ${bad.length === 0 ? "PASS" : "FAIL"}  (${SEEDS} seeds, ${ms}ms/seed, maxRetry=${maxAttempt}, minVisible=${(minVis * 100).toFixed(1)}%, minNear=${minNear}, minDecoyDist=${minDecoyDist.toFixed(0)}, minGap=${minGapSeen.toFixed(0)})`);
+  console.log(`   friends=${nFriends} minFriendVisible=${(friendMinVis * 100).toFixed(1)}% dynFriendMin=${(dynFriendMin * 100).toFixed(1)}%\n   motion: moving=${(stats.moving / stats.total * 100).toFixed(0)}% pontaMoving=${stats.pontaMoving}/${SEEDS} pontaShop=${stats.pontaShop}/${SEEDS} dynamicMinVisible=${(stats.dynMin * 100).toFixed(1)}%`);
   for (const k of keys) console.log(`   ${fails[k] ? "FAIL" : "PASS"} ${k}${fails[k] ? `  x${fails[k].length} e.g. ${fails[k].slice(0, 3).join(" | ")}` : ""}`);
 }
 console.log(totalFail === 0 ? "\nALL PASS" : `\nFAILED checks: ${totalFail}`);

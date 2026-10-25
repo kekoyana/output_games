@@ -3,7 +3,7 @@
 export const WORLD_W = 2304;
 export const WORLD_H = 1536;
 
-export type EntityKind = "ponta" | "decoy" | "mob" | "bonus";
+export type EntityKind = "ponta" | "decoy" | "mob" | "bonus" | "friend";
 export type BgKey = "bg_park" | "bg_market" | "bg_festival";
 export type DecoyKey = "decoy_a" | "decoy_b" | "decoy_c" | "decoy_d" | "decoy_e";
 export type BonusKey = "item_straw_hat" | "item_balloon";
@@ -51,6 +51,8 @@ export interface SceneLayout {
   decoys: Entity[];
   mobs: Entity[];
   bonuses: Entity[];
+  /** HARD のみ: ポンタのほかに見つける「なかま」（モブと同じ種類の絵だが、その種類はこの1体だけ） */
+  friends: Entity[];
   /** 実際に採用した派生シード */
   usedSeed: number;
   /** 0 始まりの試行回数（ポンタ検証・配置失敗時に増える） */
@@ -67,7 +69,6 @@ export interface StageDef {
   name: LocalText;
   bg: BgKey;
   night: boolean;
-  fixedSeed: number;
   mobCount: number;
   mobTypes: string[];
   decoys: DecoyKey[];
@@ -84,6 +85,8 @@ export interface StageDef {
   decoyMinDist: number;
   /** ポンタから 600px 以内に置くデコイ数 */
   decoyNear: number;
+  /** HARD で探すなかまの数 */
+  hardFriends: number;
 }
 
 export interface Box {
@@ -93,4 +96,4 @@ export interface Box {
   b: number;
 }
 
-export type TapResult = "ponta" | "bonus" | "mob" | "decoy" | "empty";
+export type TapResult = "ponta" | "friend" | "bonus" | "mob" | "decoy" | "empty";

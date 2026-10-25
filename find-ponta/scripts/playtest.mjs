@@ -202,6 +202,62 @@ async function run(browser, vp) {
   }
   await clickBtn(/stage ?select|STAGE|選択|一覧|BACK/i).catch(() => {});
   await wait(500);
+
+  // --- HARD: ポンタのほかに「なかま」も探す／配置は毎回ランダム ---
+  await waitScene("StageSelect");
+  await clickBtn(/^HARD$|^ハード$/);
+  await wait(300);
+  await clickBtn(/^PLAY$/);
+  await waitScene("Game");
+  const h0 = await state();
+  check(`[${tag}] HARD S1 開始（hard・なかま2・ヒント+1）`, h0.hard === true && h0.friendTotal === 2 && h0.hintsLeft === 4, `hard=${h0.hard} friends=${h0.friendTotal} hints=${h0.hintsLeft}`);
+  await shot("8-hard-intro");
+  await clickBtn(/start|START|スタート|はじめ|GO|OK/i);
+  await wait(400);
+  await shot("8-hard-play");
+  const hp = await api("getPontaWorldPos");
+  const fr = await api("getFriendWorldPositions");
+  check(`[${tag}] HARD なかまの種類が別々`, new Set(fr.map((f) => f.tex)).size === fr.length && fr.length === 2, fr.map((f) => f.tex).join(","));
+  const mobTex = new Set((await api("getMobWorldPositions")).map((m) => m.tex));
+  check(`[${tag}] HARD なかまと同じ種類のモブがいない`, fr.every((f) => !mobTex.has(f.tex)));
+  // ポンタを先に見つけてもクリアにならず、チェックが付く（ミスにならない）
+  await api("setView", 2, hp.x, hp.y);
+  await wait(300);
+  const hp2 = await api("getPontaWorldPos");
+  await tapWorldReal(hp2.x, hp2.y);
+  await wait(300);
+  const h1 = await state();
+  check(`[${tag}] HARD ポンタ先に発見→途中経過（クリアしない）`, h1.phase === "playing" && h1.pontaFound === true && h1.misses === 0, `phase=${h1.phase} pontaFound=${h1.pontaFound} misses=${h1.misses}`);
+  await shot("8-hard-ponta-found");
+  await tapWorldReal(hp2.x, hp2.y);
+  await wait(200);
+  const h2 = await state();
+  check(`[${tag}] HARD 見つけ済みを押し直してもミスにならない`, h2.misses === 0, `misses=${h2.misses}`);
+  // なかまを1体ずつ
+  for (let i = 0; i < fr.length; i++) {
+    const cur = (await api("getFriendWorldPositions")).filter((f) => !f.found)[0];
+    await api("setView", 2, cur.x, cur.y);
+    await wait(300);
+    const now = (await api("getFriendWorldPositions")).find((f) => f.tex === cur.tex);
+    await tapWorldReal(now.x, now.y);
+    await wait(300);
+    const hs = await state();
+    if (i < fr.length - 1) {
+      check(`[${tag}] HARD なかま${i + 1}発見（まだクリアしない）`, hs.friendFound === i + 1 && hs.phase === "playing" && hs.misses === 0, `found=${hs.friendFound} phase=${hs.phase} misses=${hs.misses}`);
+    } else {
+      check(`[${tag}] HARD 全員そろったらクリア`, hs.phase === "cleared" || hs.scene === "Result", `phase=${hs.phase} scene=${hs.scene}`);
+    }
+  }
+  await waitScene("Result", 10000);
+  const hr = await state();
+  check(`[${tag}] HARD Result（なかま2/2・スコア）`, hr.cleared === true && hr.hard === true && hr.score > 0, `score=${hr.score}`);
+  await shot("9-hard-result");
+  const seedBefore = hr.seed;
+  await clickBtn(/retry|RETRY|もういちど/i);
+  await waitScene("Game");
+  const hn = await state();
+  check(`[${tag}] もういちど遊ぶと別の配置（シードが変わる）`, hn.seed !== seedBefore, `${seedBefore}→${hn.seed}`);
+
   report.viewports.push({ ...vp, results, externalRequests: external });
   check(`[${tag}] 外部ドメインへのリクエストなし`, external.length === 0, external.slice(0, 3).join(","));
   await ctx.close();
