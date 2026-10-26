@@ -31,6 +31,7 @@ export interface HudActions {
   hint: () => void;
   pause: () => void;
   poster: () => void;
+  friends: () => void;
 }
 
 const BTN = 52;
@@ -141,6 +142,8 @@ export class Hud {
     const g = this.add(this.scene.add.graphics());
     g.fillStyle(0x120a22, 0.78).fillRoundedRect(x, y, pw, ph, 8);
     g.lineStyle(2, 0xc9a14a, 0.9).strokeRoundedRect(x, y, pw, ph, 8);
+    // 一覧をタップで、なかまを拡大表示
+    this.buttons.push({ id: "friends", x, y, w: pw, h: ph, fn: this.actions.friends, enabled: () => true });
     this.add(this.scene.add.text(x + 8, y + 5, t("friendsLabel"), {
       fontFamily: UI.sans, fontSize: "11px", color: "#ffd966", fontStyle: "bold",
     }));

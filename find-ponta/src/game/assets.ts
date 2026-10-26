@@ -1,5 +1,7 @@
 // 読み込むアセットのキー一覧（キー = ファイル名）
-export const BG_KEYS = ["bg_park", "bg_market", "bg_festival"] as const;
+import { JUNK_KEYS, TREASURE_KEYS } from "./stages";
+
+export const BG_KEYS = ["bg_park", "bg_market", "bg_festival", "bg_station", "bg_amusement"] as const;
 
 export const CHAR_KEYS = [
   "ponta",
@@ -16,6 +18,8 @@ export const SPRITE_KEYS: string[] = [
   ...CHAR_KEYS,
   ...CHAR_KEYS.flatMap((c) => POSES.map((p) => `${c}_${p}`)),
   "item_straw_hat", "item_balloon",
+  ...TREASURE_KEYS,
+  ...JUNK_KEYS,
 ];
 
 export function assetUrl(path: string): string {

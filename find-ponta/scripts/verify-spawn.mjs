@@ -31,6 +31,8 @@ const EXPECT = {
   2: { mobs: 100, decoys: 8, bonus: 0, vis: 0.8, dist: 300, near: 0, types: ["decoy_a", "decoy_b", "decoy_d", "decoy_e"] },
   3: { mobs: 150, decoys: 12, bonus: 1, vis: 0.75, dist: 150, near: 3, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
   4: { mobs: 200, decoys: 16, bonus: 2, vis: 0.7, dist: 100, near: 4, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  5: { mobs: 240, decoys: 18, bonus: 2, vis: 0.68, dist: 90, near: 5, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  6: { mobs: 280, decoys: 20, bonus: 2, vis: 0.66, dist: 80, near: 6, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
 };
 
 /** 独立実装: 1px 格子で手前の箱に隠されない点の割合を数える */
@@ -54,29 +56,40 @@ const CHECK_TIMES = Array.from({ length: 120 }, (_, i) => ((i * 7919) % 12011) /
 const POSES = ["side", "shop", "flee", "chase"];
 
 let totalFail = 0;
-for (const hard of [false, true]) for (const stage of STAGES) {
+for (const [level, hard, extreme] of [["NORMAL", false, false], ["HARD", true, false], ["EXTREME", true, true]]) for (const stage of STAGES) {
   const ex = EXPECT[stage.id];
   const nFriends = hard ? stage.hardFriends : 0;
+  const nTreasures = extreme ? stage.treasures : 0;
+  const nJunk = extreme ? stage.junk : 0;
   const fails = {};
   const fail = (k, msg) => { (fails[k] ??= []).push(msg); };
   const poly = WALK_POLYGONS[stage.bg].map((p) => ({ x: p.x * WORLD_W, y: p.y * WORLD_H }));
   let dynFriendMin = 1;
   const stats = { moving: 0, total: 0, pontaMoving: 0, pontaShop: 0, dynMin: 1 };
-  let friendMinVis = 1, maxAttempt = 0, minVis = 1, minNear = 99, minDecoyDist = 1e9, minGapSeen = 1e9;
+  let treasureMinVis = 1, friendMinVis = 1, maxAttempt = 0, minVis = 1, minNear = 99, minDecoyDist = 1e9, minGapSeen = 1e9;
   const t0 = performance.now();
   for (let i = 0; i < SEEDS; i++) {
     const seed = stage.id * 1101 + i * 7919 + (i === 0 ? 0 : 13);
     let l;
-    try { l = generateScene(stage, seed, hard); } catch (e) { fail("generate", `seed ${seed}: ${e.message}`); continue; }
+    try { l = generateScene(stage, seed, hard, extreme); } catch (e) { fail("generate", `seed ${seed}: ${e.message}`); continue; }
     const all = allEntities(l);
     maxAttempt = Math.max(maxAttempt, l.attempt);
     if (l.mobs.length !== ex.mobs) fail("count", `seed ${seed}: mobs ${l.mobs.length}`);
     if (l.decoys.length !== ex.decoys) fail("count", `seed ${seed}: decoys ${l.decoys.length}`);
     if (l.bonuses.length !== ex.bonus) fail("count", `seed ${seed}: bonus ${l.bonuses.length}`);
     if (l.friends.length !== nFriends) fail("count", `seed ${seed}: friends ${l.friends.length}`);
+    if (l.treasures.length !== nTreasures) fail("count", `seed ${seed}: treasures ${l.treasures.length}`);
+    if (l.junk.length !== nJunk || l.junk.some((x) => x.kind !== "junk" || !x.tex.startsWith("junk_"))) fail("junk", `seed ${seed}: ${l.junk.length}`);
+    const ttypes = new Set(l.treasures.map((x) => x.tex));
+    if (ttypes.size !== nTreasures || l.treasures.some((x) => x.kind !== "treasure" || !x.tex.startsWith("treasure_"))) fail("treasures", `seed ${seed}: ${[...ttypes]}`);
+    for (const x of l.treasures) {
+      const tv = rasterVisible(l, stage, x);
+      treasureMinVis = Math.min(treasureMinVis, tv);
+      if (tv < 0.6 - 0.02) fail("treasureVisible", `seed ${seed}: ${x.tex} ${(tv * 100).toFixed(1)}%`);
+    }
     const pc = all.filter((e) => e.tex === "ponta" || e.kind === "ponta").length;
     if (pc !== 1) fail("ponta1", `seed ${seed}: ${pc}`);
-    const l2 = generateScene(stage, seed, hard);
+    const l2 = generateScene(stage, seed, hard, extreme);
     if (JSON.stringify(l) !== JSON.stringify(l2)) fail("repro", `seed ${seed}`);
     const p = l.ponta;
     const pcen = entityCenter(p, stage);
@@ -159,11 +172,11 @@ for (const hard of [false, true]) for (const stage of STAGES) {
     }
   }
   const ms = ((performance.now() - t0) / SEEDS).toFixed(1);
-  const keys = ["generate", "count", "ponta1", "repro", "center", "edge", "decoyDist", "near", "visible", "decoyTypes", "mobTypes", "walkArea", "edgeAll", "scale", "minGap", "motionPose", "motionArea", "pairs", "motionVisible", "friends", "friendVisible", "friendMotionVisible"];
+  const keys = ["generate", "count", "ponta1", "repro", "center", "edge", "decoyDist", "near", "visible", "decoyTypes", "mobTypes", "walkArea", "edgeAll", "scale", "minGap", "motionPose", "motionArea", "pairs", "motionVisible", "friends", "friendVisible", "friendMotionVisible", "treasures", "treasureVisible", "junk"];
   const bad = keys.filter((k) => fails[k]);
   totalFail += bad.length;
-  console.log(`${hard ? "HARD  " : "NORMAL"} Stage ${stage.id} ${stage.name.en}: ${bad.length === 0 ? "PASS" : "FAIL"}  (${SEEDS} seeds, ${ms}ms/seed, maxRetry=${maxAttempt}, minVisible=${(minVis * 100).toFixed(1)}%, minNear=${minNear}, minDecoyDist=${minDecoyDist.toFixed(0)}, minGap=${minGapSeen.toFixed(0)})`);
-  console.log(`   friends=${nFriends} minFriendVisible=${(friendMinVis * 100).toFixed(1)}% dynFriendMin=${(dynFriendMin * 100).toFixed(1)}%\n   motion: moving=${(stats.moving / stats.total * 100).toFixed(0)}% pontaMoving=${stats.pontaMoving}/${SEEDS} pontaShop=${stats.pontaShop}/${SEEDS} dynamicMinVisible=${(stats.dynMin * 100).toFixed(1)}%`);
+  console.log(`${level.padEnd(7)} Stage ${stage.id} ${stage.name.en}: ${bad.length === 0 ? "PASS" : "FAIL"}  (${SEEDS} seeds, ${ms}ms/seed, maxRetry=${maxAttempt}, minVisible=${(minVis * 100).toFixed(1)}%, minNear=${minNear}, minDecoyDist=${minDecoyDist.toFixed(0)}, minGap=${minGapSeen.toFixed(0)})`);
+  console.log(`   friends=${nFriends} treasures=${nTreasures} junk=${nJunk} minTreasureVisible=${(treasureMinVis * 100).toFixed(1)}% minFriendVisible=${(friendMinVis * 100).toFixed(1)}% dynFriendMin=${(dynFriendMin * 100).toFixed(1)}%\n   motion: moving=${(stats.moving / stats.total * 100).toFixed(0)}% pontaMoving=${stats.pontaMoving}/${SEEDS} pontaShop=${stats.pontaShop}/${SEEDS} dynamicMinVisible=${(stats.dynMin * 100).toFixed(1)}%`);
   for (const k of keys) console.log(`   ${fails[k] ? "FAIL" : "PASS"} ${k}${fails[k] ? `  x${fails[k].length} e.g. ${fails[k].slice(0, 3).join(" | ")}` : ""}`);
 }
 console.log(totalFail === 0 ? "\nALL PASS" : `\nFAILED checks: ${totalFail}`);

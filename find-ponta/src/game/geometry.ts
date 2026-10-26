@@ -8,6 +8,11 @@ export const MOVING_TAP_BONUS = 10;
 /** スプライト画像(256px)中で可視部分が占める高さ(240px) */
 export const SPRITE_VISIBLE_RATIO = 240 / 256;
 
+/** ボーナス・宝物のような小さな置きもの（キャラではない） */
+export function isItem(e: Entity): boolean {
+  return e.kind === "bonus" || e.kind === "treasure" || e.kind === "junk";
+}
+
 export function pointInPolygon(px: number, py: number, poly: Point[]): boolean {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -22,12 +27,12 @@ export function pointInPolygon(px: number, py: number, poly: Point[]): boolean {
 
 /** 表示上の高さ（キャラ=ステージ高さ×個体スケール、ボーナス=固定） */
 export function entityHeight(e: Entity, stage: StageDef): number {
-  return e.kind === "bonus" ? BONUS_SIZE : stage.height * e.scale;
+  return isItem(e) ? BONUS_SIZE : stage.height * e.scale;
 }
 
 export function entityBox(e: Entity, stage: StageDef): Box {
   const h = entityHeight(e, stage);
-  const w = e.kind === "bonus" ? BONUS_SIZE : h * BODY_W_RATIO;
+  const w = isItem(e) ? BONUS_SIZE : h * BODY_W_RATIO;
   return { l: e.x - w / 2, r: e.x + w / 2, t: e.y - h, b: e.y };
 }
 
@@ -39,7 +44,7 @@ export function entityCenter(e: Entity, stage: StageDef): Point {
 export function hitEllipse(e: Entity, stage: StageDef): { cx: number; cy: number; rx: number; ry: number } {
   const b = entityBox(e, stage);
   const c = entityCenter(e, stage);
-  if (e.kind === "bonus") return { cx: c.x, cy: c.y, rx: BONUS_SIZE / 2, ry: BONUS_SIZE / 2 };
+  if (isItem(e)) return { cx: c.x, cy: c.y, rx: BONUS_SIZE / 2, ry: BONUS_SIZE / 2 };
   return { cx: c.x, cy: c.y, rx: (b.r - b.l) * 0.3, ry: (b.b - b.t) * 0.4 };
 }
 

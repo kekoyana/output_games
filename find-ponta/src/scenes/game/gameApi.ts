@@ -13,6 +13,7 @@ export function createGameApi(s: GameScene): GameApi {
       scene: "Game",
       phase: s.phase,
       stage: s.stage.id,
+      difficulty: s.difficulty,
       hard: s.hard,
       seed: s.seed,
       timeLeft: Math.round(Math.max(0, s.timeLeft) * 100) / 100,
@@ -21,8 +22,11 @@ export function createGameApi(s: GameScene): GameApi {
       hintsLeft: s.hintMax - s.hintsUsed,
       bonusFound: s.found.size,
       bonusTotal: s.layout.bonuses.length,
-      friendFound: s.foundFriends.size,
+      friendFound: s.layout.friends.filter((e) => s.foundExtras.has(e.id)).length,
       friendTotal: s.layout.friends.length,
+      treasureFound: s.layout.treasures.filter((e) => s.foundExtras.has(e.id)).length,
+      treasureTotal: s.layout.treasures.length,
+      junkTotal: s.layout.junk.length,
       pontaFound: s.pontaFound,
       score: s.score,
       zoom: s.rig.zoom,
@@ -36,7 +40,10 @@ export function createGameApi(s: GameScene): GameApi {
     getBonusWorldPositions: () =>
       s.layout.bonuses.map((e) => ({ ...center(e), tex: e.tex, found: s.found.has(e.id) })),
     getFriendWorldPositions: () =>
-      s.layout.friends.map((e) => ({ ...center(e), tex: e.tex, found: s.foundFriends.has(e.id) })),
+      s.layout.friends.map((e) => ({ ...center(e), tex: e.tex, found: s.foundExtras.has(e.id) })),
+    getTreasureWorldPositions: () =>
+      s.layout.treasures.map((e) => ({ ...center(e), tex: e.tex, found: s.foundExtras.has(e.id) })),
+    getJunkWorldPositions: () => s.layout.junk.map((e) => ({ ...center(e), tex: e.tex })),
     tapWorld: (x, y) => s.handleTap(x, y, Math.min(60, 22 / s.rig.zoom)),
     setView: (zoom, wx, wy) => s.rig.setView(zoom, wx, wy),
     skipIntro: () => s.startPlay(),

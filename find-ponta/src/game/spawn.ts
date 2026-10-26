@@ -1,6 +1,6 @@
 // 配置ロジック（Phaser 非依存の純関数）。Node からも import して検証できる。
 import { mulberry32, rngRange, shuffle, type Rng } from "./rng";
-import { WALK_POLYGONS } from "./stages";
+import { JUNK_KEYS, TREASURE_KEYS, WALK_POLYGONS } from "./stages";
 import {
   entityBox, entityCenter, isInFront, pointInPolygon, visibleFraction,
 } from "./geometry";
@@ -19,7 +19,7 @@ const MAX_ATTEMPTS = 5;
 const VIS_MARGIN = 0.02;
 const BONUS_MIN_VISIBLE = 0.6;
 /** なかまはポンタ同様に必須の探し物。動いても下限を割らないよう余裕を持たせる */
-const FRIEND_VIS_MARGIN = 0.04;
+const FRIEND_VIS_MARGIN = 0.07;
 const DIST_MARGIN = 12;
 
 interface Protected {
@@ -81,7 +81,7 @@ function place(
     const e: Entity = {
       id: ctx.nextId, kind, tex, x: p.x, hx: p.x, y: p.y, pose: "front",
       flip: ctx.rng() < 0.5,
-      scale: kind === "bonus" ? 1 : rngRange(ctx.rng, 0.9, 1.1),
+      scale: kind === "bonus" || kind === "treasure" || kind === "junk" ? 1 : rngRange(ctx.rng, 0.9, 1.1),
     };
     if (extra && !extra(e)) continue;
     if (!accept(ctx, e, selfMin)) continue;
@@ -110,7 +110,7 @@ function pontaDistances(ctx: Ctx, ponta: Entity, e: Entity): { min: number; max:
   return { min: Math.min(a, b), max: Math.max(a, b) };
 }
 
-function generateOnce(stage: StageDef, seed: number, hard: boolean): Omit<SceneLayout, "usedSeed" | "attempt"> | null {
+function generateOnce(stage: StageDef, seed: number, hard: boolean, extreme: boolean): Omit<SceneLayout, "usedSeed" | "attempt"> | null {
   const rng = mulberry32(seed);
   const poly = WALK_POLYGONS[stage.bg].map((p) => ({ x: p.x * WORLD_W, y: p.y * WORLD_H }));
   const ctx: Ctx = { stage, rng, poly, all: [], prot: [], nextId: 1 };
@@ -145,6 +145,24 @@ function generateOnce(stage: StageDef, seed: number, hard: boolean): Omit<SceneL
     bonuses.push(e);
   }
 
+  // EXTREME: 隠された宝物。ボーナスと同じ小さな置きもの（毎回違う組み合わせ・位置）
+  const treasures: Entity[] = [];
+  const treasureKinds = extreme ? shuffle(rng, [...TREASURE_KEYS]).slice(0, stage.treasures) : [];
+  for (const tex of treasureKinds) {
+    const e = place(ctx, "treasure", tex, randomPoint, undefined, BONUS_MIN_VISIBLE);
+    if (!e) return null;
+    ctx.prot.push({ e, min: BONUS_MIN_VISIBLE });
+    treasures.push(e);
+  }
+
+  // EXTREME: ガラクタ。宝物・ボーナスだけが落ちているのを避け、見分けを必要にする
+  const junk: Entity[] = [];
+  for (let i = 0; extreme && i < stage.junk; i++) {
+    const e = place(ctx, "junk", JUNK_KEYS[Math.floor(rng() * JUNK_KEYS.length)], randomPoint);
+    if (!e) return null;
+    junk.push(e);
+  }
+
   // HARD: ポンタのほかに探す「なかま」。モブと同じ種類の絵から選び、その種類はなかま1体だけにする
   // （同じ見た目のモブが他にいると、どれがなかまか分からなくなるため）
   const friends: Entity[] = [];
@@ -164,8 +182,8 @@ function generateOnce(stage: StageDef, seed: number, hard: boolean): Omit<SceneL
     if (!e) return null;
     mobs.push(e);
   }
-  assignMotions(ctx, seed, [ponta, ...decoys, ...friends, ...mobs], bonuses);
-  return { ponta, decoys, mobs, bonuses, friends };
+  assignMotions(ctx, seed, [ponta, ...decoys, ...friends, ...mobs], [...bonuses, ...treasures, ...junk]);
+  return { ponta, decoys, mobs, bonuses, friends, treasures, junk };
 }
 
 /** 動き（往復・買い物・追いかけっこ）の割り当て比率 */
@@ -177,7 +195,7 @@ const WALK_SPEED: [number, number] = [26, 40];
 const PAIR_SPEED: [number, number] = [58, 82];
 const MIN_AMP = 30;
 /** 動いたときの可視面積を調べる時刻の数 */
-const MOTION_SAMPLES = 160;
+const MOTION_SAMPLES = 800;
 const MOTION_SAMPLE_SPAN = 120;
 
 /** 端・歩行領域からはみ出さない最大の振幅（MIN_AMP 未満なら 0） */
@@ -272,8 +290,8 @@ function stabilizeMotions(
   for (const c of chars) if (c.move) cancelMotion(c, byId);
 }
 
-export function countPonta(l: Pick<SceneLayout, "ponta" | "decoys" | "mobs" | "bonuses" | "friends">): number {
-  const all = [l.ponta, ...l.decoys, ...l.mobs, ...l.bonuses, ...l.friends];
+export function countPonta(l: Pick<SceneLayout, "ponta" | "decoys" | "mobs" | "bonuses" | "friends" | "treasures" | "junk">): number {
+  const all = [l.ponta, ...l.decoys, ...l.mobs, ...l.bonuses, ...l.friends, ...l.treasures, ...l.junk];
   return all.filter((e) => e.kind === "ponta" || e.tex === "ponta").length;
 }
 
@@ -285,15 +303,15 @@ export function deriveSeed(seed: number, attempt: number): number {
  * ステージ定義とシードから全エンティティを配置する。
  * ポンタが厳密に1体でなければ別シードで再生成（最大5回）。
  */
-export function generateScene(stage: StageDef, seed: number, hard = false): SceneLayout {
+export function generateScene(stage: StageDef, seed: number, hard = false, extreme = false): SceneLayout {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const used = deriveSeed(seed, attempt);
-    const r = generateOnce(stage, used, hard);
+    const r = generateOnce(stage, used, hard, extreme);
     if (r && countPonta(r) === 1) return { ...r, usedSeed: used, attempt };
   }
   throw new Error(`generateScene failed: stage=${stage.id} seed=${seed}`);
 }
 
 export function allEntities(l: SceneLayout): Entity[] {
-  return [l.ponta, ...l.decoys, ...l.friends, ...l.mobs, ...l.bonuses];
+  return [l.ponta, ...l.decoys, ...l.friends, ...l.mobs, ...l.bonuses, ...l.treasures, ...l.junk];
 }

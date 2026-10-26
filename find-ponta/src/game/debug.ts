@@ -13,6 +13,8 @@ export interface GameApi {
   getMobWorldPositions: () => Array<WorldPoint & { tex: string }>;
   getBonusWorldPositions: () => Array<WorldPoint & { tex: string; found: boolean }>;
   getFriendWorldPositions: () => Array<WorldPoint & { tex: string; found: boolean }>;
+  getTreasureWorldPositions: () => Array<WorldPoint & { tex: string; found: boolean }>;
+  getJunkWorldPositions: () => Array<WorldPoint & { tex: string }>;
   tapWorld: (x: number, y: number) => string;
   setView: (zoom: number, worldX: number, worldY: number) => void;
   skipIntro: () => void;

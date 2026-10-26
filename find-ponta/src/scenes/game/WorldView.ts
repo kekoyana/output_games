@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { NIGHT_TINT } from "../../game/stages";
 import { allEntities } from "../../game/spawn";
 import { sampleMotion, stillSample } from "../../game/motion";
-import { BONUS_SIZE, entityHeight } from "../../game/geometry";
+import { BONUS_SIZE, entityHeight, isItem } from "../../game/geometry";
 import type { Entity, SceneLayout, StageDef } from "../../game/types";
 
 /** ワールド（背景+エンティティ+演出）の描画。ロジックは持たない。 */
@@ -26,8 +26,9 @@ export class WorldView {
 
   private createSprite(e: Entity): void {
     let img: Phaser.GameObjects.Image;
-    if (e.kind === "bonus") {
-      img = this.scene.add.image(e.x, e.y - BONUS_SIZE / 2, e.tex).setDisplaySize(BONUS_SIZE + 6, BONUS_SIZE + 6);
+    if (isItem(e)) {
+      const key = this.scene.textures.exists(e.tex) ? e.tex : "item_balloon";
+      img = this.scene.add.image(e.x, e.y - BONUS_SIZE / 2, key).setDisplaySize(BONUS_SIZE + 6, BONUS_SIZE + 6);
     } else {
       const h = entityHeight(e, this.stage);
       img = this.scene.add.image(e.x, e.y, e.tex).setOrigin(0.5, 1).setScale(h / 240);
@@ -83,13 +84,13 @@ export class WorldView {
     this.scene.tweens.add({ targets: s, y: e.y - 30, duration: 160, yoyo: true, ease: "Quad.easeOut" });
   }
 
-  /** クリア/失敗時: 動きを止める。ポンタは正面の絵に戻す（見つけた/ここだ、を分かりやすく）。 */
-  freeze(ponta: Entity): void {
+  /** クリア/失敗時: 動きを止める。注目するキャラ（最後に見つけたもの/ポンタ）は正面の絵に戻す。 */
+  freeze(focus: Entity): void {
     this.frozen = true;
-    const s = this.sprites.get(ponta.id);
+    const s = this.sprites.get(focus.id);
     if (!s) return;
     this.scene.tweens.killTweensOf(s);
-    s.setTexture(ponta.tex).setAngle(0).setScale(entityHeight(ponta, this.stage) / 240).setPosition(ponta.x, ponta.y);
+    s.setTexture(focus.tex).setAngle(0).setScale(entityHeight(focus, this.stage) / 240).setPosition(focus.x, focus.y);
     s.setFlipX(false);
   }
 
@@ -106,7 +107,9 @@ export class WorldView {
     const sy = img.scaleY;
     const common = { yoyo: true, repeat: -1, delay, duration: period };
 
-    if (e.kind === "bonus") {
+    // 宝物・ガラクタは動かさない（ボーナスだけふわふわ浮く）
+    if (isItem(e)) {
+      if (e.kind !== "bonus") return;
       this.scene.tweens.add({ targets: img, y: img.y - 5, ease: "Sine.easeInOut", ...common, duration: 900 });
       img.setAngle(-6);
       this.scene.tweens.add({ targets: img, angle: 6, ease: "Sine.easeInOut", ...common, duration: 1100 });

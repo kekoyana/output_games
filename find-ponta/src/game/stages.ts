@@ -14,7 +14,27 @@ export const WALK_POLYGONS: Record<BgKey, Point[]> = {
     { x: 0.3, y: 0.42 }, { x: 0.66, y: 0.42 },
     { x: 1.0, y: 0.98 }, { x: 0.0, y: 0.98 },
   ],
+  // 駅前: 駅舎の手前の石畳（上端 y≈0.46 から下）
+  bg_station: [
+    { x: 0.03, y: 0.47 }, { x: 0.97, y: 0.47 },
+    { x: 0.97, y: 0.97 }, { x: 0.03, y: 0.97 },
+  ],
+  // 遊園地: 観覧車・メリーゴーランドの手前の石畳と広場（上端 y≈0.5 から下）
+  bg_amusement: [
+    { x: 0.04, y: 0.5 }, { x: 0.96, y: 0.5 },
+    { x: 0.96, y: 0.97 }, { x: 0.04, y: 0.97 },
+  ],
 };
+
+/** EXTREME の宝物（小さなアイコン。毎回違う組み合わせ・位置で隠す） */
+export const TREASURE_KEYS = [
+  "treasure_chest", "treasure_crown", "treasure_gem", "treasure_coin", "treasure_key",
+] as const;
+
+/** EXTREME のガラクタ（宝物と見分けがつくよう、くすんだ普通の落とし物） */
+export const JUNK_KEYS = [
+  "junk_boot", "junk_can", "junk_umbrella", "junk_bottle", "junk_paper", "junk_box",
+] as const;
 
 const BASE_MOBS = [
   "mob_cat_orange", "mob_cat_black", "mob_rabbit", "mob_fox",
@@ -39,7 +59,7 @@ export const STAGES: StageDef[] = [
     mobCount: 60, mobTypes: BASE_MOBS,
     decoys: rep([["decoy_d", 2], ["decoy_e", 2]]),
     height: 96, timeLimit: 90, hints: 3, minVisible: 0.85, minGap: 70,
-    bonuses: [], decoyMinDist: 300, decoyNear: 0, hardFriends: 2,
+    bonuses: [], decoyMinDist: 300, decoyNear: 0, hardFriends: 2, treasures: 3, junk: 4,
   },
   {
     id: 2, name: { en: "Seaside Market", ja: "うみべのマーケット" },
@@ -47,7 +67,7 @@ export const STAGES: StageDef[] = [
     mobCount: 100, mobTypes: MOBS_11,
     decoys: rep([["decoy_a", 2], ["decoy_b", 2], ["decoy_d", 2], ["decoy_e", 2]]),
     height: 84, timeLimit: 105, hints: 2, minVisible: 0.8, minGap: 55,
-    bonuses: [], decoyMinDist: 300, decoyNear: 0, hardFriends: 3,
+    bonuses: [], decoyMinDist: 300, decoyNear: 0, hardFriends: 3, treasures: 4, junk: 6,
   },
   {
     id: 3, name: { en: "Festival Street", ja: "おまつりどおり" },
@@ -55,7 +75,7 @@ export const STAGES: StageDef[] = [
     mobCount: 150, mobTypes: MOBS_14,
     decoys: rep([["decoy_a", 3], ["decoy_b", 3], ["decoy_c", 2], ["decoy_d", 2], ["decoy_e", 2]]),
     height: 72, timeLimit: 120, hints: 2, minVisible: 0.75, minGap: 45,
-    bonuses: ["item_straw_hat"], decoyMinDist: 150, decoyNear: 3, hardFriends: 3,
+    bonuses: ["item_straw_hat"], decoyMinDist: 150, decoyNear: 3, hardFriends: 3, treasures: 4, junk: 8,
   },
   {
     id: 4, name: { en: "Moonlit Park", ja: "つきよの公園" },
@@ -63,7 +83,23 @@ export const STAGES: StageDef[] = [
     mobCount: 200, mobTypes: MOBS_14,
     decoys: rep([["decoy_a", 4], ["decoy_b", 4], ["decoy_c", 3], ["decoy_d", 3], ["decoy_e", 2]]),
     height: 64, timeLimit: 150, hints: 1, minVisible: 0.7, minGap: 38,
-    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 100, decoyNear: 4, hardFriends: 4,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 100, decoyNear: 4, hardFriends: 4, treasures: 5, junk: 10,
+  },
+  {
+    id: 5, name: { en: "Station Square", ja: "えきまえひろば" },
+    bg: "bg_station", night: false,
+    mobCount: 240, mobTypes: MOBS_14,
+    decoys: rep([["decoy_a", 4], ["decoy_b", 4], ["decoy_c", 4], ["decoy_d", 3], ["decoy_e", 3]]),
+    height: 58, timeLimit: 165, hints: 1, minVisible: 0.68, minGap: 34,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 90, decoyNear: 5, hardFriends: 4, treasures: 5, junk: 12,
+  },
+  {
+    id: 6, name: { en: "Twilight Amusement Park", ja: "ゆうやけの遊園地" },
+    bg: "bg_amusement", night: false,
+    mobCount: 280, mobTypes: MOBS_14,
+    decoys: rep([["decoy_a", 5], ["decoy_b", 5], ["decoy_c", 4], ["decoy_d", 3], ["decoy_e", 3]]),
+    height: 54, timeLimit: 180, hints: 1, minVisible: 0.66, minGap: 31,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 80, decoyNear: 6, hardFriends: 5, treasures: 5, junk: 14,
   },
 ];
 

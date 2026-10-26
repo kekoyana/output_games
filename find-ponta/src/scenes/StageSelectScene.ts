@@ -4,7 +4,7 @@ import { addGearButton } from "../ui/gear";
 import { bindLayout, bodyText, coverBackground, heading } from "../ui/common";
 import { pickLocalized, t, tr } from "../i18n";
 import { STAGES, NIGHT_TINT } from "../game/stages";
-import { getBest, isHardMode, isUnlocked, randomSeed, setHardMode, type GameStartData } from "../game/save";
+import { getBest, getDifficulty, isUnlocked, randomSeed, setDifficulty, type Difficulty, type GameStartData } from "../game/save";
 import type { StageDef } from "../game/types";
 import { playBgm } from "../core/bgm";
 
@@ -26,31 +26,34 @@ export class StageSelectScene extends Phaser.Scene {
     coverBackground(this, "bg_market", 0.7);
     heading(this, w / 2, 32, t("stageSelect"), land ? 34 : 28);
 
-    // NORMAL / HARD 切り替え（HARD はキャラが動き回る）
-    const hard = isHardMode();
-    const dw = 128;
-    for (const [isHard, label] of [[false, t("normalMode")], [true, t("hardMode")]] as const) {
+    // NORMAL / HARD / EXTREME 切り替え（HARD=キャラが動く+なかま、EXTREME=さらに宝物）
+    const diff = getDifficulty();
+    const dw = Math.min(128, (w - 40) / 3);
+    const modes: Array<[Difficulty, string, "gold" | "purple" | "primary"]> = [
+      ["normal", t("normalMode"), "gold"], ["hard", t("hardMode"), "purple"], ["extreme", t("extremeMode"), "primary"],
+    ];
+    modes.forEach(([d, label, selected], i) => {
       createButton({
-        scene: this, x: w / 2 + (isHard ? dw / 2 + 6 : -dw / 2 - 6), y: 72, width: dw, height: 34, label,
-        variant: hard === isHard ? (isHard ? "purple" : "gold") : "dark", fontSize: 16,
+        scene: this, x: w / 2 + (i - 1) * (dw + 6), y: 72, width: dw, height: 34, label,
+        variant: diff === d ? selected : "dark", fontSize: 16,
         onClick: () => {
-          if (isHardMode() === isHard) return;
-          setHardMode(isHard);
+          if (getDifficulty() === d) return;
+          setDifficulty(d);
           this.tweens.killAll();
           this.children.removeAll(true);
           this.layout();
         },
       });
-    }
-    if (hard) bodyText(this, w / 2, 96, t("hardNote"), 12, "#c8a6ff", 0.5);
+    });
+    if (diff !== "normal") bodyText(this, w / 2, 96, t(diff === "hard" ? "hardNote" : "extremeNote"), 12, "#c8a6ff", 0.5);
 
     const cols = land ? 2 : 1;
     const rows = Math.ceil(STAGES.length / cols);
-    const gap = 14;
+    const gap = rows > 4 ? 8 : 14;
     const top = 108;
     const bottomPad = 64;
     const availH = h - top - bottomPad;
-    const cardH = Math.max(112, Math.min(210, (availH - gap * (rows - 1)) / rows));
+    const cardH = Math.max(80, Math.min(210, (availH - gap * (rows - 1)) / rows));
     const cardW = Math.min(land ? 600 : 520, (w - 24 - gap * (cols - 1)) / cols);
     const gridW = cardW * cols + gap * (cols - 1);
     const x0 = (w - gridW) / 2;
@@ -89,12 +92,15 @@ export class StageSelectScene extends Phaser.Scene {
     const px = tx + ts + 14;
     const pw = x + cw - 10 - px;
     const compact = ch < 150;
-    bodyText(this, px, y + (compact ? 16 : 24), `${tr("Stage", "ステージ")} ${st.id}`, 12, "#c8a6ff", 0);
-    const name = this.add.text(px, y + (compact ? 36 : 44), pickLocalized(st.name), {
-      fontFamily: UI.serif, fontSize: "21px", color: "#ffd966", fontStyle: "bold",
+    const tiny = ch < 112;
+    bodyText(this, px, y + (tiny ? 12 : compact ? 16 : 24), `${tr("Stage", "ステージ")} ${st.id}`, 12, "#c8a6ff", 0);
+    const name = this.add.text(px, y + (tiny ? 31 : compact ? 36 : 44), pickLocalized(st.name), {
+      fontFamily: UI.serif, fontSize: tiny ? "18px" : "21px", color: "#ffd966", fontStyle: "bold",
       stroke: "#000000", strokeThickness: 3,
     }).setOrigin(0, 0.5);
-    if (name.width > pw) name.setFontSize(Math.floor(21 * (pw / name.width)));
+    // 名前が長いときは幅に収める（tiny は右にベストを置くので幅の半分まで）
+    const nameMax = tiny ? pw * 0.5 : pw;
+    if (name.width > nameMax) name.setFontSize(Math.floor(parseInt(String(name.style.fontSize), 10) * (nameMax / name.width)));
 
     if (!unlocked) {
       bodyText(this, px, y + ch / 2 + 6, `🔒 ${t("locked")}`, 18, "#ff9a9a", 0);
@@ -111,14 +117,23 @@ export class StageSelectScene extends Phaser.Scene {
       );
       bodyText(this, px, y + 64, info, 12, UI.textDim, 0);
     }
-    this.drawBest(px, y + (compact ? 58 : 92), getBest(st.id, isHardMode()));
+    if (tiny) this.drawBestTiny(px + pw, y + 31, getBest(st.id, getDifficulty()));
+    else this.drawBest(px, y + (compact ? 58 : 92), getBest(st.id, getDifficulty()));
 
     // 配置はプレイのたびにランダム
     createButton({
-      scene: this, x: px + pw / 2, y: y + ch - (compact ? 20 : 26), width: pw, height: compact ? 34 : 40, label: t("play"),
+      scene: this, x: px + pw / 2, y: y + ch - (tiny ? 16 : compact ? 20 : 26), width: pw, height: tiny ? 28 : compact ? 34 : 40, label: t("play"),
       variant: "gold", fontSize: 18,
-      onClick: () => this.go({ stage: st.id, seed: randomSeed(), hard: isHardMode() }),
+      onClick: () => this.go({ stage: st.id, seed: randomSeed(), difficulty: getDifficulty() }),
     });
+  }
+
+  /** 狭いカード用: ステージ名の行の右端にスター+スコアだけ置く */
+  private drawBestTiny(rx: number, y: number, rec: { score: number; stars: number } | null): void {
+    const stars = rec ? "★".repeat(rec.stars) + "☆".repeat(3 - rec.stars) : "☆☆☆";
+    this.add.text(rx, y, `${stars}  ${rec ? rec.score : "-"}`, {
+      fontFamily: "sans-serif", fontSize: "12px", color: rec ? "#ffd23f" : "#6a5f7c",
+    }).setOrigin(1, 0.5);
   }
 
   private drawBest(x: number, y: number, rec: { score: number; stars: number } | null): void {

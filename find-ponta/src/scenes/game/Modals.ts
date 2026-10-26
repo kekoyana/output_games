@@ -45,6 +45,8 @@ export interface IntroInfo {
   hints: number;
   /** HARD: ポンタといっしょに探すなかま（テクスチャキー） */
   friends: string[];
+  /** EXTREME: ガラクタ（ハズレ）の注意書きを出す */
+  junk?: boolean;
 }
 
 /** 手配書カードのイントロ。START で onStart。 */
@@ -53,7 +55,7 @@ export function showIntro(hud: Hud, stage: StageDef, info: IntroInfo, onStart: (
   dim(hud, 0.62);
   const hasFriends = info.friends.length > 0;
   const pw = Math.min(w - 24, 440);
-  const ph = Math.min(h - 24, hasFriends ? 610 : 520);
+  const ph = Math.min(h - 24, hasFriends ? 640 : 520);
   const cx = w / 2;
   const top = h / 2 - ph / 2;
   panel(hud, cx, h / 2, pw, ph, 0xfff3d6, 0x8a5a2a);
@@ -76,6 +78,10 @@ export function showIntro(hud: Hud, stage: StageDef, info: IntroInfo, onStart: (
     label(hud, cx, y, t("friendsIntro"), 14, "#1f7a3a", pw - 40);
     y += 14;
     y += friendRow(hud, cx, y, pw, info.friends, 44) + 10;
+  }
+  if (info.junk) {
+    label(hud, cx, y, t("junkWarn"), 13, "#b02a1a", pw - 40);
+    y += 22;
   }
   label(hud, cx, y, tr(
     `Time ${info.timeLimit}s / Hints ${info.hints}`, `制限時間 ${info.timeLimit}秒 / ヒント ${info.hints}回`,
@@ -111,6 +117,36 @@ export function showPoster(hud: Hud, friends: string[], onClose: () => void): vo
   }
   const bw = Math.min(200, pw - 60);
   // ボタンを先に登録し、その後ろに全画面の「どこでも閉じる」領域を置く
+  hud.addButton("close", cx, top + ph - 36, bw, 50, t("close"), 0xd4892a, onClose, () => true, true, 22);
+  hud.modalButtons.push({ id: "closeAny", x: 0, y: 0, w, h, fn: onClose, enabled: () => true });
+}
+
+/** HARD: いっしょにさがすなかまの拡大表示。どこをタップしても閉じる。 */
+export function showFriends(hud: Hud, friends: Array<{ tex: string; found: boolean }>, onClose: () => void): void {
+  const { w, h } = hud;
+  dim(hud, 0.7);
+  const pw = Math.min(w - 24, 520);
+  const ph = Math.min(h - 24, 600);
+  const cx = w / 2;
+  const top = h / 2 - ph / 2;
+  panel(hud, cx, h / 2, pw, ph, 0xfff3d6, 0x8a5a2a);
+  label(hud, cx, top + 34, t("friendsLabel"), 30, "#1f7a3a");
+  label(hud, cx, top + 66, t("friendsIntro"), 15, "#3a2410", pw - 40);
+  const per = friends.length <= 2 ? friends.length : 2;
+  const rows = Math.ceil(friends.length / per);
+  const areaH = ph - 100 - 90;
+  const size = Math.max(80, Math.min((pw - 40) / per - 10, areaH / rows - 10, 240));
+  friends.forEach((f, i) => {
+    const inRow = Math.min(per, friends.length - Math.floor(i / per) * per);
+    const px = cx + ((i % per) - (inRow - 1) / 2) * (size + 10);
+    const py = top + 90 + size / 2 + 8 + Math.floor(i / per) * (size + 10);
+    reg(hud, hud.scene.add.image(px, py, f.tex).setDisplaySize(size, size).setAlpha(f.found ? 0.4 : 1));
+    if (f.found) {
+      label(hud, px + size * 0.3, py + size * 0.3, "✓", Math.max(20, size * 0.2), "#ffffff")
+        .setBackgroundColor("#2fb457").setPadding(6, 0, 6, 0);
+    }
+  });
+  const bw = Math.min(200, pw - 60);
   hud.addButton("close", cx, top + ph - 36, bw, 50, t("close"), 0xd4892a, onClose, () => true, true, 22);
   hud.modalButtons.push({ id: "closeAny", x: 0, y: 0, w, h, fn: onClose, enabled: () => true });
 }

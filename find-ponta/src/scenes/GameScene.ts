@@ -4,10 +4,10 @@ import { generateScene } from "../game/spawn";
 import { entityCenter, hitDistance } from "../game/geometry";
 import { mulberry32, rngRange } from "../game/rng";
 import {
-  BONUS_SCORE, BONUS_TIME, FRIEND_TIME, HINT_DURATION, computeStars, hintRadius, missPenaltySeconds,
+  BONUS_SCORE, BONUS_TIME, FRIEND_TIME, TREASURE_TIME, HINT_DURATION, computeStars, hintRadius, missPenaltySeconds,
   scoreBreakdown, type MissKind,
 } from "../game/score";
-import { markCleared, randomSeed, submitBest, type GameStartData, type ResultData } from "../game/save";
+import { markCleared, randomSeed, submitBest, type Difficulty, type GameStartData, type ResultData } from "../game/save";
 import { registerGameApi } from "../game/debug";
 import type { Entity, SceneLayout, StageDef, TapResult } from "../game/types";
 import { t } from "../i18n";
@@ -20,7 +20,7 @@ import { openSettings } from "../ui/common";
 import { CameraRig } from "./game/CameraRig";
 import { GestureInput } from "./game/GestureInput";
 import { Hud } from "./game/Hud";
-import { showIntro, showPause, showPoster } from "./game/Modals";
+import { showFriends, showIntro, showPause, showPoster } from "./game/Modals";
 import { WorldView } from "./game/WorldView";
 import { createGameApi } from "./game/gameApi";
 
@@ -29,8 +29,11 @@ type KeyMap = Record<"w" | "a" | "s" | "d" | "up" | "down" | "left" | "right", P
 
 export class GameScene extends Phaser.Scene {
   stage!: StageDef;
-  /** HARD: キャラが動く + ポンタのほかになかまも探す */
+  difficulty: Difficulty = "normal";
+  /** HARD 以上: キャラが動く + ポンタのほかになかまも探す */
   hard = false;
+  /** EXTREME: さらに隠された宝物を全部探す */
+  extreme = false;
   /** 制限時間・ヒント回数（HARD はなかまの数だけ増える） */
   timeLimit = 0;
   hintMax = 0;
@@ -42,8 +45,8 @@ export class GameScene extends Phaser.Scene {
   hintsUsed = 0;
   score = 0;
   found = new Set<number>();
-  /** HARD: 見つけたなかまの id と、ポンタを見つけたか */
-  foundFriends = new Set<number>();
+  /** HARD 以上: 見つけたなかま・宝物の id と、ポンタを見つけたか */
+  foundExtras = new Set<number>();
   pontaFound = false;
   rig!: CameraRig;
   hud!: Hud;
@@ -63,19 +66,22 @@ export class GameScene extends Phaser.Scene {
   create(data: GameStartData): void {
     const d: GameStartData = data && data.stage ? data : { stage: 1, seed: randomSeed() };
     this.stage = STAGES[Math.max(0, Math.min(STAGES.length - 1, d.stage - 1))];
-    this.hard = d.hard === true;
+    this.difficulty = d.difficulty ?? "normal";
+    this.hard = this.difficulty !== "normal";
+    this.extreme = this.difficulty === "extreme";
     this.seed = d.seed;
-    this.layout = generateScene(this.stage, this.seed, this.hard);
+    this.layout = generateScene(this.stage, this.seed, this.hard, this.extreme);
     const nf = this.layout.friends.length;
-    this.timeLimit = this.stage.timeLimit + nf * FRIEND_TIME;
-    this.hintMax = this.stage.hints + (nf > 0 ? 1 : 0);
+    const nt = this.layout.treasures.length;
+    this.timeLimit = this.stage.timeLimit + nf * FRIEND_TIME + nt * TREASURE_TIME;
+    this.hintMax = this.stage.hints + (nf > 0 ? 1 : 0) + (nt > 0 ? 1 : 0);
     this.phase = "intro";
     this.timeLeft = this.timeLimit;
     this.misses = 0;
     this.hintsUsed = 0;
     this.score = 0;
     this.found = new Set<number>();
-    this.foundFriends = new Set<number>();
+    this.foundExtras = new Set<number>();
     this.pontaFound = false;
     this.hintLeft = 0;
     this.lastTickSec = -1;
@@ -85,12 +91,13 @@ export class GameScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.world = new WorldView(this, this.stage, this.layout, this.hard);
-    this.hud = new Hud(this, this.stage, this.layout.friends.map((f) => f.tex), {
+    this.hud = new Hud(this, this.stage, this.extras().map((f) => f.tex), {
       zoomIn: () => this.zoomBy(1.3),
       zoomOut: () => this.zoomBy(1 / 1.3),
       hint: () => this.useHint(),
       pause: () => this.pause(),
       poster: () => this.openPoster(),
+      friends: () => this.openFriends(),
     });
     this.hudCam = this.cameras.add(0, 0, w, h);
     this.cameras.main.ignore(this.hud.layer);
@@ -189,7 +196,17 @@ export class GameScene extends Phaser.Scene {
     if (this.phase !== "playing") return;
     this.phase = "paused";
     this.gestures.cancelAll();
-    this.showModal(() => showPoster(this.hud, this.layout.friends.map((f) => f.tex), () => this.resumePlay()));
+    this.showModal(() => showPoster(this.hud, this.extras().map((f) => f.tex), () => this.resumePlay()));
+  }
+
+  /** HARD: いっしょにさがすなかまの拡大表示（手配書と同じく時間を止める）。 */
+  private openFriends(): void {
+    if (this.phase !== "playing" || this.extras().length === 0) return;
+    this.phase = "paused";
+    this.gestures.cancelAll();
+    this.showModal(() => showFriends(
+      this.hud, this.extras().map((f) => ({ tex: f.tex, found: this.foundExtras.has(f.id) })), () => this.resumePlay(),
+    ));
   }
 
   private resumePlay(): void {
@@ -243,14 +260,14 @@ export class GameScene extends Phaser.Scene {
       this.collectBonus(bonus);
       return "bonus";
     }
-    const friend = best(L.friends.filter((e) => !this.foundFriends.has(e.id)));
-    if (friend) {
-      this.collectFriend(friend);
-      return "friend";
+    const extra = best(this.extras().filter((e) => !this.foundExtras.has(e.id)));
+    if (extra) {
+      this.collectExtra(extra);
+      return extra.kind === "treasure" ? "treasure" : "friend";
     }
     if (hitDistance(L.ponta, this.stage, wx, wy, radius, this.hard) <= 1 && !this.pontaFound) {
       this.pontaFound = true;
-      if (this.allFound()) this.clearStage();
+      if (this.allFound()) this.clearStage(L.ponta);
       else this.markFound(L.ponta, t("pontaFound"));
       return "ponta";
     }
@@ -259,8 +276,11 @@ export class GameScene extends Phaser.Scene {
     const dd = decoy ? hitDistance(decoy, this.stage, wx, wy, radius, this.hard) : 2;
     const md = mob ? hitDistance(mob, this.stage, wx, wy, radius, this.hard) : 2;
     // 見つけ済みのポンタ/なかまを押し直しても、ミスにはしない
-    const done = best([...L.friends.filter((e) => this.foundFriends.has(e.id)), ...(this.pontaFound ? [L.ponta] : [])]);
+    const done = best([...L.friends.filter((e) => this.foundExtras.has(e.id)), ...(this.pontaFound ? [L.ponta] : [])]);
     if (done && hitDistance(done, this.stage, wx, wy, radius, this.hard) <= Math.min(dd, md)) return "empty";
+    const junk = best(L.junk);
+    const jd = junk ? hitDistance(junk, this.stage, wx, wy, radius, this.hard) : 2;
+    if (junk && jd < Math.min(dd, md)) { this.miss("mob", wx, wy); return "junk"; }
     if (decoy && dd <= md) { this.miss("decoy", wx, wy); return "decoy"; }
     if (mob) { this.miss("mob", wx, wy); return "mob"; }
     this.miss("empty", wx, wy);
@@ -271,29 +291,46 @@ export class GameScene extends Phaser.Scene {
   remainingTargets(): Entity[] {
     return [
       ...(this.pontaFound ? [] : [this.layout.ponta]),
-      ...this.layout.friends.filter((e) => !this.foundFriends.has(e.id)),
+      ...this.extras().filter((e) => !this.foundExtras.has(e.id)),
     ];
   }
 
-  private allFound(): boolean {
-    return this.pontaFound && this.foundFriends.size >= this.layout.friends.length;
+  /** ポンタのほかに探すもの（HARD=なかま、EXTREME=なかま+宝物） */
+  private extras(): Entity[] {
+    return [...this.layout.friends, ...this.layout.treasures];
   }
 
-  private info(): { timeLimit: number; hints: number; friends: string[] } {
-    return { timeLimit: this.timeLimit, hints: this.hintMax, friends: this.layout.friends.map((f) => f.tex) };
+  private foundOf(list: Entity[]): number {
+    return list.filter((e) => this.foundExtras.has(e.id)).length;
+  }
+
+  private allFound(): boolean {
+    return this.pontaFound && this.foundExtras.size >= this.extras().length;
+  }
+
+  private info(): { timeLimit: number; hints: number; friends: string[]; junk: boolean } {
+    return {
+      timeLimit: this.timeLimit, hints: this.hintMax, friends: this.extras().map((f) => f.tex),
+      junk: this.layout.junk.length > 0,
+    };
   }
 
   /** 見つけた印をつけて止める（全部そろうまでの途中経過） */
   private markFound(e: Entity, text: string): void {
     this.world.markFound(e);
-    const left = this.remainingTargets().length;
-    this.hud.toast(`${text}  ${t("remaining")} ${left}`, "#9af0a8", this.hud.h * 0.34);
+    this.toastLeft(text);
+  }
+
+  private toastLeft(text: string): void {
+    this.hud.toast(`${text}  ${t("remaining")} ${this.remainingTargets().length}`, "#9af0a8", this.hud.h * 0.34);
     playBonusFound();
   }
 
-  private collectFriend(e: Entity): void {
-    this.foundFriends.add(e.id);
-    if (this.allFound()) this.clearStage();
+  private collectExtra(e: Entity): void {
+    this.foundExtras.add(e.id);
+    if (e.kind === "treasure") this.world.removeBonus(e);
+    if (this.allFound()) this.clearStage(e);
+    else if (e.kind === "treasure") this.toastLeft(t("treasureFound"));
     else this.markFound(e, t("friendFound"));
   }
 
@@ -321,36 +358,39 @@ export class GameScene extends Phaser.Scene {
   private buildResult(cleared: boolean): ResultData {
     const bonusTotal = this.layout.bonuses.length;
     const bd = scoreBreakdown({
-      timeLeft: cleared ? this.timeLeft : 0, bonus: this.found.size, friends: this.foundFriends.size,
+      timeLeft: cleared ? this.timeLeft : 0, bonus: this.found.size, friends: this.foundOf(this.layout.friends),
+      treasures: this.foundOf(this.layout.treasures),
       misses: this.misses, hints: this.hintsUsed,
     });
     const stars = cleared
       ? computeStars({ misses: this.misses, hints: this.hintsUsed, timeLeft: this.timeLeft, timeLimit: this.timeLimit })
       : 0;
     return {
-      stage: this.stage.id, seed: this.seed, hard: this.hard, cleared,
+      stage: this.stage.id, seed: this.seed, difficulty: this.difficulty, cleared,
       timeLeft: Math.max(0, this.timeLeft), misses: this.misses, hints: this.hintsUsed,
       bonusFound: this.found.size, bonusTotal,
-      friendFound: this.foundFriends.size, friendTotal: this.layout.friends.length,
+      friendFound: this.foundOf(this.layout.friends), friendTotal: this.layout.friends.length,
+      treasureFound: this.foundOf(this.layout.treasures), treasureTotal: this.layout.treasures.length,
       missedBonus: this.layout.bonuses.filter((b) => !this.found.has(b.id)).map((b) => b.tex),
       score: cleared ? bd.total : 0, stars, newBest: false, breakdown: bd,
     };
   }
 
-  private clearStage(): void {
+  /** last: 最後に見つけたキャラ（ポンタとは限らない）。ジャンプとカメラはそのキャラに向ける。 */
+  private clearStage(last: Entity): void {
     this.phase = "cleared";
-    this.world.freeze(this.layout.ponta);
+    this.world.freeze(last);
     this.world.clearHint();
     const res = this.buildResult(true);
     this.score = res.score;
     markCleared(this.stage.id);
-    res.newBest = submitBest(this.stage.id, { score: res.score, stars: res.stars }, this.hard);
+    res.newBest = submitBest(this.stage.id, { score: res.score, stars: res.stars }, this.difficulty);
     this.lastResult = res;
     playFoundFanfare();
-    this.world.jump(this.layout.ponta);
-    const pc = entityCenter(this.layout.ponta, this.stage);
+    this.world.jump(last);
+    const pc = entityCenter(last, this.stage);
     this.rig.moveTo(Math.max(this.rig.zoom, 1.3), pc.x, pc.y, 600);
-    this.hud.banner(t("found"), "#ffd966");
+    this.hud.banner(t(this.hard ? "allFound" : "found"), "#ffd966");
     this.hud.confetti();
     this.time.delayedCall(2600, () => this.toResult());
   }
@@ -407,7 +447,7 @@ export class GameScene extends Phaser.Scene {
       hintsLeft: this.hintMax - this.hintsUsed, bonusFound: this.found.size,
       bonusTotal: this.layout.bonuses.length,
       pontaFound: this.pontaFound,
-      friendsFound: this.layout.friends.map((f) => this.foundFriends.has(f.id)),
+      friendsFound: this.extras().map((f) => this.foundExtras.has(f.id)),
     });
   }
 

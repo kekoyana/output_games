@@ -233,6 +233,15 @@ async function run(browser, vp) {
   await wait(200);
   const h2 = await state();
   check(`[${tag}] HARD 見つけ済みを押し直してもミスにならない`, h2.misses === 0, `misses=${h2.misses}`);
+  // いっしょにさがす一覧をタップ → なかまの拡大表示（時間停止）→ 閉じる
+  await clickBtn(/^friends$/);
+  await wait(300);
+  const fz = await state();
+  check(`[${tag}] HARD なかまの一覧タップで拡大表示（一時停止）`, fz.phase === "paused", `phase=${fz.phase}`);
+  await shot("8-hard-friends-zoom");
+  await clickBtn(/^close$/);
+  await wait(300);
+  check(`[${tag}] HARD 拡大表示を閉じるとプレイ再開`, (await state()).phase === "playing");
   // なかまを1体ずつ
   for (let i = 0; i < fr.length; i++) {
     const cur = (await api("getFriendWorldPositions")).filter((f) => !f.found)[0];
@@ -246,17 +255,86 @@ async function run(browser, vp) {
       check(`[${tag}] HARD なかま${i + 1}発見（まだクリアしない）`, hs.friendFound === i + 1 && hs.phase === "playing" && hs.misses === 0, `found=${hs.friendFound} phase=${hs.phase} misses=${hs.misses}`);
     } else {
       check(`[${tag}] HARD 全員そろったらクリア`, hs.phase === "cleared" || hs.scene === "Result", `phase=${hs.phase} scene=${hs.scene}`);
+      // 最後に見つけたなかまに注目する（ポンタではない）
+      const dv = Math.hypot(hs.viewCenter.x - now.x, hs.viewCenter.y - now.y);
+      const dp = Math.hypot(hs.viewCenter.x - hp2.x, hs.viewCenter.y - hp2.y);
+      check(`[${tag}] HARD 最後に見つけたなかまへ寄る（ポンタ発見扱いにしない）`, hs.scene === "Result" || dv < dp, `toFriend=${dv.toFixed(0)} toPonta=${dp.toFixed(0)}`);
+      await shot("8-hard-clear-friend");
     }
   }
   await waitScene("Result", 10000);
   const hr = await state();
-  check(`[${tag}] HARD Result（なかま2/2・スコア）`, hr.cleared === true && hr.hard === true && hr.score > 0, `score=${hr.score}`);
+  check(`[${tag}] HARD Result（なかま2/2・スコア）`, hr.cleared === true && hr.difficulty === "hard" && hr.score > 0, `score=${hr.score}`);
   await shot("9-hard-result");
   const seedBefore = hr.seed;
   await clickBtn(/retry|RETRY|もういちど/i);
   await waitScene("Game");
   const hn = await state();
   check(`[${tag}] もういちど遊ぶと別の配置（シードが変わる）`, hn.seed !== seedBefore, `${seedBefore}→${hn.seed}`);
+
+  // --- EXTREME: HARD + 隠された宝物（宝物もぜんぶ見つけないとクリアしない）---
+  await page.evaluate(() => {
+    localStorage.setItem("find-ponta-hard", "0");
+    localStorage.setItem("find-ponta-extreme", "1");
+  });
+  await page.reload();
+  await waitScene("Title");
+  await clickBtn(/PLAY/);
+  await waitScene("StageSelect");
+  await shot("10-extreme-select");
+  await clickBtn(/^PLAY$/);
+  await waitScene("Game");
+  const e0 = await state();
+  check(`[${tag}] EXTREME S1 開始（extreme・なかま2・宝物3・ヒント+2）`, e0.difficulty === "extreme" && e0.friendTotal === 2 && e0.treasureTotal === 3 && e0.hintsLeft === 5, `diff=${e0.difficulty} friends=${e0.friendTotal} treasures=${e0.treasureTotal} hints=${e0.hintsLeft}`);
+  await shot("10-extreme-intro");
+  await clickBtn(/start|START|スタート|はじめ|GO|OK/i);
+  await wait(400);
+  await shot("10-extreme-play");
+  const tr0 = await api("getTreasureWorldPositions");
+  check(`[${tag}] EXTREME 宝物の種類が別々`, new Set(tr0.map((x) => x.tex)).size === tr0.length && tr0.length === 3, tr0.map((x) => x.tex).join(","));
+  // 宝物を全部（ポンタ・なかまより先に）見つける → まだクリアしない
+  for (let i = 0; i < tr0.length; i++) {
+    const cur = (await api("getTreasureWorldPositions")).filter((x) => !x.found)[0];
+    await api("setView", 2, cur.x, cur.y);
+    await wait(250);
+    const now = (await api("getTreasureWorldPositions")).find((x) => x.tex === cur.tex);
+    await tapWorldReal(now.x, now.y);
+    await wait(250);
+    const ts = await state();
+    check(`[${tag}] EXTREME 宝物${i + 1}発見（クリアしない・ミスなし）`, ts.treasureFound === i + 1 && ts.phase === "playing" && ts.misses === 0, `found=${ts.treasureFound} phase=${ts.phase} misses=${ts.misses}`);
+  }
+  await shot("10-extreme-treasures-found");
+  // ガラクタ（落ちているだけ）はハズレ
+  const jk = await api("getJunkWorldPositions");
+  check(`[${tag}] EXTREME ガラクタが散らばっている`, jk.length === e0.junkTotal && jk.length > 0 && jk.every((x) => x.tex.startsWith("junk_")), `junk=${jk.length}`);
+  const jt0 = (await state()).timeLeft;
+  await api("setView", 2, jk[0].x, jk[0].y);
+  await wait(250);
+  await tapWorldReal(jk[0].x, jk[0].y);
+  await wait(250);
+  const js = await state();
+  check(`[${tag}] EXTREME ガラクタをタップするとハズレ（時間減）`, js.misses === 1 && js.timeLeft < jt0 - 2, `misses=${js.misses} ${jt0.toFixed(1)}→${js.timeLeft.toFixed(1)}`);
+  const ep = await api("getPontaWorldPos");
+  await api("setView", 2, ep.x, ep.y);
+  await wait(250);
+  const ep2 = await api("getPontaWorldPos");
+  await tapWorldReal(ep2.x, ep2.y);
+  await wait(250);
+  for (let i = 0; i < 2; i++) {
+    const cur = (await api("getFriendWorldPositions")).filter((x) => !x.found)[0];
+    await api("setView", 2, cur.x, cur.y);
+    await wait(250);
+    const now = (await api("getFriendWorldPositions")).find((x) => x.tex === cur.tex);
+    await tapWorldReal(now.x, now.y);
+    await wait(250);
+  }
+  const ec = await state();
+  check(`[${tag}] EXTREME 全部そろったらクリア`, ec.phase === "cleared" || ec.scene === "Result", `phase=${ec.phase} scene=${ec.scene}`);
+  await waitScene("Result", 10000);
+  const er = await state();
+  check(`[${tag}] EXTREME Result（宝物3/3・スコア）`, er.cleared === true && er.difficulty === "extreme" && er.score > 0, `score=${er.score}`);
+  await shot("10-extreme-result");
+  await page.evaluate(() => { localStorage.setItem("find-ponta-extreme", "0"); });
 
   report.viewports.push({ ...vp, results, externalRequests: external });
   check(`[${tag}] 外部ドメインへのリクエストなし`, external.length === 0, external.slice(0, 3).join(","));
