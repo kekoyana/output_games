@@ -119,6 +119,7 @@ export class GameScene extends Phaser.Scene {
     this.setupKeys();
 
     this.hud.build();
+    this.rig.setInsets(this.hud.insets);
     this.showModal(() => showIntro(this.hud, this.stage, this.info(), () => this.startPlay()));
     playBgm(this.stage.night ? "night" : "day");
     this.cameras.main.fadeIn(250, 0, 0, 0);
@@ -171,6 +172,7 @@ export class GameScene extends Phaser.Scene {
     this.hudCam.setSize(w, h);
     this.rig.setViewport(w, h);
     this.hud.build();
+    this.rig.setInsets(this.hud.insets);
     if (this.modalFn) this.modalFn();
   }
 
@@ -308,10 +310,9 @@ export class GameScene extends Phaser.Scene {
     return this.pontaFound && this.foundExtras.size >= this.extras().length;
   }
 
-  private info(): { timeLimit: number; hints: number; friends: string[]; junk: boolean } {
+  private info(): { timeLimit: number; hints: number; friends: string[] } {
     return {
       timeLimit: this.timeLimit, hints: this.hintMax, friends: this.extras().map((f) => f.tex),
-      junk: this.layout.junk.length > 0,
     };
   }
 

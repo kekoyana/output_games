@@ -44,6 +44,8 @@ export class Hud {
   modalObjs: Phaser.GameObjects.GameObject[] = [];
   w = 0;
   h = 0;
+  /** HUD が画面の端から覆う幅(px)。カメラはこの分だけ世界の外へ寄れる */
+  insets = { left: 0, top: 0, right: 0, bottom: 0 };
   private timerText!: Phaser.GameObjects.Text;
   private missText!: Phaser.GameObjects.Text;
   private bonusText!: Phaser.GameObjects.Text;
@@ -99,8 +101,15 @@ export class Hud {
     }).setOrigin(1, 0.5));
 
     this.buildCard(8, barH + 8);
-    this.buildFriends(8, barH + 8 + 88 + 6);
+    const friendsBottom = this.buildFriends(8, barH + 8 + 88 + 6);
     this.buildButtons();
+    const panelW = Math.min(w * 0.58, 260);
+    this.insets = {
+      left: 8 + panelW + 8,
+      top: Math.max(barH + 8 + 88, friendsBottom) + 8,
+      right: 12 + BTN + 8,
+      bottom: 0,
+    };
     for (const o of this.btnObjs.get("hint") ?? []) (o as Phaser.GameObjects.Text).setAlpha(this.hintEnabled ? 1 : 0.4);
     if (this.lastInfo) this.update(this.lastInfo);
   }
@@ -129,11 +138,11 @@ export class Hud {
   }
 
   /** HARD: ポンタといっしょに探す「なかま」の一覧（見つけると✓） */
-  private buildFriends(x: number, y: number): void {
+  private buildFriends(x: number, y: number): number {
     this.friendIcons = [];
     this.friendChecks = [];
     const n = this.friends.length;
-    if (n === 0) return;
+    if (n === 0) return 0;
     const cell = 40;
     const pw = Math.min(this.w * 0.58, 260);
     const per = Math.max(1, Math.floor((pw - 12) / cell));
@@ -156,6 +165,7 @@ export class Hud {
         backgroundColor: "#2fb457", padding: { x: 3, y: 0 },
       }).setOrigin(0.5).setVisible(false)));
     });
+    return y + ph;
   }
 
   private buildButtons(): void {

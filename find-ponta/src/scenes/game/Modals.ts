@@ -45,8 +45,6 @@ export interface IntroInfo {
   hints: number;
   /** HARD: ポンタといっしょに探すなかま（テクスチャキー） */
   friends: string[];
-  /** EXTREME: ガラクタ（ハズレ）の注意書きを出す */
-  junk?: boolean;
 }
 
 /** 手配書カードのイントロ。START で onStart。 */
@@ -78,10 +76,6 @@ export function showIntro(hud: Hud, stage: StageDef, info: IntroInfo, onStart: (
     label(hud, cx, y, t("friendsIntro"), 14, "#1f7a3a", pw - 40);
     y += 14;
     y += friendRow(hud, cx, y, pw, info.friends, 44) + 10;
-  }
-  if (info.junk) {
-    label(hud, cx, y, t("junkWarn"), 13, "#b02a1a", pw - 40);
-    y += 22;
   }
   label(hud, cx, y, tr(
     `Time ${info.timeLimit}s / Hints ${info.hints}`, `制限時間 ${info.timeLimit}秒 / ヒント ${info.hints}回`,

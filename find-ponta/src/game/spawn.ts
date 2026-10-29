@@ -218,7 +218,9 @@ function fitAmp(ctx: Ctx, e: Entity, want: number): number {
 function assignMotions(ctx: Ctx, seed: number, chars: Entity[], bonuses: Entity[]): void {
   const rng = mulberry32((seed ^ 0x9e3779b9) >>> 0);
   const byId = (id: number): Entity | undefined => chars.find((c) => c.id === id);
-  const order = shuffle(rng, chars);
+  // ポンタは手配書(見本)どおりの正面立ちで固定。他のキャラだけがポーズ・動きを持つ
+  const movers = chars.filter((c) => c.kind !== "ponta");
+  const order = shuffle(rng, movers);
   const assigned = new Set<number>();
   const pairTarget = Math.round((chars.length * PAIR_RATIO) / 2);
   let pairs = 0;
@@ -226,7 +228,7 @@ function assignMotions(ctx: Ctx, seed: number, chars: Entity[], bonuses: Entity[
     if (pairs >= pairTarget) break;
     if (assigned.has(a.id)) continue;
     let b: Entity | null = null;
-    for (const c of chars) {
+    for (const c of movers) {
       if (c === a || assigned.has(c.id)) continue;
       const dx = Math.abs(c.hx - a.hx);
       if (Math.abs(c.y - a.y) > 30 || dx < 90 || dx > 220) continue;

@@ -12,6 +12,8 @@ export class CameraRig {
   zoom = 1;
   cx = WORLD_W / 2;
   cy = WORLD_H / 2;
+  /** HUD に隠れる端の幅(画面px)。この分だけ世界の外へ寄れて、端のキャラが HUD の下から出せる */
+  private pad = { left: 0, top: 0, right: 0, bottom: 0 };
   private vw: number;
   private vh: number;
   /** 慣性速度（世界座標 px / ms） */
@@ -35,6 +37,11 @@ export class CameraRig {
 
   get viewH(): number {
     return this.vh;
+  }
+
+  setInsets(pad: { left: number; top: number; right: number; bottom: number }): void {
+    this.pad = pad;
+    this.apply();
   }
 
   setViewport(w: number, h: number): void {
@@ -138,13 +145,13 @@ export class CameraRig {
     this.apply();
   }
 
-  /** ズーム・中心をクランプしてカメラへ反映（世界の外が映らないようにする） */
+  /** ズーム・中心をクランプしてカメラへ反映（世界の外は HUD の裏までしか映らない） */
   apply(): void {
     this.zoom = Phaser.Math.Clamp(this.zoom, this.minZoom, MAX_ZOOM);
     const hw = this.vw / (2 * this.zoom);
     const hh = this.vh / (2 * this.zoom);
-    const nx = Phaser.Math.Clamp(this.cx, hw, WORLD_W - hw);
-    const ny = Phaser.Math.Clamp(this.cy, hh, WORLD_H - hh);
+    const nx = Phaser.Math.Clamp(this.cx, hw - this.pad.left / this.zoom, WORLD_W - hw + this.pad.right / this.zoom);
+    const ny = Phaser.Math.Clamp(this.cy, hh - this.pad.top / this.zoom, WORLD_H - hh + this.pad.bottom / this.zoom);
     if (nx !== this.cx) this.vx = 0;
     if (ny !== this.cy) this.vy = 0;
     this.cx = nx;
