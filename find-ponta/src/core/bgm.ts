@@ -1,15 +1,20 @@
 import { getNumber, setNumber, getBool, setBool } from "./storage";
 import { getAudioContext } from "./sfx";
 
-// ファイル無しで動く WebAudio 合成 BGM（ゆったりしたループ 1 曲）。
-// トラック: "day"（通常）/ "night"（低め・ゆっくり。S4 用）
+// AI 生成の OGG（src/assets/bgm/）をループ再生する。読み込めないときは WebAudio 合成 BGM に切り替える。
+// トラック: "day"（通常）/ "night"（夜。S4 用）
 // 音量・ミュートは SFX とは独立して保存される。
+
+import dayUrl from "../assets/bgm/day.ogg";
+import nightUrl from "../assets/bgm/night.ogg";
 
 export type BgmTrack = "day" | "night";
 
 const VOLUME_KEY = "bgm-volume";
 const MUTED_KEY = "bgm-muted";
 const MASTER_SCALE = 0.55;
+const FILE_SCALE = 0.8;
+const FILE_URLS: Record<BgmTrack, string> = { day: dayUrl, night: nightUrl };
 
 let volume = getNumber(VOLUME_KEY, 0.3, 0, 1);
 let muted = getBool(MUTED_KEY, false);
@@ -20,6 +25,34 @@ let timer: number | null = null;
 let currentTrack: BgmTrack | null = null;
 let nextBeatTime = 0;
 let beatIndex = 0;
+const files: Partial<Record<BgmTrack, HTMLAudioElement>> = {};
+const fileFailed: Partial<Record<BgmTrack, boolean>> = {};
+let gestureHooked = false;
+
+function fileFor(track: BgmTrack): HTMLAudioElement | null {
+  if (fileFailed[track]) return null;
+  let el = files[track];
+  if (!el) {
+    el = new Audio(FILE_URLS[track]);
+    el.loop = true;
+    el.preload = "auto";
+    el.addEventListener("error", () => {
+      fileFailed[track] = true;
+      if (currentTrack === track) startSynth();
+    });
+    files[track] = el;
+  }
+  return el;
+}
+
+function hookGesture(): void {
+  if (gestureHooked || typeof window === "undefined") return;
+  gestureHooked = true;
+  const retry = (): void => {
+    if (currentTrack) playBgm(currentTrack);
+  };
+  for (const ev of ["pointerdown", "keydown", "touchend"]) window.addEventListener(ev, retry);
+}
 
 // 4 小節コード進行（C - Am - F - G）。値は半音オフセットのコード構成音（C4 基準）。
 const CHORDS: number[][] = [
@@ -38,6 +71,7 @@ function midiFreq(semi: number, base: number): number {
 
 function applyVolume(): void {
   if (gain) gain.gain.value = muted ? 0 : volume * MASTER_SCALE;
+  for (const el of Object.values(files)) el.volume = muted ? 0 : volume * FILE_SCALE;
 }
 
 function tone(
@@ -87,7 +121,7 @@ function tick(): void {
   }
 }
 
-export function playBgm(track: BgmTrack = "day"): void {
+function startSynth(): void {
   const c = getAudioContext();
   if (!c) return;
   if (!gain) {
@@ -95,18 +129,37 @@ export function playBgm(track: BgmTrack = "day"): void {
     gain.connect(c.destination);
     applyVolume();
   }
-  if (currentTrack !== track) {
-    currentTrack = track;
-    beatIndex = 0;
-    nextBeatTime = c.currentTime + 0.05;
-  }
   if (timer === null) timer = window.setInterval(tick, 120);
   if (c.state === "suspended") c.resume().catch(() => { /* ignore */ });
 }
 
-export function stopBgm(): void {
+function stopSynth(): void {
   if (timer !== null) window.clearInterval(timer);
   timer = null;
+}
+
+export function playBgm(track: BgmTrack = "day"): void {
+  hookGesture();
+  if (currentTrack !== track) {
+    currentTrack = track;
+    beatIndex = 0;
+    const c = getAudioContext();
+    if (c) nextBeatTime = c.currentTime + 0.05;
+    for (const [k, el] of Object.entries(files)) if (k !== track) el.pause();
+  }
+  const el = fileFor(track);
+  if (!el) {
+    startSynth();
+    return;
+  }
+  stopSynth();
+  el.volume = muted ? 0 : volume * FILE_SCALE;
+  if (el.paused) el.play().catch(() => { /* 操作前の自動再生ブロック。次の操作で再試行する */ });
+}
+
+export function stopBgm(): void {
+  stopSynth();
+  for (const el of Object.values(files)) el.pause();
 }
 
 export function startBgm(): void {
