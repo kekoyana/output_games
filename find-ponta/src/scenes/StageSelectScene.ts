@@ -4,17 +4,24 @@ import { addGearButton } from "../ui/gear";
 import { bindLayout, bodyText, coverBackground, heading } from "../ui/common";
 import { pickLocalized, t, tr } from "../i18n";
 import { STAGES, NIGHT_TINT } from "../game/stages";
-import { getBest, getDifficulty, isUnlocked, randomSeed, setDifficulty, type Difficulty, type GameStartData } from "../game/save";
+import { getBest, getDifficulty, isCleared, isUnlocked, randomSeed, setDifficulty, type Difficulty, type GameStartData } from "../game/save";
 import type { StageDef } from "../game/types";
 import { playBgm } from "../core/bgm";
 
+/** 縦画面は 1 ページ 6 ステージ（横画面は全ステージを 2 列で並べる） */
+const PORTRAIT_PAGE_SIZE = 6;
+
 export class StageSelectScene extends Phaser.Scene {
+  private page = 0;
+
   constructor() {
     super("StageSelect");
   }
 
   create(): void {
     playBgm("day");
+    const next = STAGES.find((st) => isUnlocked(st.id) && !isCleared(st.id)) ?? STAGES[STAGES.length - 1];
+    this.page = Math.floor((next.id - 1) / PORTRAIT_PAGE_SIZE);
     this.cameras.main.fadeIn(200, 0, 0, 0);
     bindLayout(this, () => this.layout());
   }
@@ -48,7 +55,11 @@ export class StageSelectScene extends Phaser.Scene {
     if (diff !== "normal") bodyText(this, w / 2, 96, t(diff === "hard" ? "hardNote" : "extremeNote"), 12, "#c8a6ff", 0.5);
 
     const cols = land ? 2 : 1;
-    const rows = Math.ceil(STAGES.length / cols);
+    const pageSize = land ? STAGES.length : PORTRAIT_PAGE_SIZE;
+    const pageCount = Math.ceil(STAGES.length / pageSize);
+    this.page = Math.min(this.page, pageCount - 1);
+    const shown = STAGES.slice(this.page * pageSize, (this.page + 1) * pageSize);
+    const rows = Math.ceil(shown.length / cols);
     const gap = rows > 4 ? 8 : 14;
     const top = 108;
     const bottomPad = 64;
@@ -58,7 +69,7 @@ export class StageSelectScene extends Phaser.Scene {
     const gridW = cardW * cols + gap * (cols - 1);
     const x0 = (w - gridW) / 2;
 
-    STAGES.forEach((st, i) => {
+    shown.forEach((st, i) => {
       const c = i % cols;
       const r = Math.floor(i / cols);
       this.drawCard(st, x0 + c * (cardW + gap), top + r * (cardH + gap), cardW, cardH);
@@ -68,6 +79,23 @@ export class StageSelectScene extends Phaser.Scene {
       scene: this, x: w / 2, y: h - 34, width: 160, height: 46, label: t("back"),
       variant: "dark", fontSize: 18, onClick: () => this.scene.start("Title"),
     });
+    if (pageCount > 1) {
+      const turn = (delta: number): void => {
+        this.page = (this.page + delta + pageCount) % pageCount;
+        this.tweens.killAll();
+        this.children.removeAll(true);
+        this.layout();
+      };
+      const pw = Math.min(100, (w - 160 - 40) / 2);
+      createButton({
+        scene: this, x: w / 2 - 80 - 8 - pw / 2, y: h - 34, width: pw, height: 46, label: `◀ ${this.page === 0 ? pageCount : this.page}`,
+        variant: "purple", fontSize: 20, onClick: () => turn(-1),
+      });
+      createButton({
+        scene: this, x: w / 2 + 80 + 8 + pw / 2, y: h - 34, width: pw, height: 46, label: `${(this.page + 2 > pageCount) ? 1 : this.page + 2} ▶`,
+        variant: "purple", fontSize: 20, onClick: () => turn(1),
+      });
+    }
     addGearButton(this);
   }
 

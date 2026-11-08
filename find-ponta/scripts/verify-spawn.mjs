@@ -33,6 +33,12 @@ const EXPECT = {
   4: { mobs: 200, decoys: 16, bonus: 2, vis: 0.7, dist: 100, near: 4, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
   5: { mobs: 240, decoys: 18, bonus: 2, vis: 0.68, dist: 90, near: 5, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
   6: { mobs: 280, decoys: 20, bonus: 2, vis: 0.66, dist: 80, near: 6, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  7: { mobs: 300, decoys: 21, bonus: 2, vis: 0.65, dist: 75, near: 6, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  8: { mobs: 320, decoys: 22, bonus: 2, vis: 0.64, dist: 70, near: 7, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  9: { mobs: 340, decoys: 24, bonus: 2, vis: 0.63, dist: 65, near: 7, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  10: { mobs: 360, decoys: 25, bonus: 2, vis: 0.62, dist: 60, near: 8, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  11: { mobs: 380, decoys: 27, bonus: 2, vis: 0.6, dist: 55, near: 9, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
+  12: { mobs: 400, decoys: 30, bonus: 2, vis: 0.58, dist: 50, near: 10, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e"] },
 };
 
 /** 独立実装: 1px 格子で手前の箱に隠されない点の割合を数える */
