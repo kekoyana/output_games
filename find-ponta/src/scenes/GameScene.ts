@@ -16,6 +16,7 @@ import {
   playTapWrongMob, playTimerTick,
 } from "../core/sfx";
 import { playBgm } from "../core/bgm";
+import { trackHintUse, trackStageClear, trackStageFail, trackStageStart } from "../core/analytics";
 import { openSettings } from "../ui/common";
 import { CameraRig } from "./game/CameraRig";
 import { GestureInput } from "./game/GestureInput";
@@ -180,6 +181,7 @@ export class GameScene extends Phaser.Scene {
     if (this.phase !== "intro") return;
     this.clearModal();
     this.phase = "playing";
+    trackStageStart(this.stage.id, this.difficulty);
   }
 
   private pause(): void {
@@ -235,6 +237,7 @@ export class GameScene extends Phaser.Scene {
     const cx = pc.x + Math.cos(ang) * off;
     const cy = pc.y + Math.sin(ang) * off;
     this.hintsUsed++;
+    trackHintUse(this.stage.id, this.difficulty, this.hintsUsed);
     this.hintLeft = HINT_DURATION;
     this.world.showHint(cx, cy, r);
     playHint();
@@ -387,6 +390,10 @@ export class GameScene extends Phaser.Scene {
     markCleared(this.stage.id);
     res.newBest = submitBest(this.stage.id, { score: res.score, stars: res.stars }, this.difficulty);
     this.lastResult = res;
+    trackStageClear({
+      stage: res.stage, difficulty: res.difficulty, score: res.score, stars: res.stars,
+      misses: res.misses, hints: res.hints, timeLeft: res.timeLeft,
+    });
     playFoundFanfare();
     this.world.jump(last);
     const pc = entityCenter(last, this.stage);
@@ -402,6 +409,7 @@ export class GameScene extends Phaser.Scene {
     this.world.freeze(this.layout.ponta);
     this.world.clearHint();
     this.lastResult = this.buildResult(false);
+    trackStageFail({ stage: this.stage.id, difficulty: this.difficulty, misses: this.misses, hints: this.hintsUsed });
     playFail();
     // 見つけられなかったもの（HARD ではなかまも）の位置を示す
     const left = this.remainingTargets();
