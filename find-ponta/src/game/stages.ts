@@ -29,11 +29,13 @@ export const WALK_POLYGONS: Record<BgKey, Point[]> = {
 /** EXTREME の宝物（小さなアイコン。毎回違う組み合わせ・位置で隠す） */
 export const TREASURE_KEYS = [
   "treasure_chest", "treasure_crown", "treasure_gem", "treasure_coin", "treasure_key",
+  "treasure_ring", "treasure_trophy", "treasure_pearl",
 ] as const;
 
 /** EXTREME のガラクタ（宝物と見分けがつくよう、くすんだ普通の落とし物） */
 export const JUNK_KEYS = [
   "junk_boot", "junk_can", "junk_umbrella", "junk_bottle", "junk_paper", "junk_box",
+  "junk_tire", "junk_sock", "junk_pot", "junk_bucket",
 ] as const;
 
 const BASE_MOBS = [
@@ -45,6 +47,8 @@ const MOBS_14 = [
   ...BASE_MOBS, "mob_boy", "mob_girl", "mob_granny", "mob_chef",
   "mob_tanuki_a", "mob_tanuki_b",
 ];
+
+const MOBS_18 = [...MOBS_14, "mob_panda", "mob_frog", "mob_sheep", "mob_owl"];
 
 function rep(list: Array<[DecoyKey, number]>): DecoyKey[] {
   const out: DecoyKey[] = [];
@@ -136,7 +140,7 @@ export const STAGES: StageDef[] = [
   {
     id: 11, name: { en: "Grand Park Fair", ja: "なかよし大市の公園" },
     bg: "bg_park", night: false,
-    mobCount: 380, mobTypes: MOBS_14,
+    mobCount: 380, mobTypes: MOBS_18,
     decoys: rep([["decoy_a", 6], ["decoy_b", 6], ["decoy_c", 6], ["decoy_d", 5], ["decoy_e", 4]]),
     height: 44, timeLimit: 230, hints: 1, minVisible: 0.6, minGap: 24,
     bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 55, decoyNear: 9, hardFriends: 6, treasures: 5, junk: 20,
@@ -144,10 +148,18 @@ export const STAGES: StageDef[] = [
   {
     id: 12, name: { en: "Ponta's Grand Finale", ja: "ポンタ大集合フィナーレ" },
     bg: "bg_festival", night: false,
-    mobCount: 400, mobTypes: MOBS_14,
+    mobCount: 400, mobTypes: MOBS_18,
     decoys: rep([["decoy_a", 7], ["decoy_b", 7], ["decoy_c", 6], ["decoy_d", 5], ["decoy_e", 5]]),
     height: 42, timeLimit: 240, hints: 1, minVisible: 0.58, minGap: 22,
     bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 50, decoyNear: 10, hardFriends: 7, treasures: 5, junk: 22,
+  },
+  {
+    id: 13, name: { en: "Ponta's Encore", ja: "ポンタのアンコール" },
+    bg: "bg_market", night: false,
+    mobCount: 420, mobTypes: MOBS_18,
+    decoys: rep([["decoy_a", 7], ["decoy_b", 7], ["decoy_c", 6], ["decoy_d", 5], ["decoy_e", 5], ["decoy_f", 3], ["decoy_g", 3]]),
+    height: 40, timeLimit: 250, hints: 1, minVisible: 0.56, minGap: 21,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 46, decoyNear: 11, hardFriends: 7, treasures: 5, junk: 24,
   },
 ];
 

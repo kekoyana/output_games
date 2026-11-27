@@ -5,10 +5,11 @@ export const BG_KEYS = ["bg_park", "bg_market", "bg_festival", "bg_station", "bg
 
 export const CHAR_KEYS = [
   "ponta",
-  "decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e",
+  "decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e", "decoy_f", "decoy_g",
   "mob_tanuki_a", "mob_tanuki_b", "mob_cat_orange", "mob_cat_black", "mob_rabbit",
   "mob_fox", "mob_bear", "mob_shiba", "mob_penguin", "mob_chick",
   "mob_boy", "mob_girl", "mob_granny", "mob_chef",
+  "mob_panda", "mob_frog", "mob_sheep", "mob_owl",
 ] as const;
 
 /** キャラごとのポーズ違い（side=横向き歩き, shop=買い物, flee=逃げる, chase=追いかける） */

@@ -54,7 +54,7 @@ export class StageSelectScene extends Phaser.Scene {
     });
     if (diff !== "normal") bodyText(this, w / 2, 96, t(diff === "hard" ? "hardNote" : "extremeNote"), 12, "#c8a6ff", 0.5);
 
-    const cols = land ? 2 : 1;
+    const cols = land ? (STAGES.length > 12 ? 3 : 2) : 1;
     const pageSize = land ? STAGES.length : PORTRAIT_PAGE_SIZE;
     const pageCount = Math.ceil(STAGES.length / pageSize);
     this.page = Math.min(this.page, pageCount - 1);
@@ -65,7 +65,7 @@ export class StageSelectScene extends Phaser.Scene {
     const bottomPad = 64;
     const availH = h - top - bottomPad;
     const cardH = Math.max(80, Math.min(210, (availH - gap * (rows - 1)) / rows));
-    const cardW = Math.min(land ? 600 : 520, (w - 24 - gap * (cols - 1)) / cols);
+    const cardW = Math.min(land ? (cols === 3 ? 420 : 600) : 520, (w - 24 - gap * (cols - 1)) / cols);
     const gridW = cardW * cols + gap * (cols - 1);
     const x0 = (w - gridW) / 2;
 

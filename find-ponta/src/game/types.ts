@@ -5,11 +5,13 @@ export const WORLD_H = 1536;
 
 export type EntityKind = "ponta" | "decoy" | "mob" | "bonus" | "friend" | "treasure" | "junk" | "junk";
 export type BgKey = "bg_park" | "bg_market" | "bg_festival" | "bg_station" | "bg_amusement";
-export type DecoyKey = "decoy_a" | "decoy_b" | "decoy_c" | "decoy_d" | "decoy_e";
+export type DecoyKey = "decoy_a" | "decoy_b" | "decoy_c" | "decoy_d" | "decoy_e" | "decoy_f" | "decoy_g";
 export type BonusKey = "item_straw_hat" | "item_balloon";
 export type TreasureKey =
-  | "treasure_chest" | "treasure_crown" | "treasure_gem" | "treasure_coin" | "treasure_key";
-export type JunkKey = "junk_boot" | "junk_can" | "junk_umbrella" | "junk_bottle" | "junk_paper" | "junk_box";
+  | "treasure_chest" | "treasure_crown" | "treasure_gem" | "treasure_coin" | "treasure_key"
+  | "treasure_ring" | "treasure_trophy" | "treasure_pearl";
+export type JunkKey = "junk_boot" | "junk_can" | "junk_umbrella" | "junk_bottle" | "junk_paper" | "junk_box"
+  | "junk_tire" | "junk_sock" | "junk_pot" | "junk_bucket";
 
 export interface Point {
   x: number;
