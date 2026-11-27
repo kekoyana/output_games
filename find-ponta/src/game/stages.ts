@@ -161,6 +161,30 @@ export const STAGES: StageDef[] = [
     height: 40, timeLimit: 250, hints: 1, minVisible: 0.56, minGap: 21,
     bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 46, decoyNear: 11, hardFriends: 7, treasures: 5, junk: 24,
   },
+  {
+    id: 14, name: { en: "Moonlit Grand Park", ja: "つきよの大公園" },
+    bg: "bg_park", night: true,
+    mobCount: 440, mobTypes: MOBS_18,
+    decoys: rep([["decoy_a", 7], ["decoy_b", 7], ["decoy_c", 6], ["decoy_d", 5], ["decoy_e", 5], ["decoy_f", 4], ["decoy_g", 4]]),
+    height: 38, timeLimit: 260, hints: 1, minVisible: 0.55, minGap: 20,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 43, decoyNear: 12, hardFriends: 7, treasures: 5, junk: 26,
+  },
+  {
+    id: 15, name: { en: "Station Rush Hour", ja: "えきまえラッシュアワー" },
+    bg: "bg_station", night: false,
+    mobCount: 460, mobTypes: MOBS_18,
+    decoys: rep([["decoy_a", 8], ["decoy_b", 7], ["decoy_c", 7], ["decoy_d", 5], ["decoy_e", 5], ["decoy_f", 4], ["decoy_g", 4]]),
+    height: 36, timeLimit: 270, hints: 1, minVisible: 0.54, minGap: 19,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 40, decoyNear: 12, hardFriends: 7, treasures: 5, junk: 28,
+  },
+  {
+    id: 16, name: { en: "Ponta's Starry Finale", ja: "ポンタのほしぞら大フィナーレ" },
+    bg: "bg_amusement", night: true,
+    mobCount: 480, mobTypes: MOBS_18,
+    decoys: rep([["decoy_a", 8], ["decoy_b", 8], ["decoy_c", 7], ["decoy_d", 6], ["decoy_e", 5], ["decoy_f", 5], ["decoy_g", 5]]),
+    height: 34, timeLimit: 280, hints: 1, minVisible: 0.52, minGap: 18,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 38, decoyNear: 13, hardFriends: 8, treasures: 5, junk: 30,
+  },
 ];
 
 export const NIGHT_TINT = 0x6677aa;
