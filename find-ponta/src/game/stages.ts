@@ -146,7 +146,7 @@ export const STAGES: StageDef[] = [
     bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 55, decoyNear: 9, hardFriends: 6, treasures: 5, junk: 20,
   },
   {
-    id: 12, name: { en: "Ponta's Grand Finale", ja: "ポンタ大集合フィナーレ" },
+    id: 12, name: { en: "Parade Square", ja: "パレードひろば" },
     bg: "bg_festival", night: false,
     mobCount: 400, mobTypes: MOBS_18,
     decoys: rep([["decoy_a", 7], ["decoy_b", 7], ["decoy_c", 6], ["decoy_d", 5], ["decoy_e", 5]]),
@@ -154,7 +154,7 @@ export const STAGES: StageDef[] = [
     bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 50, decoyNear: 10, hardFriends: 7, treasures: 5, junk: 22,
   },
   {
-    id: 13, name: { en: "Ponta's Encore", ja: "ポンタのアンコール" },
+    id: 13, name: { en: "Harbor Bazaar", ja: "みなとのバザール" },
     bg: "bg_market", night: false,
     mobCount: 420, mobTypes: MOBS_18,
     decoys: rep([["decoy_a", 7], ["decoy_b", 7], ["decoy_c", 6], ["decoy_d", 5], ["decoy_e", 5], ["decoy_f", 3], ["decoy_g", 3]]),
@@ -178,7 +178,7 @@ export const STAGES: StageDef[] = [
     bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 40, decoyNear: 12, hardFriends: 7, treasures: 5, junk: 28,
   },
   {
-    id: 16, name: { en: "Ponta's Starry Finale", ja: "ポンタのほしぞら大フィナーレ" },
+    id: 16, name: { en: "Fireworks Carnival", ja: "花火のカーニバル" },
     bg: "bg_amusement", night: true,
     mobCount: 480, mobTypes: MOBS_18,
     decoys: rep([["decoy_a", 8], ["decoy_b", 8], ["decoy_c", 7], ["decoy_d", 6], ["decoy_e", 5], ["decoy_f", 5], ["decoy_g", 5]]),
