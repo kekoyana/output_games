@@ -25,7 +25,9 @@ const M = await import("data:text/javascript;base64," + Buffer.from(code).toStri
 const { STAGES, WALK_POLYGONS, generateScene, allEntities, entityBox, entityCenter, entityHeight,
   pointInPolygon, applyMotions, WORLD_W, WORLD_H } = M;
 
-const SEEDS = 100;
+// 絞り込み: SEEDS=10 STAGE=13 npm run verify:spawn（省略時は全ステージ100シード）
+const SEEDS = Number(process.env.SEEDS ?? 100);
+const ONLY_STAGE = process.env.STAGE ? Number(process.env.STAGE) : null;
 const EXPECT = {
   1: { mobs: 60, decoys: 4, bonus: 0, vis: 0.85, dist: 300, near: 0, types: ["decoy_d", "decoy_e"] },
   2: { mobs: 100, decoys: 8, bonus: 0, vis: 0.8, dist: 300, near: 0, types: ["decoy_a", "decoy_b", "decoy_d", "decoy_e"] },
@@ -64,6 +66,7 @@ const POSES = ["side", "shop", "flee", "chase"];
 
 let totalFail = 0;
 for (const [level, hard, extreme] of [["NORMAL", false, false], ["HARD", true, false], ["EXTREME", true, true]]) for (const stage of STAGES) {
+  if (ONLY_STAGE && stage.id !== ONLY_STAGE) continue;
   const ex = EXPECT[stage.id];
   const nFriends = hard ? stage.hardFriends : 0;
   const nTreasures = extreme ? stage.treasures : 0;
