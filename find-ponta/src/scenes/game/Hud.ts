@@ -30,6 +30,7 @@ export interface HudActions {
   zoomOut: () => void;
   hint: () => void;
   pause: () => void;
+  settings: () => void;
   poster: () => void;
   friends: () => void;
 }
@@ -174,6 +175,7 @@ export class Hud {
     const y0 = h - 14 - BTN / 2;
     const step = BTN + 10;
     this.addButton("pause", x, y0, BTN, BTN, "II", 0x4a4a6a, this.actions.pause);
+    this.addButton("settings", x - step, y0, BTN, BTN, "⚙", 0x4a4a6a, this.actions.settings, () => true, false, 28);
     this.addButton("hint", x, y0 - step, BTN, BTN, "?", 0x6a4aa0, this.actions.hint, () => this.hintEnabled);
     this.hintBadge = this.add(this.scene.add.text(x + BTN / 2 - 4, y0 - step - BTN / 2 + 4, "", {
       fontFamily: UI.sans, fontSize: "13px", color: "#ffffff", fontStyle: "bold",

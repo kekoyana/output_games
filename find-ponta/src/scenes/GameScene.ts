@@ -41,6 +41,7 @@ export class GameScene extends Phaser.Scene {
   seed = 0;
   layout!: SceneLayout;
   phase: Phase = "intro";
+  private settingsDirect = false;
   timeLeft = 0;
   misses = 0;
   hintsUsed = 0;
@@ -97,6 +98,7 @@ export class GameScene extends Phaser.Scene {
       zoomOut: () => this.zoomBy(1 / 1.3),
       hint: () => this.useHint(),
       pause: () => this.pause(),
+      settings: () => this.openSettingsDirect(),
       poster: () => this.openPoster(),
       friends: () => this.openFriends(),
     });
@@ -129,6 +131,12 @@ export class GameScene extends Phaser.Scene {
     this.scale.on("resize", onResize);
     const onResume = (): void => {
       this.hud.build();
+      if (this.settingsDirect) {
+        // HUD の歯車から開いた設定を閉じたら、そのままゲームを再開する
+        this.settingsDirect = false;
+        this.resumePlay();
+        return;
+      }
       if (this.modalFn) this.modalFn();
     };
     this.events.on("resume", onResume);
@@ -182,6 +190,15 @@ export class GameScene extends Phaser.Scene {
     this.clearModal();
     this.phase = "playing";
     trackStageStart(this.stage.id, this.difficulty);
+  }
+
+  /** HUD の歯車ボタン: ポーズを経由せず設定を開く。閉じると自動で再開（時間は設定中止まる）。 */
+  private openSettingsDirect(): void {
+    if (this.phase !== "playing") return;
+    this.phase = "paused";
+    this.gestures.cancelAll();
+    this.settingsDirect = true;
+    openSettings(this, true);
   }
 
   private pause(): void {
