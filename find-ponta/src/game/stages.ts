@@ -185,6 +185,22 @@ export const STAGES: StageDef[] = [
     height: 34, timeLimit: 280, hints: 1, minVisible: 0.52, minGap: 18,
     bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 38, decoyNear: 13, hardFriends: 8, treasures: 5, junk: 30,
   },
+  {
+    id: 17, name: { en: "Lantern Harbor", ja: "ちょうちんの港" },
+    bg: "bg_market", night: true,
+    mobCount: 500, mobTypes: MOBS_18,
+    decoys: rep([["decoy_a", 8], ["decoy_b", 8], ["decoy_c", 8], ["decoy_d", 6], ["decoy_e", 6], ["decoy_f", 5], ["decoy_g", 5]]),
+    height: 33, timeLimit: 290, hints: 1, minVisible: 0.51, minGap: 17,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 36, decoyNear: 13, hardFriends: 8, treasures: 5, junk: 32,
+  },
+  {
+    id: 18, name: { en: "Blossom Picnic Park", ja: "はなびらのピクニック公園" },
+    bg: "bg_park", night: false,
+    mobCount: 520, mobTypes: MOBS_18,
+    decoys: rep([["decoy_a", 9], ["decoy_b", 8], ["decoy_c", 8], ["decoy_d", 6], ["decoy_e", 6], ["decoy_f", 5], ["decoy_g", 6]]),
+    height: 32, timeLimit: 300, hints: 1, minVisible: 0.5, minGap: 16,
+    bonuses: ["item_straw_hat", "item_balloon"], decoyMinDist: 34, decoyNear: 14, hardFriends: 8, treasures: 5, junk: 34,
+  },
 ];
 
 export const NIGHT_TINT = 0x6677aa;

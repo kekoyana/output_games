@@ -45,6 +45,8 @@ const EXPECT = {
   14: { mobs: 440, decoys: 38, bonus: 2, vis: 0.55, dist: 43, near: 12, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e", "decoy_f", "decoy_g"] },
   15: { mobs: 460, decoys: 40, bonus: 2, vis: 0.54, dist: 40, near: 12, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e", "decoy_f", "decoy_g"] },
   16: { mobs: 480, decoys: 44, bonus: 2, vis: 0.52, dist: 38, near: 13, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e", "decoy_f", "decoy_g"] },
+  17: { mobs: 500, decoys: 46, bonus: 2, vis: 0.51, dist: 36, near: 13, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e", "decoy_f", "decoy_g"] },
+  18: { mobs: 520, decoys: 48, bonus: 2, vis: 0.5, dist: 34, near: 14, types: ["decoy_a", "decoy_b", "decoy_c", "decoy_d", "decoy_e", "decoy_f", "decoy_g"] },
 };
 
 /** 独立実装: 1px 格子で手前の箱に隠されない点の割合を数える */
