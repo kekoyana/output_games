@@ -5,7 +5,7 @@ export const WORLD_H = 1536;
 
 export type EntityKind = "ponta" | "decoy" | "mob" | "bonus" | "friend" | "treasure" | "junk" | "junk";
 export type BgKey = "bg_park" | "bg_market" | "bg_festival" | "bg_station" | "bg_amusement";
-export type DecoyKey = "decoy_a" | "decoy_b" | "decoy_c" | "decoy_d" | "decoy_e" | "decoy_f" | "decoy_g";
+export type DecoyKey = "decoy_a" | "decoy_b" | "decoy_c" | "decoy_d" | "decoy_e" | "decoy_f";
 export type BonusKey = "item_straw_hat" | "item_balloon";
 export type TreasureKey =
   | "treasure_chest" | "treasure_crown" | "treasure_gem" | "treasure_coin" | "treasure_key"
